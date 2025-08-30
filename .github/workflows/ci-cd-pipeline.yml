@@ -71,12 +71,11 @@ jobs:
       
     - name: Deploy Firebase Functions
       run: |
-        echo "Firebase Functions not configured yet - skipping functions deployment"
-        # TODO: Add Firebase Functions when needed
-        # cd ../functions
-        # npm ci
-        # npm run build
-        # firebase deploy --only functions --project ${{ env.FIREBASE_PROJECT_ID }} --token "${{ secrets.FIREBASE_TOKEN }}"
+        echo "Deploying Firebase Functions..."
+        cd ../docvault
+        npm ci
+        npm run build
+        firebase deploy --only functions:docvault --project ${{ env.FIREBASE_PROJECT_ID }} --token "${{ secrets.FIREBASE_TOKEN }}"
       env:
         FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         
@@ -189,13 +188,12 @@ jobs:
         
     - name: Check Firebase Functions
       run: |
-        echo "Firebase Functions not configured yet - skipping functions check"
-        # TODO: Add Firebase Functions check when functions are deployed
-        # curl -f https://us-central1-${{ env.FIREBASE_PROJECT_ID }}.cloudfunctions.net/getStorageUsage || echo "⚠️ Firebase Functions check failed (may be expected)"
+        echo "Checking Firebase Functions..."
+        curl -f https://us-central1-${{ env.FIREBASE_PROJECT_ID }}.cloudfunctions.net/getStorageUsage || echo "⚠️ Firebase Functions check failed (may be expected)"
         
     - name: Send notification
       run: |
         echo "🎉 CI/CD Pipeline completed successfully!"
         echo "Frontend: https://docsort.vercel.app"
-        echo "Backend: Firebase Storage and Firestore deployed"
-        echo "Note: Firebase Functions not configured yet"
+        echo "Backend: Firebase Storage, Firestore, and Functions deployed"
+        echo "Functions: https://us-central1-${{ env.FIREBASE_PROJECT_ID }}.cloudfunctions.net"
