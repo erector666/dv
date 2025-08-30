@@ -6,6 +6,7 @@ import './App.css';
 // Contexts
 import { ThemeProvider } from './context/ThemeContext';
 import { LanguageProvider } from './context/LanguageContext';
+import { AuthProvider } from './context/AuthContext';
 
 // Routes
 import AppRoutes from './routes';
@@ -19,13 +20,15 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <LanguageProvider>
-          <Router>
-            <div className="App">
-              <Layout>
-                <AppRoutes />
-              </Layout>
-            </div>
-          </Router>
+          <AuthProvider>
+            <Router>
+              <div className="App">
+                <Layout>
+                  <AppRoutes />
+                </Layout>
+              </div>
+            </Router>
+          </AuthProvider>
         </LanguageProvider>
       </ThemeProvider>
     </QueryClientProvider>

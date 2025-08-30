@@ -74,8 +74,56 @@ Instead, it will copy all the configuration files and the transitive dependencie
 
 You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
 
-## Learn More
+## Installation
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/erector666/DocVault.git
+   cd DocVault/appvault
+   ```
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+2. Install dependencies:
+   ```bash
+   npm install
+   # or
+   yarn install
+   ```
+
+3. Set up environment variables:
+   - Copy `.env.example` to `.env`
+   - Fill in your Firebase configuration details
+
+4. Start the development server:
+   ```bash
+   npm start
+   # or
+   yarn start
+   ```
+
+## Firebase Setup
+
+1. Create a Firebase project at [Firebase Console](https://console.firebase.google.com/)
+2. Enable Authentication with Email/Password method
+3. Create Firestore database
+4. Set up Firebase Storage
+5. Add your Firebase configuration to `.env` file
+
+## Deployment
+
+This app can be deployed to Firebase Hosting:
+
+```bash
+npm run build
+npm install -g firebase-tools
+firebase login
+firebase init
+firebase deploy
+```
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
