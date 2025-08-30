@@ -1,6 +1,41 @@
-# Getting Started with Create React App
+# AppVault - AI-Powered Document Management
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+AppVault is an AI-powered document management web application built with React, TypeScript, and Firebase. It provides features for document upload, AI recognition, translation, document viewing, and management with multilingual support and theming.
+
+## Features
+
+- Document upload and management
+- AI-powered document recognition and classification
+- Document translation
+- Document viewing and organization
+- Category-based document management
+- Multilingual support (English, Macedonian, French)
+- Light/Dark theme support
+- Responsive design for mobile and desktop
+
+## Project Structure
+
+```
+src/
+├── assets/       # Images, icons, and other static assets
+├── components/   # Reusable UI components
+├── context/      # React context providers
+├── hooks/        # Custom React hooks
+├── pages/        # Page components
+├── routes/       # Application routing
+├── services/     # API and Firebase services
+├── types/        # TypeScript type definitions
+└── utils/        # Utility functions
+```
+
+## Technologies
+
+- React with TypeScript
+- Firebase (Authentication, Firestore, Storage)
+- React Router for navigation
+- React Query for data fetching
+- Tailwind CSS for styling
+- Framer Motion for animations
 
 ## Available Scripts
 
