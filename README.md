@@ -2,6 +2,8 @@
 
 AppVault is an AI-powered document management web application built with React, TypeScript, and Firebase. It provides features for document upload, AI recognition, translation, document viewing, and management with multilingual support and theming.
 
+🚀 **CI/CD Pipeline**: GitHub → Firebase → Vercel
+
 ## Features
 
 - Document upload and management
