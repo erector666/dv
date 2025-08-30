@@ -37,7 +37,7 @@ jobs:
       run: npx tsc --noEmit
       
     - name: Run tests (if available)
-      run: npm test --if-present
+      run: npm test --if-present --watchAll=false --passWithNoTests
       
     - name: Build application
       run: npm run build
