@@ -44,7 +44,7 @@ const Profile: React.FC = () => {
 
       await updateProfile(currentUser, {
         displayName,
-        photoURL: newPhotoURL,
+        photoURL: newPhotoURL || null,
       });
 
       setMessage('Profile updated successfully!');

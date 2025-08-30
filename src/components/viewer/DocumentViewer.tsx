@@ -31,7 +31,7 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({ documentId, onClose }) 
         setError(null);
 
         // Get document metadata from Firestore
-        const docRef = doc(db, 'documents', documentId);
+        const docRef = doc(db, `documents/${documentId}`);
         const docSnap = await getDoc(docRef);
 
         if (!docSnap.exists()) {

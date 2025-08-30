@@ -1,10 +1,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
-import { useQuery } from 'react-query';
-import { getFunctions, httpsCallable } from 'firebase/functions';
 import { useAuth } from '../../context/AuthContext';
-import { app as firebaseApp } from '../../services/firebase';
 
 interface SidebarProps {
   isMobile?: boolean;
@@ -24,28 +21,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile = false, onClose }) => {
   const { translate } = useLanguage();
   const { currentUser } = useAuth();
 
-  const { data: storageData, isLoading, error } = useQuery('storageUsage', async () => {
-    if (!currentUser) return null;
-
-    const token = await currentUser.getIdToken();
-    const response = await fetch('https://us-central1-gpt1-77ce0.cloudfunctions.net/getStorageUsage', {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-        }
-    });
-
-    if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to fetch storage usage: ${errorText}`);
-    }
-
-    const result = await response.json();
-    return result.data as { totalSize: number };
-  }, {
-    enabled: !!currentUser, // Only run if the user is logged in
-  });
+  // Temporarily disable storage usage until Firebase function is properly deployed
+  const storageData = { totalSize: 0 };
+  const isLoading = false;
+  const error = null;
 
   const totalStorage = 10 * 1024 * 1024 * 1024; // 10 GB in bytes
   const usedStorage = storageData?.totalSize ?? 0;
@@ -210,8 +189,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile = false, onClose }) => {
             </span>
           </div>
           <div>
-            {isLoading && <p className="text-xs text-gray-500 dark:text-gray-400">Loading storage...</p>}
-            {error instanceof Error && <p className="text-xs text-red-500">Error: {error.message}</p>}
             {storageData && (
               <>
                 <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mb-1">

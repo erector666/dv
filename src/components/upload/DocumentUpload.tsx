@@ -100,14 +100,14 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
 
         uploadTask.on(
           'state_changed',
-          (snapshot) => {
+          (snapshot: any) => {
             const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
             setUploadProgress(prev => ({
               ...prev,
               [file.name]: progress
             }));
           },
-          (error) => {
+          (error: any) => {
             console.error('Upload error:', error);
             setUploadError(translate('upload.error.uploadFailed'));
             setIsUploading(false);

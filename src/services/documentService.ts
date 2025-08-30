@@ -9,16 +9,15 @@ import {
   query, 
   where, 
   orderBy,
+  limit,
   serverTimestamp,
-  Timestamp,
-  DocumentReference
+  Timestamp
 } from 'firebase/firestore';
 import { 
   ref, 
   uploadBytesResumable, 
   getDownloadURL, 
-  deleteObject,
-  UploadTaskSnapshot
+  deleteObject
 } from 'firebase/storage';
 import { db, storage } from './firebase';
 
@@ -32,14 +31,14 @@ export interface Document {
   userId: string;
   category?: string;
   tags?: string[];
-  uploadedAt: Timestamp;
-  lastModified?: Timestamp;
+  uploadedAt: any;
+  lastModified?: any;
   metadata?: Record<string, any>;
 }
 
 export interface DocumentUploadProgress {
   progress: number;
-  snapshot: UploadTaskSnapshot;
+  snapshot: any;
 }
 
 /**
@@ -89,8 +88,8 @@ export const uploadDocument = async (
               url: downloadURL,
               path: uploadTask.snapshot.ref.fullPath,
               userId,
-              uploadedAt: serverTimestamp() as Timestamp,
-              lastModified: serverTimestamp() as Timestamp,
+              uploadedAt: serverTimestamp(),
+              lastModified: serverTimestamp(),
               ...(category && { category }),
               ...(tags && { tags }),
               ...(metadata && { metadata })
@@ -121,7 +120,7 @@ export const uploadDocument = async (
  */
 export const getDocument = async (documentId: string): Promise<Document | null> => {
   try {
-    const docRef = doc(db, 'documents', documentId);
+    const docRef = doc(db, `documents/${documentId}`);
     const docSnap = await getDoc(docRef);
     
     if (docSnap.exists()) {
@@ -188,7 +187,7 @@ export const updateDocument = async (
   updates: Partial<Document>
 ): Promise<void> => {
   try {
-    const docRef = doc(db, 'documents', documentId);
+    const docRef = doc(db, `documents/${documentId}`);
     
     // Add last modified timestamp
     const updatedData = {
@@ -209,7 +208,7 @@ export const updateDocument = async (
 export const deleteDocument = async (documentId: string): Promise<void> => {
   try {
     // Get document data to get the storage path
-    const docRef = doc(db, 'documents', documentId);
+    const docRef = doc(db, `documents/${documentId}`);
     const docSnap = await getDoc(docRef);
     
     if (!docSnap.exists()) {

@@ -1,4 +1,4 @@
-import { httpsCallable, HttpsCallable } from 'firebase/functions';
+import { httpsCallable } from 'firebase/functions';
 import { functions } from './firebase';
 import { Document } from './documentService';
 
@@ -23,7 +23,7 @@ export const classifyDocument = async (
 ): Promise<ClassificationResult> => {
   try {
     // Call the Firebase Cloud Function
-    const classifyDocumentFunction: HttpsCallable = httpsCallable(
+    const classifyDocumentFunction = httpsCallable(
       functions,
       'classifyDocument'
     );
@@ -53,7 +53,7 @@ export const extractTextFromDocument = async (
 ): Promise<string> => {
   try {
     // Call the Firebase Cloud Function
-    const extractTextFunction: HttpsCallable = httpsCallable(
+    const extractTextFunction = httpsCallable(
       functions,
       'extractText'
     );
@@ -79,7 +79,7 @@ export const detectLanguage = async (
 ): Promise<string> => {
   try {
     // Call the Firebase Cloud Function
-    const detectLanguageFunction: HttpsCallable = httpsCallable(
+    const detectLanguageFunction = httpsCallable(
       functions,
       'detectLanguage'
     );
@@ -106,7 +106,7 @@ export const generateDocumentSummary = async (
 ): Promise<string> => {
   try {
     // Call the Firebase Cloud Function
-    const summarizeDocumentFunction: HttpsCallable = httpsCallable(
+    const summarizeDocumentFunction = httpsCallable(
       functions,
       'summarizeDocument'
     );

@@ -1,4 +1,4 @@
-import { httpsCallable, HttpsCallable } from 'firebase/functions';
+import { httpsCallable } from 'firebase/functions';
 import { functions } from './firebase';
 import { Document, updateDocument } from './documentService';
 
@@ -29,7 +29,7 @@ export const translateDocument = async (
 ): Promise<TranslationResult> => {
   try {
     // Call the Firebase Cloud Function
-    const translateDocumentFunction: HttpsCallable = httpsCallable(
+    const translateDocumentFunction = httpsCallable(
       functions,
       'translateDocument'
     );
@@ -55,7 +55,7 @@ export const translateDocument = async (
 export const getSupportedLanguages = async (): Promise<SupportedLanguage[]> => {
   try {
     // Call the Firebase Cloud Function
-    const getSupportedLanguagesFunction: HttpsCallable = httpsCallable(
+    const getSupportedLanguagesFunction = httpsCallable(
       functions,
       'getSupportedLanguages'
     );

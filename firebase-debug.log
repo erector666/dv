@@ -1,37 +1,24 @@
-[debug] [2025-08-30T18:26:28.300Z] ----------------------------------------------------------------------
-[debug] [2025-08-30T18:26:28.302Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\Anubis\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js init functions
-[debug] [2025-08-30T18:26:28.303Z] CLI Version:   14.14.0
-[debug] [2025-08-30T18:26:28.303Z] Platform:      win32
-[debug] [2025-08-30T18:26:28.303Z] Node Version:  v22.17.0
-[debug] [2025-08-30T18:26:28.303Z] Time:          Sat Aug 30 2025 20:26:28 GMT+0200 (Central European Summer Time)
-[debug] [2025-08-30T18:26:28.303Z] ----------------------------------------------------------------------
+[debug] [2025-08-30T21:09:16.435Z] ----------------------------------------------------------------------
+[debug] [2025-08-30T21:09:16.438Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\Anubis\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js emulators:start --only functions
+[debug] [2025-08-30T21:09:16.438Z] CLI Version:   14.14.0
+[debug] [2025-08-30T21:09:16.438Z] Platform:      win32
+[debug] [2025-08-30T21:09:16.438Z] Node Version:  v22.19.0
+[debug] [2025-08-30T21:09:16.438Z] Time:          Sat Aug 30 2025 23:09:16 GMT+0200 (Central European Summer Time)
+[debug] [2025-08-30T21:09:16.439Z] ----------------------------------------------------------------------
 [debug] 
-[debug] [2025-08-30T18:26:28.306Z] >>> [apiv2][query] GET https://firebase-public.firebaseio.com/cli.json [none]
-[debug] [2025-08-30T18:26:28.352Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
-[debug] [2025-08-30T18:26:28.352Z] > authorizing via signed-in user (kango666@gmail.com)
-[info] 
-     ######## #### ########  ######## ########     ###     ######  ########
-     ##        ##  ##     ## ##       ##     ##  ##   ##  ##       ##
-     ######    ##  ########  ######   ########  #########  ######  ######
-     ##        ##  ##    ##  ##       ##     ## ##     ##       ## ##
-     ##       #### ##     ## ######## ########  ##     ##  ######  ########
-
-You're about to initialize a Firebase project in this directory:
-
-  D:\Projects\DocVault\appvault
-
-[debug] [2025-08-30T18:26:28.642Z] <<< [apiv2][status] GET https://firebase-public.firebaseio.com/cli.json 200
-[debug] [2025-08-30T18:26:28.642Z] <<< [apiv2][body] GET https://firebase-public.firebaseio.com/cli.json {"cloudBuildErrorAfter":1594252800000,"cloudBuildWarnAfter":1590019200000,"defaultNode10After":1594252800000,"minVersion":"3.0.5","node8DeploysDisabledAfter":1613390400000,"node8RuntimeDisabledAfter":1615809600000,"node8WarnAfter":1600128000000}
-[debug] [2025-08-30T18:26:32.647Z] ExitPromptError: User force closed the prompt with SIGINT
-    at Interface.sigint (C:\Users\Anubis\AppData\Roaming\npm\node_modules\firebase-tools\node_modules\@inquirer\core\dist\commonjs\lib\create-prompt.js:101:37)
-    at Interface.emit (node:events:518:28)
-    at Interface.emit (node:domain:489:12)
-    at [_ttyWrite] [as _ttyWrite] (node:internal/readline/interface:1132:18)
-    at ReadStream.onkeypress (node:internal/readline/interface:271:20)
-    at ReadStream.emit (node:events:530:35)
-    at ReadStream.emit (node:domain:489:12)
-    at emitKeys (node:internal/readline/utils:370:14)
-    at emitKeys.next (<anonymous>)
-    at ReadStream.onData (node:internal/readline/emitKeypressEvents:64:36)
-[error] 
-[error] Error: An unexpected error has occurred.
+[debug] [2025-08-30T21:09:16.719Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-08-30T21:09:16.719Z] > authorizing via signed-in user (kango666@gmail.com)
+[info] i  emulators: Starting emulators: functions {"metadata":{"emulator":{"name":"hub"},"message":"Starting emulators: functions"}}
+[debug] [2025-08-30T21:09:16.729Z] [logging] Logging Emulator only supports listening on one address (127.0.0.1). Not listening on ::1
+[debug] [2025-08-30T21:09:16.729Z] assigned listening specs for emulators {"user":{"hub":[{"address":"127.0.0.1","family":"IPv4","port":4400},{"address":"::1","family":"IPv6","port":4400}],"ui":[{"address":"127.0.0.1","family":"IPv4","port":4000},{"address":"::1","family":"IPv6","port":4000}],"logging":[{"address":"127.0.0.1","family":"IPv4","port":4500}]},"metadata":{"message":"assigned listening specs for emulators"}}
+[debug] [2025-08-30T21:09:16.735Z] [hub] writing locator at C:\Users\Anubis\AppData\Local\Temp\hub-gpt1-77ce0.json
+[debug] [2025-08-30T21:09:16.753Z] [functions] Functions Emulator only supports listening on one address (127.0.0.1). Not listening on ::1
+[debug] [2025-08-30T21:09:16.754Z] [eventarc] Eventarc Emulator only supports listening on one address (127.0.0.1). Not listening on ::1
+[debug] [2025-08-30T21:09:16.754Z] [tasks] Cloud Tasks Emulator only supports listening on one address (127.0.0.1). Not listening on ::1
+[debug] [2025-08-30T21:09:16.754Z] late-assigned ports for functions and eventarc emulators {"user":{"hub":[{"address":"127.0.0.1","family":"IPv4","port":4400},{"address":"::1","family":"IPv6","port":4400}],"ui":[{"address":"127.0.0.1","family":"IPv4","port":4000},{"address":"::1","family":"IPv6","port":4000}],"logging":[{"address":"127.0.0.1","family":"IPv4","port":4500}],"functions":[{"address":"127.0.0.1","family":"IPv4","port":5001}],"eventarc":[{"address":"127.0.0.1","family":"IPv4","port":9299}],"tasks":[{"address":"127.0.0.1","family":"IPv4","port":9499}]},"metadata":{"message":"late-assigned ports for functions and eventarc emulators"}}
+[warn] !  functions: The following emulators are not running, calls to these services from the Functions emulator will affect production: apphosting, auth, firestore, database, hosting, pubsub, storage, dataconnect {"metadata":{"emulator":{"name":"functions"},"message":"The following emulators are not running, calls to these services from the Functions emulator will affect production: \u001b[1mapphosting, auth, firestore, database, hosting, pubsub, storage, dataconnect\u001b[22m"}}
+[debug] [2025-08-30T21:09:16.786Z] defaultcredentials: writing to file C:\Users\Anubis\AppData\Roaming\firebase\kango666_gmail_com_application_default_credentials.json
+[debug] [2025-08-30T21:09:16.787Z] Setting GAC to C:\Users\Anubis\AppData\Roaming\firebase\kango666_gmail_com_application_default_credentials.json {"metadata":{"emulator":{"name":"functions"},"message":"Setting GAC to C:\\Users\\Anubis\\AppData\\Roaming\\firebase\\kango666_gmail_com_application_default_credentials.json"}}
+[debug] [2025-08-30T21:09:16.788Z] Checked if tokens are valid: true, expires at: 1756589092884
+[debug] [2025-08-30T21:09:16.788Z] Checked if tokens are valid: true, expires at: 1756589092884
+[debug] [2025-08-30T21:09:16.789Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/gpt1-77ce0/adminSdkConfig [none]
