@@ -10,6 +10,13 @@ import { TextEncoder, TextDecoder } from 'util';
 global.TextEncoder = TextEncoder;
 global.TextDecoder = TextDecoder as any;
 
+// Polyfill for Web Streams (required for Firebase fetch in Node.js test environment)
+import { ReadableStream, WritableStream, TransformStream } from 'web-streams-polyfill/ponyfill';
+
+global.ReadableStream = ReadableStream;
+global.WritableStream = WritableStream;
+global.TransformStream = TransformStream;
+
 // Mock window.matchMedia for responsive design tests
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
