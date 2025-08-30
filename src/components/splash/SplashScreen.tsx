@@ -33,7 +33,9 @@ const SplashScreen: React.FC = () => {
         <div className="mb-4">
           <img src="/logo2.png" alt="DocVault Logo" className="h-40 w-40 animate-pulse rounded-full" />
         </div>
-        <p className="text-white text-2xl font-semibold opacity-90 animate-pulse">loading DocVault...</p>
+        <p className="text-white text-2xl font-semibold opacity-90 animate-pulse">
+          {translate('loading') || 'loading DocVault...'}
+        </p>
       </div>
     </div>
   );

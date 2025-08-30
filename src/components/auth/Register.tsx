@@ -59,6 +59,10 @@ const Register: React.FC = () => {
       setLoading(true);
       await signUp(email, password, displayName);
       setMessage('Registration successful! Please check your email to verify your account.');
+      // Navigate to login page after successful registration
+      setTimeout(() => {
+        navigate('/login');
+      }, 2000); // Wait 2 seconds for user to read the message
     } catch (err: any) {
       console.error('Registration error:', err);
       if (err.code === 'auth/email-already-in-use') {

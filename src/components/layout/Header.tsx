@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useTheme } from '../../context/ThemeContext';
 import { useLanguage, LanguageType } from '../../context/LanguageContext';
 import { useUploadModal } from '../../context/UploadModalContext';
 import { useAuth } from '../../context/AuthContext';
@@ -11,7 +10,6 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
-  const { theme, toggleTheme } = useTheme();
   const { language, setLanguage, translate } = useLanguage();
   const { openModal } = useUploadModal();
   const { logOut, currentUser } = useAuth();

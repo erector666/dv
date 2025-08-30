@@ -80,6 +80,9 @@ const CACHE_DURATION = 30000; // 30 seconds
 export const getStorageUsage = async (userId: string): Promise<StorageUsage> => {
   console.log('getStorageUsage called with userId:', userId);
   
+  // TEMPORARY: Clear cache to force fresh data fetch
+  clearStorageCache(userId);
+  
   const now = Date.now();
   const cached = storageCache[userId];
   
@@ -109,7 +112,9 @@ export const getStorageUsage = async (userId: string): Promise<StorageUsage> => 
 export const clearStorageCache = (userId?: string) => {
   if (userId) {
     delete storageCache[userId];
+    console.log('Cleared storage cache for user:', userId);
   } else {
     storageCache = {};
+    console.log('Cleared all storage cache');
   }
 };
