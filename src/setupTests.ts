@@ -7,15 +7,15 @@ import '@testing-library/jest-dom';
 // Polyfill for TextEncoder/TextDecoder (required for Firebase in Node.js test environment)
 import { TextEncoder, TextDecoder } from 'util';
 
+// Polyfill for Web Streams (required for Firebase fetch in Node.js test environment)
+import { ReadableStream, WritableStream, TransformStream } from 'web-streams-polyfill';
+
 global.TextEncoder = TextEncoder;
 global.TextDecoder = TextDecoder as any;
 
-// Polyfill for Web Streams (required for Firebase fetch in Node.js test environment)
-import { ReadableStream, WritableStream, TransformStream } from 'web-streams-polyfill/ponyfill';
-
-global.ReadableStream = ReadableStream;
-global.WritableStream = WritableStream;
-global.TransformStream = TransformStream;
+global.ReadableStream = ReadableStream as any;
+global.WritableStream = WritableStream as any;
+global.TransformStream = TransformStream as any;
 
 // Mock window.matchMedia for responsive design tests
 Object.defineProperty(window, 'matchMedia', {
