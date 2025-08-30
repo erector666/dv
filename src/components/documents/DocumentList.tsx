@@ -166,7 +166,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
                 </h3>
                 <div className="mt-1 flex flex-col space-y-1 text-sm text-gray-500 dark:text-gray-400">
                   <p>{formatFileSize(document.size)}</p>
-                  <p>{formatDate(document.uploadedAt.toDate ? document.uploadedAt.toDate() : new Date(document.uploadedAt))}</p>
+                  <p>{formatDate(document.uploadedAt && typeof document.uploadedAt.toDate === 'function' ? document.uploadedAt.toDate() : new Date())}</p>
                 </div>
                 {document.tags && document.tags.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-1">

@@ -1,16 +1,25 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
+import { UploadModal } from '../components/upload';
 
 const CategoryView: React.FC = () => {
   const { categoryId } = useParams<{ categoryId: string }>();
   const { translate } = useLanguage();
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   
   // Map category ID to translation key
   const categoryKey = categoryId || 'other';
   
+  const handleUploadComplete = () => {
+    // Here you could refresh the document list, for example
+    console.log('Upload complete!');
+    setIsUploadModalOpen(false);
+  };
+
   return (
-    <div className="p-6">
+    <>
+      <div className="p-6">
       <h1 className="text-3xl font-bold mb-6">{translate(categoryKey)}</h1>
       
       {/* Document Grid */}
@@ -24,12 +33,21 @@ const CategoryView: React.FC = () => {
           <p className="text-gray-500 dark:text-gray-400 mb-4 text-center max-w-md">
             Upload your first document to this category to get started
           </p>
-          <button className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-md transition-colors">
-            Upload Document
-          </button>
+          <button 
+              onClick={() => setIsUploadModalOpen(true)}
+              className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-md transition-colors"
+            >
+              Upload Document
+            </button>
         </div>
       </div>
-    </div>
+      </div>
+      <UploadModal 
+        isOpen={isUploadModalOpen} 
+        onClose={() => setIsUploadModalOpen(false)}
+        onUploadComplete={handleUploadComplete}
+      />
+    </>
   );
 };
 

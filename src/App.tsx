@@ -7,27 +7,28 @@ import './App.css';
 import { ThemeProvider } from './context/ThemeContext';
 import { LanguageProvider } from './context/LanguageContext';
 import { AuthProvider } from './context/AuthContext';
+import { UploadModalProvider } from './context/UploadModalContext';
 
 // Routes
 import AppRoutes from './routes';
-import Layout from './components/layout/Layout';
 
 // Create a client for React Query
 const queryClient = new QueryClient();
 
 function App() {
+
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <LanguageProvider>
           <AuthProvider>
-            <Router>
-              <div className="App">
-                <Layout>
+            <UploadModalProvider>
+              <Router>
+                <div className="App">
                   <AppRoutes />
-                </Layout>
-              </div>
-            </Router>
+                </div>
+              </Router>
+            </UploadModalProvider>
           </AuthProvider>
         </LanguageProvider>
       </ThemeProvider>

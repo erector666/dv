@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 
 const Login: React.FC = () => {
-  const { signIn } = useAuth();
+  const { signIn, logOut } = useAuth();
   const { translate } = useLanguage();
   const navigate = useNavigate();
   
@@ -12,6 +12,22 @@ const Login: React.FC = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const errorRef = useRef<HTMLDivElement>(null);
+  
+  // Force re-render when language changes to update translations
+  const [, forceUpdate] = useState({});
+  useEffect(() => {
+    // This will trigger a re-render when component mounts
+    forceUpdate({});
+  }, []);
+  
+  // Scroll to and focus on error message when it appears
+  useEffect(() => {
+    if (error && errorRef.current) {
+      errorRef.current.scrollIntoView({ behavior: 'smooth' });
+      errorRef.current.focus();
+    }
+  }, [error]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,31 +35,47 @@ const Login: React.FC = () => {
     try {
       setError('');
       setLoading(true);
-      await signIn(email, password);
-      navigate('/dashboard');
-    } catch (err) {
+      const userCredential = await signIn(email, password);
+      if (userCredential.user && !userCredential.user.emailVerified) {
+        await logOut();
+        setError('Please verify your email to log in.');
+      } else {
+        navigate('/dashboard');
+      }
+    } catch (err: any) {
       console.error('Login error:', err);
-      setError(translate('auth.errors.invalidCredentials'));
+      
+      // Provide more specific error messages based on Firebase error codes
+      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
+        setError('Invalid email or password');
+      } else if (err.code === 'auth/too-many-requests') {
+        setError('Too many failed login attempts. Please try again later');
+      } else if (err.code === 'auth/user-disabled') {
+        setError('This account has been disabled');
+      } else {
+        setError('Failed to sign in. Please check your credentials and try again.');
+      }
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900 dark:text-white">
-            {translate('auth.login.title')}
+    <div className="min-h-screen flex items-center justify-center bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-6">
+        <div className="text-center">
+          <img className="mx-auto h-24 w-auto rounded-full" src="/logo2.png" alt="DocVault Logo" />
+          <h2 className="mt-6 text-center text-4xl font-bold text-white">
+            Sign In
           </h2>
-          <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
-            {translate('auth.login.subtitle')}
+          <p className="mt-2 text-center text-sm text-blue-300">
+            Sign in to your account
           </p>
         </div>
         
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <input type="hidden" name="remember" defaultValue="true" />
-          <div className="rounded-md shadow-sm -space-y-px">
+          <div className="space-y-4">
             <div>
               <label htmlFor="email-address" className="sr-only">
                 {translate('auth.fields.email')}
@@ -56,8 +88,8 @@ const Login: React.FC = () => {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-700 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white dark:bg-gray-800 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder={translate('auth.fields.email')}
+                className="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-700 bg-gray-800 placeholder-gray-400 text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                placeholder="kango666@gmail.com"
               />
             </div>
             <div>
@@ -72,14 +104,20 @@ const Login: React.FC = () => {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-700 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white dark:bg-gray-800 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder={translate('auth.fields.password')}
+                className="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-700 bg-gray-800 placeholder-gray-400 text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                placeholder="••••••••"
               />
             </div>
           </div>
 
           {error && (
-            <div className="text-red-500 text-sm text-center">
+            <div 
+              ref={errorRef}
+              className="bg-red-900/30 border border-red-500 text-red-300 px-4 py-3 rounded-md text-sm text-center"
+              tabIndex={-1}
+              role="alert"
+              aria-live="assertive"
+            >
               {error}
             </div>
           )}
@@ -90,16 +128,16 @@ const Login: React.FC = () => {
                 id="remember-me"
                 name="remember-me"
                 type="checkbox"
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-700 rounded"
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-700 rounded"
               />
-              <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
-                {translate('auth.login.rememberMe')}
+              <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-300">
+                Remember me
               </label>
             </div>
 
             <div className="text-sm">
-              <Link to="/forgot-password" className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300">
-                {translate('auth.login.forgotPassword')}
+              <Link to="/forgot-password" className="font-medium text-blue-400 hover:text-blue-300">
+                Forgot password?
               </Link>
             </div>
           </div>
@@ -123,21 +161,21 @@ const Login: React.FC = () => {
                 </span>
               ) : (
                 <span className="absolute left-0 inset-y-0 flex items-center pl-3">
-                  <svg className="h-5 w-5 text-blue-500 group-hover:text-blue-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <svg className="h-5 w-5 text-blue-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                     <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
                   </svg>
                 </span>
               )}
-              {loading ? translate('auth.login.signingIn') : translate('auth.login.signIn')}
+              {loading ? "Signing In..." : "Sign In"}
             </button>
           </div>
         </form>
 
-        <div className="text-center mt-4">
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            {translate('auth.login.noAccount')}{' '}
-            <Link to="/register" className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300">
-              {translate('auth.login.signUp')}
+        <div className="text-center mt-6">
+          <p className="text-sm text-gray-400">
+            Don't have an account?{' '}
+            <Link to="/register" className="font-medium text-blue-400 hover:text-blue-300">
+              Sign Up
             </Link>
           </p>
         </div>

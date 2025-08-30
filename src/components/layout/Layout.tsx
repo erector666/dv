@@ -1,9 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, ReactNode } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
 
-const Layout: React.FC = () => {
+interface LayoutProps {
+  children?: ReactNode;
+}
+
+const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   const toggleMobileSidebar = () => {
@@ -37,7 +41,7 @@ const Layout: React.FC = () => {
         <Header onMenuClick={toggleMobileSidebar} />
         
         <main className="flex-1 overflow-y-auto">
-          <Outlet />
+          {children || <Outlet />}
         </main>
       </div>
     </div>

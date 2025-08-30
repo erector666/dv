@@ -7,6 +7,7 @@ import {
   onAuthStateChanged,
   sendPasswordResetEmail,
   updateProfile,
+  sendEmailVerification,
   UserCredential
 } from 'firebase/auth';
 import { auth } from '../services/firebase';
@@ -43,11 +44,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const signUp = async (email: string, password: string, displayName: string): Promise<UserCredential> => {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     
-    // Update the user's display name
+    // Update the user's display name and send verification email
     if (userCredential.user) {
       await updateProfile(userCredential.user, {
         displayName
       });
+      await sendEmailVerification(userCredential.user);
+      await signOut(auth);
     }
     
     return userCredential;

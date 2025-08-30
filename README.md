@@ -12,6 +12,7 @@ AppVault is an AI-powered document management web application built with React, 
 - Multilingual support (English, Macedonian, French)
 - Light/Dark theme support
 - Responsive design for mobile and desktop
+- Comprehensive authentication system with password reset functionality
 
 ## Project Structure
 
@@ -104,9 +105,35 @@ You don’t have to ever use `eject`. The curated feature set is suitable for sm
 
 1. Create a Firebase project at [Firebase Console](https://console.firebase.google.com/)
 2. Enable Authentication with Email/Password method
-3. Create Firestore database
-4. Set up Firebase Storage
-5. Add your Firebase configuration to `.env` file
+3. Enable Password Reset functionality in the Firebase Authentication settings
+4. Create Firestore database
+5. Set up Firebase Storage
+6. Add your Firebase configuration to `.env` file
+
+## Authentication System
+
+The application features a comprehensive authentication system built with Firebase Authentication:
+
+### Features
+
+- User registration with email and password
+- User login with email and password
+- Password reset via email
+- User profile management
+- Protected routes for authenticated users
+- Remember me functionality
+
+### Password Reset Flow
+
+1. User navigates to the Forgot Password page
+2. User enters their email address
+3. System validates the email format
+4. Request is sent to Firebase via `sendPasswordResetEmail`
+5. User receives feedback (success or error message)
+6. Firebase sends a password reset email with a secure link
+7. User follows the link to create a new password
+
+For more detailed information about the password reset functionality, see [PASSWORD_RESET.md](./docs/PASSWORD_RESET.md).
 
 ## Deployment
 

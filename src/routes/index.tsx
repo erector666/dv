@@ -2,11 +2,14 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import ProtectedRoute from '../components/auth/ProtectedRoute';
 import { useAuth } from '../context/AuthContext';
+import SplashScreen from '../components/splash/SplashScreen';
+import Layout from '../components/layout/Layout';
 
 // Lazy load pages for better performance
 const Dashboard = React.lazy(() => import('../pages/Dashboard'));
 const CategoryView = React.lazy(() => import('../pages/CategoryView'));
 const Settings = React.lazy(() => import('../pages/Settings'));
+const Profile = React.lazy(() => import('../components/profile/Profile'));
 const NotFound = React.lazy(() => import('../pages/NotFound'));
 
 // Auth pages
@@ -28,17 +31,17 @@ const AppRoutes: React.FC = () => {
     <React.Suspense fallback={<LoadingFallback />}>
       <Routes>
         {/* Public routes */}
+        <Route path="/" element={<SplashScreen />} />
         <Route path="/login" element={!currentUser ? <Login /> : <Navigate to="/dashboard" replace />} />
         <Route path="/register" element={!currentUser ? <Register /> : <Navigate to="/dashboard" replace />} />
         <Route path="/forgot-password" element={!currentUser ? <ForgotPassword /> : <Navigate to="/dashboard" replace />} />
-        
-        {/* Protected routes */}
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route 
           path="/dashboard" 
           element={
             <ProtectedRoute>
-              <Dashboard />
+              <Layout>
+                <Dashboard />
+              </Layout>
             </ProtectedRoute>
           } 
         />
@@ -46,7 +49,9 @@ const AppRoutes: React.FC = () => {
           path="/category/:categoryId" 
           element={
             <ProtectedRoute>
-              <CategoryView />
+              <Layout>
+                <CategoryView />
+              </Layout>
             </ProtectedRoute>
           } 
         />
@@ -54,7 +59,19 @@ const AppRoutes: React.FC = () => {
           path="/settings" 
           element={
             <ProtectedRoute>
-              <Settings />
+              <Layout>
+                <Settings />
+              </Layout>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/profile" 
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Profile />
+              </Layout>
             </ProtectedRoute>
           } 
         />

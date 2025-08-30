@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { useTheme } from '../../context/ThemeContext';
 import { useLanguage, LanguageType } from '../../context/LanguageContext';
+import { useUploadModal } from '../../context/UploadModalContext';
+import { useAuth } from '../../context/AuthContext';
+import { Link, useNavigate } from 'react-router-dom';
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -9,6 +12,9 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
   const { theme, toggleTheme } = useTheme();
   const { language, setLanguage, translate } = useLanguage();
+  const { openModal } = useUploadModal();
+  const { logOut, currentUser } = useAuth();
+  const navigate = useNavigate();
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isLanguageMenuOpen, setIsLanguageMenuOpen] = useState(false);
 
@@ -25,6 +31,15 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
   const handleLanguageChange = (lang: LanguageType) => {
     setLanguage(lang);
     setIsLanguageMenuOpen(false);
+  };
+
+  const getInitials = (name: string | null | undefined): string => {
+    if (!name) return 'U';
+    const names = name.split(' ');
+    if (names.length > 1) {
+      return `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
   };
 
   return (
@@ -58,6 +73,16 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
 
         {/* Right side actions */}
         <div className="flex items-center space-x-4">
+          {/* Upload Button */}
+          <button 
+            onClick={openModal}
+            className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded-md flex items-center transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+            </svg>
+            {translate('upload')}
+          </button>
           {/* Theme toggle */}
           <button 
             onClick={toggleTheme}
@@ -125,14 +150,6 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
             )}
           </div>
 
-          {/* Upload button */}
-          <button className="hidden md:flex items-center bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-md transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0l-4 4m4-4v12" />
-            </svg>
-            {translate('upload')}
-          </button>
-
           {/* Profile */}
           <div className="relative">
             <button 
@@ -140,32 +157,46 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
               className="flex items-center text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
               aria-label="User menu"
             >
-              <div className="h-8 w-8 rounded-full bg-primary-200 dark:bg-primary-700 flex items-center justify-center text-primary-700 dark:text-primary-200">
-                <span>U</span>
+              <div className="h-8 w-8 rounded-full bg-primary-200 dark:bg-primary-700 flex items-center justify-center text-primary-700 dark:text-primary-200 overflow-hidden">
+                {currentUser?.photoURL ? (
+                  <img src={currentUser.photoURL} alt="Profile" className="h-full w-full object-cover" />
+                ) : (
+                  <span>{getInitials(currentUser?.displayName)}</span>
+                )}
               </div>
             </button>
 
             {/* Profile dropdown */}
             {isProfileMenuOpen && (
               <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg py-1 z-10 border border-gray-200 dark:border-gray-700">
-                <a 
-                  href="#profile" 
+                <Link 
+                  to="/profile"
+                  onClick={() => setIsProfileMenuOpen(false)}
                   className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
                 >
                   Your Profile
-                </a>
-                <a 
-                  href="#settings" 
+                </Link>
+                <Link 
+                  to="/settings"
+                  onClick={() => setIsProfileMenuOpen(false)}
                   className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
                 >
                   Settings
-                </a>
-                <a 
-                  href="#signout" 
-                  className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                </Link>
+                <button 
+                  onClick={async () => {
+                    try {
+                      await logOut();
+                      setIsProfileMenuOpen(false);
+                      navigate('/');
+                    } catch (error) {
+                      console.error('Failed to sign out:', error);
+                    }
+                  }}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
                 >
-                  Sign out
-                </a>
+                  {translate('auth.signOut') || 'Sign out'}
+                </button>
               </div>
             )}
           </div>

@@ -13,15 +13,15 @@ export interface Translations {
 interface LanguageContextType {
   language: LanguageType;
   setLanguage: (language: LanguageType) => void;
-  translate: (key: string) => string;
+  translate: (key: string, params?: Record<string, any>) => string;
 }
 
 // Default translations
 const defaultTranslations: Translations = {
   appTitle: {
-    en: 'AppVault',
-    mk: 'АппВаулт',
-    fr: 'AppVault',
+    en: 'DocVault',
+    mk: 'DocVault',
+    fr: 'DocVault',
   },
   dashboard: {
     en: 'Dashboard',
@@ -88,6 +88,205 @@ const defaultTranslations: Translations = {
     mk: 'Светол режим',
     fr: 'Mode clair',
   },
+  // Authentication translations
+  'auth.login.title': {
+    en: 'Sign In',
+    mk: 'Најави се',
+    fr: 'Connexion',
+  },
+  'auth.login.subtitle': {
+    en: 'Sign in to your account',
+    mk: 'Најави се на твојата сметка',
+    fr: 'Connectez-vous à votre compte',
+  },
+  'auth.fields.email': {
+    en: 'Email',
+    mk: 'Е-пошта',
+    fr: 'E-mail',
+  },
+  'auth.fields.password': {
+    en: 'Password',
+    mk: 'Лозинка',
+    fr: 'Mot de passe',
+  },
+  'auth.login.rememberMe': {
+    en: 'Remember me',
+    mk: 'Запомни ме',
+    fr: 'Se souvenir de moi',
+  },
+  'auth.login.forgotPassword': {
+    en: 'Forgot password?',
+    mk: 'Заборавена лозинка?',
+    fr: 'Mot de passe oublié?',
+  },
+  'auth.login.signIn': {
+    en: 'Sign In',
+    mk: 'Најави се',
+    fr: 'Connexion',
+  },
+  'auth.login.noAccount': {
+    en: 'Don\'t have an account?',
+    mk: 'Немаш сметка?',
+    fr: 'Vous n\'avez pas de compte?',
+  },
+  'auth.login.signUp': {
+    en: 'Sign Up',
+    mk: 'Регистрирај се',
+    fr: 'S\'inscrire',
+  },
+  // Document translations
+  'documents.deleteConfirmation.message': {
+    en: 'Are you sure you want to delete {name}?',
+    mk: 'Дали сте сигурни дека сакате да го избришете {name}?',
+    fr: 'Êtes-vous sûr de vouloir supprimer {name}?',
+  },
+  // Upload translations
+  'upload.error.fileSize': {
+    en: 'File size exceeds the limit of {maxSize} MB',
+    mk: 'Големината на датотеката го надминува ограничувањето од {maxSize} MB',
+    fr: 'La taille du fichier dépasse la limite de {maxSize} Mo',
+  },
+  'upload.error.fileType': {
+    en: 'File type not allowed. Allowed types: {allowedTypes}',
+    mk: 'Типот на датотеката не е дозволен. Дозволени типови: {allowedTypes}',
+    fr: 'Type de fichier non autorisé. Types autorisés: {allowedTypes}',
+  },
+  'upload.allowedTypes': {
+    en: 'Allowed file types: {types}',
+    mk: 'Дозволени типови на датотеки: {types}',
+    fr: 'Types de fichiers autorisés: {types}',
+  },
+  // Common translations
+  'common.cancel': {
+    en: 'Cancel',
+    mk: 'Откажи',
+    fr: 'Annuler',
+  },
+  'documents.deleteConfirmation.title': {
+    en: 'Delete Document',
+    mk: 'Избриши документ',
+    fr: 'Supprimer le document',
+  },
+  'auth.errors.invalidCredentials': {
+    en: 'Invalid email or password',
+    mk: 'Невалидна е-пошта или лозинка',
+    fr: 'Email ou mot de passe invalide',
+  },
+  'auth.login.signingIn': {
+    en: 'Signing In...',
+    mk: 'Најавување...',
+    fr: 'Connexion en cours...',
+  },
+  'auth.signOut': {
+    en: 'Sign Out',
+    mk: 'Одјави се',
+    fr: 'Déconnexion',
+  },
+  'splash.tagline': {
+    en: 'Secure Document Management',
+    mk: 'Безбедно управување со документи',
+    fr: 'Gestion sécurisée de documents',
+  },
+  'auth.register.title': {
+    en: 'Sign Up',
+    mk: 'Регистрирај се',
+    fr: 'S\'inscrire',
+  },
+  'auth.register.subtitle': {
+    en: 'Create your account',
+    mk: 'Создај своја сметка',
+    fr: 'Créez votre compte',
+  },
+  'auth.register.createAccount': {
+    en: 'Sign Up',
+    mk: 'Регистрирај се',
+    fr: 'S\'inscrire',
+  },
+  'auth.register.creating': {
+    en: 'Creating Account...',
+    mk: 'Создавање сметка...',
+    fr: 'Création du compte...',
+  },
+  'auth.register.haveAccount': {
+    en: 'Already have an account?',
+    mk: 'Веќе имаш сметка?',
+    fr: 'Vous avez déjà un compte?',
+  },
+  'auth.register.signIn': {
+    en: 'Sign In',
+    mk: 'Најави се',
+    fr: 'Connexion',
+  },
+  'auth.fields.displayName': {
+    en: 'Full Name',
+    mk: 'Целосно име',
+    fr: 'Nom complet',
+  },
+  'auth.fields.confirmPassword': {
+    en: 'Confirm Password',
+    mk: 'Потврди лозинка',
+    fr: 'Confirmer le mot de passe',
+  },
+  'auth.errors.passwordMismatch': {
+    en: 'Passwords do not match',
+    mk: 'Лозинките не се совпаѓаат',
+    fr: 'Les mots de passe ne correspondent pas',
+  },
+  'auth.errors.passwordLength': {
+    en: 'Password must be at least 6 characters',
+    mk: 'Лозинката мора да има најмалку 6 карактери',
+    fr: 'Le mot de passe doit comporter au moins 6 caractères',
+  },
+  'auth.errors.emailInUse': {
+    en: 'Email is already in use',
+    mk: 'Е-поштата е веќе во употреба',
+    fr: 'L\'email est déjà utilisé',
+  },
+  'auth.errors.registrationFailed': {
+    en: 'Failed to register. Please try again',
+    mk: 'Неуспешна регистрација. Обидете се повторно',
+    fr: 'Échec de l\'inscription. Veuillez réessayer',
+  },
+  'auth.forgotPassword.title': {
+    en: 'Forgot Password',
+    mk: 'Заборавена лозинка',
+    fr: 'Mot de passe oublié',
+  },
+  'auth.forgotPassword.subtitle': {
+    en: 'Enter your email to reset your password',
+    mk: 'Внесете ја вашата е-пошта за да ја ресетирате лозинката',
+    fr: 'Entrez votre email pour réinitialiser votre mot de passe',
+  },
+  'auth.forgotPassword.resetPassword': {
+    en: 'Reset Password',
+    mk: 'Ресетирај лозинка',
+    fr: 'Réinitialiser le mot de passe',
+  },
+  'auth.forgotPassword.sending': {
+    en: 'Sending Reset Link...',
+    mk: 'Испраќање на линк за ресетирање...',
+    fr: 'Envoi du lien de réinitialisation...',
+  },
+  'auth.forgotPassword.resetSent': {
+    en: 'Password reset email sent. Check your inbox.',
+    mk: 'Испратен е е-пошта за ресетирање на лозинката. Проверете го вашето сандаче.',
+    fr: 'Email de réinitialisation du mot de passe envoyé. Vérifiez votre boîte de réception.',
+  },
+  'auth.forgotPassword.rememberPassword': {
+    en: 'Remember your password?',
+    mk: 'Се сеќавате на вашата лозинка?',
+    fr: 'Vous vous souvenez de votre mot de passe?',
+  },
+  'auth.forgotPassword.backToLogin': {
+    en: 'Back to Login',
+    mk: 'Назад кон најава',
+    fr: 'Retour à la connexion',
+  },
+  'auth.errors.resetFailed': {
+    en: 'Failed to reset password. Please check your email and try again.',
+    mk: 'Неуспешно ресетирање на лозинката. Проверете ја вашата е-пошта и обидете се повторно.',
+    fr: 'Échec de la réinitialisation du mot de passe. Veuillez vérifier votre email et réessayer.',
+  },
 };
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
@@ -116,13 +315,22 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [language]);
 
   // Translation function
-  const translate = (key: string): string => {
+  const translate = (key: string, params?: Record<string, any>): string => {
     if (!translations[key]) {
       console.warn(`Translation key not found: ${key}`);
       return key;
     }
     
-    return translations[key][language] || translations[key]['en'] || key;
+    let text = translations[key][language] || translations[key]['en'] || key;
+    
+    // Replace parameters in the text if provided
+    if (params) {
+      Object.entries(params).forEach(([paramKey, paramValue]) => {
+        text = text.replace(new RegExp(`\\{${paramKey}\\}`, 'g'), String(paramValue));
+      });
+    }
+    
+    return text;
   };
 
   return (
