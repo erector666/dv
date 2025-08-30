@@ -1,7 +1,9 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
+import { useQuery } from 'react-query';
 import { useLanguage } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
+import { getStorageUsage } from '../../services/storageService';
 
 interface SidebarProps {
   isMobile?: boolean;
@@ -21,14 +23,32 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile = false, onClose }) => {
   const { translate } = useLanguage();
   const { currentUser } = useAuth();
 
-  // Temporarily disable storage usage until Firebase function is properly deployed
-  const storageData = { totalSize: 0 };
-  const isLoading = false;
-  const error = null;
+  // Fetch real storage usage data
+  const { data: storageData, isLoading, error } = useQuery(
+    'storageUsage',
+    () => getStorageUsage(currentUser?.uid || ''),
+    {
+      enabled: !!currentUser?.uid,
+      refetchInterval: 30000, // Refetch every 30 seconds
+      staleTime: 10000, // Consider data stale after 10 seconds
+    }
+  );
 
   const totalStorage = 10 * 1024 * 1024 * 1024; // 10 GB in bytes
   const usedStorage = storageData?.totalSize ?? 0;
   const usagePercentage = totalStorage > 0 ? (usedStorage / totalStorage) * 100 : 0;
+
+  // Debug logging
+  console.log('Storage Debug:', {
+    currentUser: currentUser?.uid,
+    storageData,
+    isLoading,
+    error,
+    enabled: !!currentUser?.uid,
+    usedStorage,
+    totalStorage: formatBytes(totalStorage),
+    usagePercentage: `${usagePercentage.toFixed(2)}%`
+  });
 
   const handleLinkClick = () => {
     if (isMobile && onClose) {
@@ -189,7 +209,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile = false, onClose }) => {
             </span>
           </div>
           <div>
-            {storageData && (
+            {isLoading ? (
+              <p className="text-xs text-gray-500 dark:text-gray-400">Loading storage...</p>
+            ) : error ? (
+              <p className="text-xs text-red-500 dark:text-red-400">Error loading storage</p>
+            ) : storageData ? (
               <>
                 <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mb-1">
                   <div className="bg-primary-600 h-2 rounded-full" style={{ width: `${usagePercentage}%` }}></div>
@@ -197,8 +221,18 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile = false, onClose }) => {
                 <p className="text-xs text-gray-500 dark:text-gray-400">
                   {formatBytes(usedStorage)} / {formatBytes(totalStorage)} used
                 </p>
+                {storageData.documentCount === 0 && (
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                    No documents uploaded yet. Upload a file to see storage usage.
+                  </p>
+                )}
+                {storageData.documentCount > 0 && (
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                    {storageData.documentCount} document{storageData.documentCount !== 1 ? 's' : ''}
+                  </p>
+                )}
               </>
-            )}
+            ) : null}
           </div>
         </div>
 

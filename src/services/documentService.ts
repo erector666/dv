@@ -20,6 +20,7 @@ import {
   deleteObject
 } from 'firebase/storage';
 import { db, storage } from './firebase';
+import { clearStorageCache } from './storageService';
 
 export interface Document {
   id?: string;
@@ -97,6 +98,9 @@ export const uploadDocument = async (
             
             // Add document to Firestore
             const docRef = await addDoc(collection(db, 'documents'), documentData);
+            
+            // Clear storage cache to reflect new upload
+            clearStorageCache(documentData.userId);
             
             // Return the document with its ID
             resolve({
@@ -223,6 +227,9 @@ export const deleteDocument = async (documentId: string): Promise<void> => {
     
     // Delete from Firestore
     await deleteDoc(docRef);
+    
+    // Clear storage cache to reflect deletion
+    clearStorageCache(documentData.userId);
   } catch (error) {
     console.error('Error deleting document:', error);
     throw error;

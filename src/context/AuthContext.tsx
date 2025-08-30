@@ -67,8 +67,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   // Reset password
-  const resetPassword = (email: string): Promise<void> => {
-    return sendPasswordResetEmail(auth, email);
+  const resetPassword = async (email: string): Promise<void> => {
+    console.log('Attempting to reset password for email:', email);
+    console.log('Firebase auth object:', auth);
+    console.log('Firebase config:', auth.app.options);
+    try {
+      await sendPasswordResetEmail(auth, email);
+      console.log('Password reset email sent successfully');
+    } catch (error) {
+      console.error('Error in resetPassword:', error);
+      throw error;
+    }
   };
 
   // Update user profile

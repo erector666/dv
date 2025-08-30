@@ -54,6 +54,8 @@ declare module 'firebase/storage' {
   export function getDownloadURL(ref: any): Promise<string>;
   export function deleteObject(ref: any): Promise<void>;
   export function getStorage(app?: any): any;
+  export function listAll(ref: any): Promise<{ items: any[] }>;
+  export function getMetadata(ref: any): Promise<{ size: number; name: string; fullPath: string }>;
 }
 
 declare module 'firebase/firestore' {
