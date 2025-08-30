@@ -1,0 +1,31 @@
+# VERCEL ENVIRONMENT VARIABLES TEMPLATE
+# Copy and paste these into your Vercel Dashboard:
+# Settings → Environment Variables → Add New
+
+# Firebase Configuration
+REACT_APP_FIREBASE_API_KEY=your_firebase_api_key_here
+REACT_APP_FIREBASE_AUTH_DOMAIN=your_project_id.firebaseapp.com
+REACT_APP_FIREBASE_PROJECT_ID=your_project_id
+REACT_APP_FIREBASE_STORAGE_BUCKET=your_project_id.appspot.com
+REACT_APP_FIREBASE_MESSAGING_SENDER_ID=your_messaging_sender_id
+REACT_APP_FIREBASE_APP_ID=your_app_id
+
+# Instructions:
+# 1. Replace 'your_firebase_api_key_here' with your actual Firebase API key
+# 2. Replace 'your_project_id' with your actual Firebase project ID
+# 3. Replace 'your_messaging_sender_id' with your actual messaging sender ID
+# 4. Replace 'your_app_id' with your actual Firebase app ID
+# 5. Copy each line (without the # comments) and paste into Vercel
+# 6. Set Environment to "Production" for all variables
+# 7. Click "Save" after adding each variable
+
+# Example of how it should look in Vercel:
+# Name: REACT_APP_FIREBASE_API_KEY
+# Value: AIzaSyC... (your actual API key)
+# Environment: Production
+# 
+# Name: REACT_APP_FIREBASE_AUTH_DOMAIN  
+# Value: your-project-id.firebaseapp.com
+# Environment: Production
+#
+# Continue for all 6 variables...
