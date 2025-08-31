@@ -23,7 +23,8 @@ export const getStorageUsage = async () => {
       return { totalSize: 0 };
     }
 
-    const response = await fetch('https://us-central1-gpt1-77ce0.cloudfunctions.net/getStorageUsage', {
+    const functionsBaseUrl = process.env.REACT_APP_FUNCTIONS_BASE_URL || '';
+    const response = await fetch(`${functionsBaseUrl}/getStorageUsage`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,

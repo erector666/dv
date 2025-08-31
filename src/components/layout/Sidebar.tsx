@@ -38,17 +38,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile = false, onClose }) => {
   const usedStorage = storageData?.totalSize ?? 0;
   const usagePercentage = totalStorage > 0 ? (usedStorage / totalStorage) * 100 : 0;
 
-  // Debug logging
-  console.log('Storage Debug:', {
-    currentUser: currentUser?.uid,
-    storageData,
-    isLoading,
-    error,
-    enabled: !!currentUser?.uid,
-    usedStorage,
-    totalStorage: formatBytes(totalStorage),
-    usagePercentage: `${usagePercentage.toFixed(2)}%`
-  });
 
   const handleLinkClick = () => {
     if (isMobile && onClose) {

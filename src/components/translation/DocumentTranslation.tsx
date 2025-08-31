@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { Document } from '../../services/documentService';
 import { 
-  mockGetSupportedLanguages, 
-  mockTranslateDocument, 
+  getSupportedLanguages,
+  translateDocument,
   saveTranslatedDocument,
   SupportedLanguage,
   TranslationResult
@@ -31,7 +31,7 @@ const DocumentTranslation: React.FC<DocumentTranslationProps> = ({
     data: languages, 
     isLoading: isLoadingLanguages, 
     isError: isLanguagesError 
-  } = useQuery('supportedLanguages', mockGetSupportedLanguages);
+  } = useQuery('supportedLanguages', getSupportedLanguages);
 
   // Filter out the current document language from the options
   const availableLanguages = languages?.filter(
@@ -42,8 +42,13 @@ const DocumentTranslation: React.FC<DocumentTranslationProps> = ({
   const translateMutation = useMutation(
     async () => {
       setTranslationInProgress(true);
-      // Use mock translation for development
-      const translationResult = await mockTranslateDocument(document, targetLanguage);
+      const translationResult = await translateDocument(
+        document.id || '',
+        document.url,
+        document.type,
+        targetLanguage,
+        document.metadata?.language
+      );
       const translatedDocument = await saveTranslatedDocument(document, translationResult);
       return translatedDocument;
     },

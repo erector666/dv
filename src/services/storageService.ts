@@ -15,8 +15,6 @@ export interface StorageUsage {
  */
 export const calculateStorageUsage = async (userId: string): Promise<StorageUsage> => {
   try {
-    console.log('calculateStorageUsage called with userId:', userId);
-    
     let firestoreSize = 0;
     let firestoreCount = 0;
     
@@ -26,26 +24,15 @@ export const calculateStorageUsage = async (userId: string): Promise<StorageUsag
       const q = query(documentsRef, where('userId', '==', userId));
       const querySnapshot = await getDocs(q);
       
-      console.log('Found Firestore documents:', querySnapshot.size);
-      
       querySnapshot.forEach((doc) => {
         const data = doc.data();
-        console.log('Firestore document data:', data);
         if (data.fileSize && typeof data.fileSize === 'number') {
           firestoreSize += data.fileSize;
           firestoreCount++;
-          console.log('Added Firestore file size:', data.fileSize, 'Total so far:', firestoreSize);
         }
       });
     } catch (error) {
       console.error('Error querying Firestore:', error);
-    }
-    
-    // For testing: If no documents found in Firestore but you know there are files in Storage
-    // You can manually add some test data here
-    if (firestoreCount === 0) {
-      console.log('No documents found in Firestore. If you have files in Storage, they may not be tracked in Firestore.');
-      console.log('To see real storage usage, upload a file through the app interface.');
     }
     
     const result = {
@@ -55,8 +42,6 @@ export const calculateStorageUsage = async (userId: string): Promise<StorageUsag
       firestoreSize,
       firestoreCount
     };
-    
-    console.log('Final storage calculation result:', result);
     return result;
   } catch (error) {
     console.error('Error calculating storage usage:', error);
@@ -78,24 +63,16 @@ let storageCache: { [userId: string]: { data: StorageUsage; timestamp: number } 
 const CACHE_DURATION = 30000; // 30 seconds
 
 export const getStorageUsage = async (userId: string): Promise<StorageUsage> => {
-  console.log('getStorageUsage called with userId:', userId);
-  
-  // TEMPORARY: Clear cache to force fresh data fetch
-  clearStorageCache(userId);
-  
   const now = Date.now();
   const cached = storageCache[userId];
   
   // Return cached data if it's still valid
   if (cached && (now - cached.timestamp) < CACHE_DURATION) {
-    console.log('Returning cached storage data:', cached.data);
     return cached.data;
   }
   
   // Calculate fresh data
-  console.log('Calculating fresh storage data...');
   const usage = await calculateStorageUsage(userId);
-  console.log('Calculated storage usage:', usage);
   
   // Cache the result
   storageCache[userId] = {
@@ -112,9 +89,7 @@ export const getStorageUsage = async (userId: string): Promise<StorageUsage> => 
 export const clearStorageCache = (userId?: string) => {
   if (userId) {
     delete storageCache[userId];
-    console.log('Cleared storage cache for user:', userId);
   } else {
     storageCache = {};
-    console.log('Cleared all storage cache');
   }
 };

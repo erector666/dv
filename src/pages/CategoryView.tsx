@@ -13,7 +13,6 @@ const CategoryView: React.FC = () => {
   
   const handleUploadComplete = () => {
     // Here you could refresh the document list, for example
-    console.log('Upload complete!');
     setIsUploadModalOpen(false);
   };
 

@@ -44,27 +44,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Sign up with email and password
   const signUp = async (email: string, password: string, displayName: string): Promise<UserCredential> => {
     try {
-      console.log('Starting signup process for:', email);
       
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      console.log('User created successfully:', userCredential.user.uid);
       
       // Update the user's display name
       if (userCredential.user) {
-        console.log('Updating user profile with display name:', displayName);
+        
         await updateProfile(userCredential.user, {
           displayName
         });
         
         // Send email verification
-        console.log('Sending email verification...');
-        console.log('User email:', userCredential.user.email);
-        console.log('User UID:', userCredential.user.uid);
-        console.log('Email verified status:', userCredential.user.emailVerified);
         
         try {
           await sendEmailVerification(userCredential.user);
-          console.log('Email verification sent successfully');
+          
         } catch (verificationError) {
           console.error('Error sending email verification:', verificationError);
           throw verificationError;
@@ -93,12 +87,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Reset password
   const resetPassword = async (email: string): Promise<void> => {
-    console.log('Attempting to reset password for email:', email);
-    console.log('Firebase auth object:', auth);
-    console.log('Firebase config:', auth.app.options);
     try {
       await sendPasswordResetEmail(auth, email);
-      console.log('Password reset email sent successfully');
+      
     } catch (error) {
       console.error('Error in resetPassword:', error);
       throw error;
@@ -117,20 +108,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Resend verification email
   const resendVerificationEmail = async (email: string, password: string): Promise<void> => {
     try {
-      console.log('Attempting to resend verification email to:', email);
       
       // Sign in temporarily to get the user object
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       
       if (userCredential.user && !userCredential.user.emailVerified) {
-        console.log('User found and not verified, sending verification email...');
-        console.log('User email:', userCredential.user.email);
-        console.log('User UID:', userCredential.user.uid);
-        console.log('Email verified status:', userCredential.user.emailVerified);
         
         try {
           await sendEmailVerification(userCredential.user);
-          console.log('Verification email resent successfully');
+          
         } catch (verificationError) {
           console.error('Error resending email verification:', verificationError);
           throw verificationError;

@@ -81,8 +81,6 @@ const Login: React.FC = () => {
       setError('');
       setMessage('');
       setResendLoading(true);
-      
-      console.log('Attempting to resend verification email...');
       await resendVerificationEmail(email, password);
       setMessage('Verification email sent! Please check your email (including spam folder).');
     } catch (err: any) {
@@ -128,7 +126,7 @@ const Login: React.FC = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-700 bg-gray-800 placeholder-gray-400 text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="kango666@gmail.com"
+                placeholder="Enter your email"
               />
             </div>
             <div>
