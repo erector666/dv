@@ -43,10 +43,9 @@ if ($DryRun) {
     Write-Host "✅ Dry run completed successfully!" -ForegroundColor Green
 } else {
     Write-Host "🚀 Deploying to Firebase..." -ForegroundColor Yellow
-    Set-Location ../docvault
-    firebase deploy --only functions:docvault
+    firebase deploy --only functions
     
     Write-Host "✅ Deployment completed successfully!" -ForegroundColor Green
-    Write-Host "🌐 Functions URL: https://us-central1-gpt1-77ce0.cloudfunctions.net" -ForegroundColor Cyan
+    Write-Host "🌐 Functions deployed. Check Firebase console for region and base URL." -ForegroundColor Cyan
     Write-Host "📊 View logs: firebase functions:log" -ForegroundColor Cyan
 }

@@ -35,9 +35,8 @@ echo "🧪 Running linting..."
 npm run lint
 
 echo "🚀 Deploying to Firebase..."
-cd ../docvault
-firebase deploy --only functions:docvault
+firebase deploy --only functions
 
 echo "✅ Deployment completed successfully!"
-echo "🌐 Functions URL: https://us-central1-gpt1-77ce0.cloudfunctions.net"
+echo "🌐 Functions Base URL: https://us-central1-$(firebase projects:list --json | jq -r '.result[] | select(.isActive==true).projectId') .cloudfunctions.net"
 echo "📊 View logs: firebase functions:log"

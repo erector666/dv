@@ -47,6 +47,9 @@ try {
     admin.initializeApp();
 }
 catch { }
+const translateLanguagesCache = { data: [], timestamp: 0 };
+const translationCache = {};
+const CACHE_TTL_MS = 10 * 60 * 1000;
 const assertAuthenticated = (context) => {
     if (!context.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'Authentication required');
@@ -57,6 +60,9 @@ exports.getSupportedLanguages = (0, https_1.onCall)(async () => {
     if (!apiKey) {
         throw new functions.https.HttpsError('failed-precondition', 'Missing GOOGLE_TRANSLATE_API_KEY');
     }
+    if (translateLanguagesCache.data.length && Date.now() - translateLanguagesCache.timestamp < CACHE_TTL_MS) {
+        return { languages: translateLanguagesCache.data };
+    }
     const url = `https://translation.googleapis.com/language/translate/v2/languages?key=${apiKey}&target=en`;
     const resp = await (0, node_fetch_1.default)(url);
     if (!resp.ok) {
@@ -64,6 +70,8 @@ exports.getSupportedLanguages = (0, https_1.onCall)(async () => {
     }
     const data = (await resp.json());
     const languages = (data.data?.languages || []).map((l) => ({ code: l.language, name: l.name }));
+    translateLanguagesCache.data = languages;
+    translateLanguagesCache.timestamp = Date.now();
     return { languages };
 });
 exports.translateDocument = (0, https_1.onCall)(async (request) => {
@@ -71,6 +79,11 @@ exports.translateDocument = (0, https_1.onCall)(async (request) => {
     const apiKey = process.env.GOOGLE_TRANSLATE_API_KEY;
     if (!apiKey) {
         throw new functions.https.HttpsError('failed-precondition', 'Missing GOOGLE_TRANSLATE_API_KEY');
+    }
+    const cacheKey = `${documentUrl}::${sourceLanguage || 'auto'}::${targetLanguage}`;
+    const cached = translationCache[cacheKey];
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+        return cached;
     }
     const docResp = await (0, node_fetch_1.default)(documentUrl);
     if (!docResp.ok) {
@@ -93,12 +106,14 @@ exports.translateDocument = (0, https_1.onCall)(async (request) => {
     }
     const data = (await resp.json());
     const translatedText = data.data?.translations?.[0]?.translatedText || '';
-    return {
+    const result = {
         translatedText,
         sourceLanguage: sourceLanguage || data.data?.translations?.[0]?.detectedSourceLanguage || 'en',
         targetLanguage,
         confidence: 0.9,
     };
+    translationCache[cacheKey] = { ...result, timestamp: Date.now() };
+    return result;
 });
 exports.extractText = (0, https_1.onCall)(async (request) => {
     return { text: '' };
@@ -111,8 +126,9 @@ exports.detectLanguage = (0, https_1.onCall)(async (request) => {
         throw new functions.https.HttpsError('not-found', 'Unable to fetch document content');
     }
     const text = await textResp.text();
-    const [result] = await client.analyzeEntities({ document: { content: text, type: 'PLAIN_TEXT' } });
-    return { language: result?.language || 'en' };
+    const [syntax] = await client.analyzeSyntax({ document: { content: text, type: 'PLAIN_TEXT' } });
+    const language = syntax?.language || 'en';
+    return { language };
 });
 exports.summarizeDocument = (0, https_1.onCall)(async (request) => {
     const { documentUrl, maxLength = 200 } = request.data;
@@ -126,32 +142,49 @@ exports.summarizeDocument = (0, https_1.onCall)(async (request) => {
 });
 exports.classifyDocument = (0, https_1.onCall)(async (request) => {
     const { documentUrl } = request.data;
+    const client = new language_1.LanguageServiceClient();
     const textResp = await (0, node_fetch_1.default)(documentUrl);
     if (!textResp.ok) {
         throw new functions.https.HttpsError('not-found', 'Unable to fetch document content');
     }
-    const text = (await textResp.text()).toLowerCase();
-    const categories = [];
-    const tags = [];
-    if (text.includes('invoice') || text.includes('receipt')) {
-        categories.push('Financial');
-        tags.push('invoice', 'payment');
+    const text = await textResp.text();
+    try {
+        const [result] = await client.classifyText({ document: { content: text, type: 'PLAIN_TEXT' } });
+        const categories = (result.categories || []).map(c => c.name || '').filter(Boolean);
+        const tags = (result.categories || []).map(c => (c.name || '').split('/').filter(Boolean).pop() || '').filter(Boolean);
+        const confidence = Math.max(...(result.categories || []).map(c => c.confidence || 0), 0);
+        return {
+            categories: categories.length ? categories : ['Other'],
+            tags,
+            summary: text.slice(0, 160),
+            language: 'en',
+            confidence,
+        };
     }
-    else if (text.includes('report') || text.includes('analysis')) {
-        categories.push('Reports');
-        tags.push('report', 'analysis');
+    catch (e) {
+        const lower = text.toLowerCase();
+        const categories = [];
+        const tags = [];
+        if (lower.includes('invoice') || lower.includes('receipt')) {
+            categories.push('Financial');
+            tags.push('invoice', 'payment');
+        }
+        else if (lower.includes('report') || lower.includes('analysis')) {
+            categories.push('Reports');
+            tags.push('report', 'analysis');
+        }
+        else if (lower.includes('contract') || lower.includes('agreement')) {
+            categories.push('Legal');
+            tags.push('contract', 'legal');
+        }
+        return {
+            categories: categories.length ? categories : ['Other'],
+            tags,
+            summary: lower.slice(0, 160),
+            language: 'en',
+            confidence: 0.6,
+        };
     }
-    else if (text.includes('contract') || text.includes('agreement')) {
-        categories.push('Legal');
-        tags.push('contract', 'legal');
-    }
-    return {
-        categories: categories.length ? categories : ['Other'],
-        tags,
-        summary: text.slice(0, 160),
-        language: 'en',
-        confidence: 0.7,
-    };
 });
 exports.getStorageUsage = (0, https_2.onRequest)(async (req, res) => {
     const authHeader = req.get('Authorization') || '';

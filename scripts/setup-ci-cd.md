@@ -5,7 +5,7 @@ This guide will help you set up the complete CI/CD pipeline for GitHub → Fireb
 
 ## Prerequisites
 - GitHub repository with your code
-- Firebase project (gpt1-77ce0)
+- Firebase project (use your own project ID)
 - Vercel account and project
 - Firebase CLI installed locally
 
@@ -71,12 +71,16 @@ Add these secrets:
 - `VERCEL_PROJECT_ID`: Your project ID from Step 2.3
 
 ### Firebase Environment Variables
-- `REACT_APP_FIREBASE_API_KEY`: AIzaSyAXBPuFnMNl6UDUrz75h-KFk92pMTtEuis
-- `REACT_APP_FIREBASE_AUTH_DOMAIN`: gpt1-77ce0.firebaseapp.com
-- `REACT_APP_FIREBASE_PROJECT_ID`: gpt1-77ce0
-- `REACT_APP_FIREBASE_STORAGE_BUCKET`: gpt1-77ce0.firebasestorage.app
-- `REACT_APP_FIREBASE_MESSAGING_SENDER_ID`: 887480132482
-- `REACT_APP_FIREBASE_APP_ID`: 1:887480132482:web:7f8d166d0d36d4f058e59b
+- `REACT_APP_FIREBASE_API_KEY`: your_firebase_api_key
+- `REACT_APP_FIREBASE_AUTH_DOMAIN`: your_project.firebaseapp.com
+- `REACT_APP_FIREBASE_PROJECT_ID`: your_project_id
+- `REACT_APP_FIREBASE_STORAGE_BUCKET`: your_project.appspot.com
+- `REACT_APP_FIREBASE_MESSAGING_SENDER_ID`: your_messaging_sender_id
+- `REACT_APP_FIREBASE_APP_ID`: your_app_id
+- `REACT_APP_FUNCTIONS_BASE_URL`: https://us-central1-your_project_id.cloudfunctions.net
+
+### Functions Environment Variables
+- `GOOGLE_TRANSLATE_API_KEY`: your_translate_api_key
 
 ## Step 4: Configure Firebase Auth Domains
 

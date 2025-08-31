@@ -50,12 +50,14 @@ FIREBASE_TOKEN=your_firebase_ci_token
 VERCEL_TOKEN=your_vercel_token
 VERCEL_ORG_ID=your_vercel_org_id
 VERCEL_PROJECT_ID=your_vercel_project_id
-REACT_APP_FIREBASE_API_KEY=AIzaSyAXBPuFnMNl6UDUrz75h-KFk92pMTtEuis
-REACT_APP_FIREBASE_AUTH_DOMAIN=gpt1-77ce0.firebaseapp.com
-REACT_APP_FIREBASE_PROJECT_ID=gpt1-77ce0
-REACT_APP_FIREBASE_STORAGE_BUCKET=gpt1-77ce0.firebasestorage.app
-REACT_APP_FIREBASE_MESSAGING_SENDER_ID=887480132482
-REACT_APP_FIREBASE_APP_ID=1:887480132482:web:7f8d166d0d36d4f058e59b
+REACT_APP_FIREBASE_API_KEY=your_firebase_api_key
+REACT_APP_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+REACT_APP_FIREBASE_PROJECT_ID=your_project_id
+REACT_APP_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
+REACT_APP_FIREBASE_MESSAGING_SENDER_ID=your_messaging_sender_id
+REACT_APP_FIREBASE_APP_ID=your_app_id
+REACT_APP_FUNCTIONS_BASE_URL=https://us-central1-your_project_id.cloudfunctions.net
+GOOGLE_TRANSLATE_API_KEY=your_translate_api_key
 ```
 
 ## 🚀 Quick Start

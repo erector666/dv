@@ -10,6 +10,11 @@ try {
   admin.initializeApp();
 } catch {}
 
+// In-memory caches (ephemeral in serverless, but useful within instance lifetime)
+const translateLanguagesCache: { data: any[]; timestamp: number } = { data: [], timestamp: 0 };
+const translationCache: Record<string, { translatedText: string; sourceLanguage: string; targetLanguage: string; confidence: number; timestamp: number }> = {};
+const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
 // Helpers
 const assertAuthenticated = (context: functions.https.CallableContext) => {
   if (!context.auth) {
@@ -24,6 +29,10 @@ export const getSupportedLanguages = onCall(async () => {
   if (!apiKey) {
     throw new functions.https.HttpsError('failed-precondition', 'Missing GOOGLE_TRANSLATE_API_KEY');
   }
+  // Serve from cache if fresh
+  if (translateLanguagesCache.data.length && Date.now() - translateLanguagesCache.timestamp < CACHE_TTL_MS) {
+    return { languages: translateLanguagesCache.data };
+  }
   const url = `https://translation.googleapis.com/language/translate/v2/languages?key=${apiKey}&target=en`;
   const resp = await fetch(url);
   if (!resp.ok) {
@@ -31,6 +40,8 @@ export const getSupportedLanguages = onCall(async () => {
   }
   const data = (await resp.json()) as any;
   const languages = (data.data?.languages || []).map((l: any) => ({ code: l.language, name: l.name }));
+  translateLanguagesCache.data = languages;
+  translateLanguagesCache.timestamp = Date.now();
   return { languages };
 });
 
@@ -43,6 +54,11 @@ export const translateDocument = onCall(async (request) => {
   const apiKey = process.env.GOOGLE_TRANSLATE_API_KEY;
   if (!apiKey) {
     throw new functions.https.HttpsError('failed-precondition', 'Missing GOOGLE_TRANSLATE_API_KEY');
+  }
+  const cacheKey = `${documentUrl}::${sourceLanguage || 'auto'}::${targetLanguage}`;
+  const cached = translationCache[cacheKey];
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+    return cached;
   }
   // For MVP, assume the documentUrl points to raw text content
   const docResp = await fetch(documentUrl);
@@ -66,12 +82,14 @@ export const translateDocument = onCall(async (request) => {
   }
   const data = (await resp.json()) as any;
   const translatedText = data.data?.translations?.[0]?.translatedText || '';
-  return {
+  const result = {
     translatedText,
     sourceLanguage: sourceLanguage || data.data?.translations?.[0]?.detectedSourceLanguage || 'en',
     targetLanguage,
     confidence: 0.9,
-  };
+  } as const;
+  translationCache[cacheKey] = { ...result, timestamp: Date.now() } as any;
+  return result;
 });
 
 // AI functions - placeholder integration points
@@ -88,9 +106,9 @@ export const detectLanguage = onCall(async (request) => {
     throw new functions.https.HttpsError('not-found', 'Unable to fetch document content');
   }
   const text = await textResp.text();
-  const [result] = await client.analyzeEntities({ document: { content: text, type: 'PLAIN_TEXT' } });
-  // The API doesn't return language directly here; default to en for MVP or use alternative API.
-  return { language: (result as any)?.language || 'en' };
+  const [syntax] = await client.analyzeSyntax({ document: { content: text, type: 'PLAIN_TEXT' } });
+  const language = (syntax as any)?.language || 'en';
+  return { language };
 });
 
 export const summarizeDocument = onCall(async (request) => {
@@ -106,30 +124,47 @@ export const summarizeDocument = onCall(async (request) => {
 
 export const classifyDocument = onCall(async (request) => {
   const { documentUrl } = request.data as { documentUrl: string };
+  const client = new LanguageServiceClient();
   const textResp = await fetch(documentUrl);
   if (!textResp.ok) {
     throw new functions.https.HttpsError('not-found', 'Unable to fetch document content');
   }
-  const text = (await textResp.text()).toLowerCase();
-  const categories: string[] = [];
-  const tags: string[] = [];
-  if (text.includes('invoice') || text.includes('receipt')) {
-    categories.push('Financial');
-    tags.push('invoice', 'payment');
-  } else if (text.includes('report') || text.includes('analysis')) {
-    categories.push('Reports');
-    tags.push('report', 'analysis');
-  } else if (text.includes('contract') || text.includes('agreement')) {
-    categories.push('Legal');
-    tags.push('contract', 'legal');
+  const text = await textResp.text();
+  try {
+    const [result] = await client.classifyText({ document: { content: text, type: 'PLAIN_TEXT' } });
+    const categories = (result.categories || []).map(c => c.name || '').filter(Boolean);
+    const tags = (result.categories || []).map(c => (c.name || '').split('/').filter(Boolean).pop() || '').filter(Boolean);
+    const confidence = Math.max(...(result.categories || []).map(c => c.confidence || 0), 0);
+    return {
+      categories: categories.length ? categories : ['Other'],
+      tags,
+      summary: text.slice(0, 160),
+      language: 'en',
+      confidence,
+    };
+  } catch (e) {
+    // Fallback to naive classification
+    const lower = text.toLowerCase();
+    const categories: string[] = [];
+    const tags: string[] = [];
+    if (lower.includes('invoice') || lower.includes('receipt')) {
+      categories.push('Financial');
+      tags.push('invoice', 'payment');
+    } else if (lower.includes('report') || lower.includes('analysis')) {
+      categories.push('Reports');
+      tags.push('report', 'analysis');
+    } else if (lower.includes('contract') || lower.includes('agreement')) {
+      categories.push('Legal');
+      tags.push('contract', 'legal');
+    }
+    return {
+      categories: categories.length ? categories : ['Other'],
+      tags,
+      summary: lower.slice(0, 160),
+      language: 'en',
+      confidence: 0.6,
+    };
   }
-  return {
-    categories: categories.length ? categories : ['Other'],
-    tags,
-    summary: text.slice(0, 160),
-    language: 'en',
-    confidence: 0.7,
-  };
 });
 
 // HTTP example for storage usage (requires auth header)
