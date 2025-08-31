@@ -120,40 +120,9 @@ export const saveTranslatedDocument = async (
  * Mock implementation of document translation for development/testing
  * This simulates the translation without requiring the actual Cloud Functions
  */
-export const mockTranslateDocument = (
-  document: Document,
-  targetLanguage: string
-): Promise<TranslationResult> => {
-  return new Promise((resolve) => {
-    // Simulate API delay
-    setTimeout(() => {
-      // Mock translation result
-      resolve({
-        translatedText: `[This is a mock translation of "${document.name}" to ${targetLanguage}]`,
-        sourceLanguage: document.metadata?.language || 'en',
-        targetLanguage,
-        confidence: 0.92
-      });
-    }, 1500); // 1.5s delay to simulate API call
-  });
-};
+// Removed mockTranslateDocument
 
 /**
  * Mock implementation of getting supported languages
  */
-export const mockGetSupportedLanguages = (): Promise<SupportedLanguage[]> => {
-  return Promise.resolve([
-    { code: 'en', name: 'English' },
-    { code: 'es', name: 'Spanish' },
-    { code: 'fr', name: 'French' },
-    { code: 'de', name: 'German' },
-    { code: 'it', name: 'Italian' },
-    { code: 'pt', name: 'Portuguese' },
-    { code: 'ru', name: 'Russian' },
-    { code: 'zh', name: 'Chinese (Simplified)' },
-    { code: 'ja', name: 'Japanese' },
-    { code: 'ko', name: 'Korean' },
-    { code: 'ar', name: 'Arabic' },
-    { code: 'hi', name: 'Hindi' }
-  ]);
-};
+// Removed mockGetSupportedLanguages
