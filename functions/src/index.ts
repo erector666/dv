@@ -4,6 +4,8 @@ import { onCall } from 'firebase-functions/v2/https';
 import { onRequest } from 'firebase-functions/v2/https';
 import fetch from 'node-fetch';
 import { LanguageServiceClient } from '@google-cloud/language';
+import { ImageAnnotatorClient } from '@google-cloud/vision';
+import * as pdfParse from 'pdf-parse';
 
 // Initialize Admin SDK
 try {
@@ -92,11 +94,85 @@ export const translateDocument = onCall(async (request) => {
   return result;
 });
 
-// AI functions - placeholder integration points
+// AI functions - Text extraction with Vision API and PDF processing
 export const extractText = onCall(async (request) => {
-  // TODO: Implement text extraction (Vision/PDF processing)
-  return { text: '' };
+  assertAuthenticated(request);
+  const { documentUrl, documentType } = request.data as { 
+    documentUrl: string; 
+    documentType?: 'pdf' | 'image' | 'auto' 
+  };
+
+  if (!documentUrl) {
+    throw new functions.https.HttpsError('invalid-argument', 'Document URL is required');
+  }
+
+  try {
+    // Fetch the document
+    const response = await fetch(documentUrl);
+    if (!response.ok) {
+      throw new functions.https.HttpsError('not-found', 'Unable to fetch document');
+    }
+
+    const buffer = await response.buffer();
+    const contentType = response.headers.get('content-type') || '';
+    
+    // Determine document type
+    const type = documentType || (contentType.includes('pdf') ? 'pdf' : 'image');
+
+    let extractedText = '';
+    let confidence = 0;
+
+    if (type === 'pdf') {
+      // PDF text extraction
+      try {
+        const pdfData = await pdfParse(buffer);
+        extractedText = pdfData.text;
+        confidence = 0.95; // High confidence for PDF text extraction
+      } catch (error) {
+        // If PDF parsing fails, try Vision API on PDF pages
+        extractedText = await extractTextFromImageWithVision(buffer);
+        confidence = 0.8;
+      }
+    } else {
+      // Image text extraction using Vision API
+      extractedText = await extractTextFromImageWithVision(buffer);
+      confidence = 0.85;
+    }
+
+    return {
+      text: extractedText,
+      confidence,
+      documentType: type,
+      wordCount: extractedText.split(/\s+/).filter(word => word.length > 0).length
+    };
+
+  } catch (error) {
+    console.error('Text extraction error:', error);
+    throw new functions.https.HttpsError('internal', 'Failed to extract text from document');
+  }
 });
+
+// Helper function for Vision API text extraction
+async function extractTextFromImageWithVision(imageBuffer: Buffer): Promise<string> {
+  const visionClient = new ImageAnnotatorClient();
+  
+  try {
+    const [result] = await visionClient.textDetection({
+      image: { content: imageBuffer }
+    });
+    
+    const detections = result.textAnnotations;
+    if (detections && detections.length > 0) {
+      // First annotation contains the full text
+      return detections[0].description || '';
+    }
+    
+    return '';
+  } catch (error) {
+    console.error('Vision API error:', error);
+    throw new Error('Vision API text extraction failed');
+  }
+}
 
 export const detectLanguage = onCall(async (request) => {
   const { documentUrl } = request.data as { documentUrl: string };
@@ -165,6 +241,111 @@ export const classifyDocument = onCall(async (request) => {
       confidence: 0.6,
     };
   }
+});
+
+// Advanced document processing functions
+export const extractDocumentMetadata = onCall(async (request) => {
+  assertAuthenticated(request);
+  const { documentUrl } = request.data as { documentUrl: string };
+
+  try {
+    const response = await fetch(documentUrl);
+    if (!response.ok) {
+      throw new functions.https.HttpsError('not-found', 'Unable to fetch document');
+    }
+
+    const buffer = await response.buffer();
+    const contentType = response.headers.get('content-type') || '';
+    
+    // Extract text first
+    const extractedText = await extractTextFromImageWithVision(buffer);
+    
+    // Use Vision API for additional metadata
+    const visionClient = new ImageAnnotatorClient();
+    const [result] = await visionClient.annotateImage({
+      image: { content: buffer },
+      features: [
+        { type: 'TEXT_DETECTION' },
+        { type: 'DOCUMENT_TEXT_DETECTION' },
+        { type: 'OBJECT_LOCALIZATION' },
+        { type: 'LOGO_DETECTION' }
+      ]
+    });
+
+    const metadata = {
+      fileSize: buffer.length,
+      contentType,
+      textLength: extractedText.length,
+      wordCount: extractedText.split(/\s+/).filter(word => word.length > 0).length,
+      hasText: extractedText.length > 0,
+      detectedObjects: result.localizedObjectAnnotations?.map((obj: any) => ({
+        name: obj.name,
+        confidence: obj.score
+      })) || [],
+      detectedLogos: result.logoAnnotations?.map((logo: any) => ({
+        description: logo.description,
+        confidence: logo.score
+      })) || [],
+      pageCount: result.fullTextAnnotation?.pages?.length || 1
+    };
+
+    return metadata;
+  } catch (error) {
+    console.error('Metadata extraction error:', error);
+    throw new functions.https.HttpsError('internal', 'Failed to extract document metadata');
+  }
+});
+
+export const processDocumentBatch = onCall(async (request) => {
+  assertAuthenticated(request);
+  const { documentUrls, operations } = request.data as { 
+    documentUrls: string[]; 
+    operations: ('extract' | 'classify' | 'translate')[];
+  };
+
+  if (!documentUrls || documentUrls.length === 0) {
+    throw new functions.https.HttpsError('invalid-argument', 'Document URLs are required');
+  }
+
+  const results = [];
+
+  for (const url of documentUrls) {
+    try {
+      const result: any = { url, success: true };
+
+      if (operations.includes('extract')) {
+        const extractionRequest = { data: { documentUrl: url }, auth: request.auth };
+        const extraction = await extractText(extractionRequest);
+        result.extraction = extraction;
+      }
+
+      if (operations.includes('classify')) {
+        const classificationRequest = { data: { documentUrl: url }, auth: request.auth };
+        const classification = await classifyDocument(classificationRequest);
+        result.classification = classification;
+      }
+
+      if (operations.includes('translate')) {
+        // Default to English translation
+        const translationRequest = { 
+          data: { documentUrl: url, targetLanguage: 'en' },
+          auth: request.auth
+        };
+        const translation = await translateDocument(translationRequest);
+        result.translation = translation;
+      }
+
+      results.push(result);
+    } catch (error) {
+      results.push({
+        url,
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  return { results, processed: results.length };
 });
 
 // HTTP example for storage usage (requires auth header)

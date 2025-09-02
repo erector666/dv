@@ -212,6 +212,53 @@ const defaultTranslations: Translations = {
     mk: 'Веќе имаш сметка?',
     fr: 'Vous avez déjà un compte?',
   },
+  // Upload translations
+  'upload.dropzone': {
+    en: 'Drag & drop files here, or click to select files',
+    mk: 'Влечете и пуштете датотеки овде, или кликнете за да изберете датотеки',
+    fr: 'Glissez et déposez des fichiers ici, ou cliquez pour sélectionner des fichiers',
+  },
+  'upload.title': {
+    en: 'Upload Documents',
+    mk: 'Прикачување на документи',
+    fr: 'Télécharger des documents',
+  },
+  'upload.instructions': {
+    en: 'Supported formats: PDF, JPG, PNG, DOCX',
+    mk: 'Поддржани формати: PDF, JPG, PNG, DOCX',
+    fr: 'Formats pris en charge : PDF, JPG, PNG, DOCX',
+  },
+  'upload.browse': {
+    en: 'Browse Files',
+    mk: 'Прегледај датотеки',
+    fr: 'Parcourir les fichiers',
+  },
+  'upload.selectedFiles': {
+    en: 'Selected Files',
+    mk: 'Избрани датотеки',
+    fr: 'Fichiers sélectionnés',
+  },
+  'upload.removeFile': {
+    en: 'Remove',
+    mk: 'Отстрани',
+    fr: 'Supprimer',
+  },
+  'upload.uploading': {
+    en: 'Uploading...',
+    mk: 'Се прикачува...',
+    fr: 'Téléchargement...',
+  },
+  'upload.uploadFiles': {
+    en: 'Upload Files',
+    mk: 'Прикачи датотеки',
+    fr: 'Télécharger les fichiers',
+  },
+  // Loading states
+  'loading': {
+    en: 'Loading...',
+    mk: 'Се вчитува...',
+    fr: 'Chargement...',
+  },
   'auth.register.signIn': {
     en: 'Sign In',
     mk: 'Најави се',

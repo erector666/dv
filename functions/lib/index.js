@@ -15,34 +15,26 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 }) : function(o, v) {
     o["default"] = v;
 });
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getStorageUsage = exports.classifyDocument = exports.summarizeDocument = exports.detectLanguage = exports.extractText = exports.translateDocument = exports.getSupportedLanguages = void 0;
+exports.getStorageUsage = exports.processDocumentBatch = exports.extractDocumentMetadata = exports.classifyDocument = exports.summarizeDocument = exports.detectLanguage = exports.extractText = exports.translateDocument = exports.getSupportedLanguages = void 0;
 const functions = __importStar(require("firebase-functions"));
 const admin = __importStar(require("firebase-admin"));
 const https_1 = require("firebase-functions/v2/https");
 const https_2 = require("firebase-functions/v2/https");
 const node_fetch_1 = __importDefault(require("node-fetch"));
 const language_1 = require("@google-cloud/language");
+const vision_1 = require("@google-cloud/vision");
+const pdfParse = __importStar(require("pdf-parse"));
 try {
     admin.initializeApp();
 }
@@ -116,8 +108,65 @@ exports.translateDocument = (0, https_1.onCall)(async (request) => {
     return result;
 });
 exports.extractText = (0, https_1.onCall)(async (request) => {
-    return { text: '' };
+    assertAuthenticated(request);
+    const { documentUrl, documentType } = request.data;
+    if (!documentUrl) {
+        throw new functions.https.HttpsError('invalid-argument', 'Document URL is required');
+    }
+    try {
+        const response = await (0, node_fetch_1.default)(documentUrl);
+        if (!response.ok) {
+            throw new functions.https.HttpsError('not-found', 'Unable to fetch document');
+        }
+        const buffer = await response.buffer();
+        const contentType = response.headers.get('content-type') || '';
+        const type = documentType || (contentType.includes('pdf') ? 'pdf' : 'image');
+        let extractedText = '';
+        let confidence = 0;
+        if (type === 'pdf') {
+            try {
+                const pdfData = await pdfParse(buffer);
+                extractedText = pdfData.text;
+                confidence = 0.95;
+            }
+            catch (error) {
+                extractedText = await extractTextFromImageWithVision(buffer);
+                confidence = 0.8;
+            }
+        }
+        else {
+            extractedText = await extractTextFromImageWithVision(buffer);
+            confidence = 0.85;
+        }
+        return {
+            text: extractedText,
+            confidence,
+            documentType: type,
+            wordCount: extractedText.split(/\s+/).filter(word => word.length > 0).length
+        };
+    }
+    catch (error) {
+        console.error('Text extraction error:', error);
+        throw new functions.https.HttpsError('internal', 'Failed to extract text from document');
+    }
 });
+async function extractTextFromImageWithVision(imageBuffer) {
+    const visionClient = new vision_1.ImageAnnotatorClient();
+    try {
+        const [result] = await visionClient.textDetection({
+            image: { content: imageBuffer }
+        });
+        const detections = result.textAnnotations;
+        if (detections && detections.length > 0) {
+            return detections[0].description || '';
+        }
+        return '';
+    }
+    catch (error) {
+        console.error('Vision API error:', error);
+        throw new Error('Vision API text extraction failed');
+    }
+}
 exports.detectLanguage = (0, https_1.onCall)(async (request) => {
     const { documentUrl } = request.data;
     const client = new language_1.LanguageServiceClient();
@@ -185,6 +234,90 @@ exports.classifyDocument = (0, https_1.onCall)(async (request) => {
             confidence: 0.6,
         };
     }
+});
+exports.extractDocumentMetadata = (0, https_1.onCall)(async (request) => {
+    assertAuthenticated(request);
+    const { documentUrl } = request.data;
+    try {
+        const response = await (0, node_fetch_1.default)(documentUrl);
+        if (!response.ok) {
+            throw new functions.https.HttpsError('not-found', 'Unable to fetch document');
+        }
+        const buffer = await response.buffer();
+        const contentType = response.headers.get('content-type') || '';
+        const extractedText = await extractTextFromImageWithVision(buffer);
+        const visionClient = new vision_1.ImageAnnotatorClient();
+        const [result] = await visionClient.annotateImage({
+            image: { content: buffer },
+            features: [
+                { type: 'TEXT_DETECTION' },
+                { type: 'DOCUMENT_TEXT_DETECTION' },
+                { type: 'OBJECT_LOCALIZATION' },
+                { type: 'LOGO_DETECTION' }
+            ]
+        });
+        const metadata = {
+            fileSize: buffer.length,
+            contentType,
+            textLength: extractedText.length,
+            wordCount: extractedText.split(/\s+/).filter(word => word.length > 0).length,
+            hasText: extractedText.length > 0,
+            detectedObjects: result.localizedObjectAnnotations?.map((obj) => ({
+                name: obj.name,
+                confidence: obj.score
+            })) || [],
+            detectedLogos: result.logoAnnotations?.map((logo) => ({
+                description: logo.description,
+                confidence: logo.score
+            })) || [],
+            pageCount: result.fullTextAnnotation?.pages?.length || 1
+        };
+        return metadata;
+    }
+    catch (error) {
+        console.error('Metadata extraction error:', error);
+        throw new functions.https.HttpsError('internal', 'Failed to extract document metadata');
+    }
+});
+exports.processDocumentBatch = (0, https_1.onCall)(async (request) => {
+    assertAuthenticated(request);
+    const { documentUrls, operations } = request.data;
+    if (!documentUrls || documentUrls.length === 0) {
+        throw new functions.https.HttpsError('invalid-argument', 'Document URLs are required');
+    }
+    const results = [];
+    for (const url of documentUrls) {
+        try {
+            const result = { url, success: true };
+            if (operations.includes('extract')) {
+                const extractionRequest = { data: { documentUrl: url }, auth: request.auth };
+                const extraction = await (0, exports.extractText)(extractionRequest);
+                result.extraction = extraction;
+            }
+            if (operations.includes('classify')) {
+                const classificationRequest = { data: { documentUrl: url }, auth: request.auth };
+                const classification = await (0, exports.classifyDocument)(classificationRequest);
+                result.classification = classification;
+            }
+            if (operations.includes('translate')) {
+                const translationRequest = {
+                    data: { documentUrl: url, targetLanguage: 'en' },
+                    auth: request.auth
+                };
+                const translation = await (0, exports.translateDocument)(translationRequest);
+                result.translation = translation;
+            }
+            results.push(result);
+        }
+        catch (error) {
+            results.push({
+                url,
+                success: false,
+                error: error instanceof Error ? error.message : 'Unknown error'
+            });
+        }
+    }
+    return { results, processed: results.length };
 });
 exports.getStorageUsage = (0, https_2.onRequest)(async (req, res) => {
     const authHeader = req.get('Authorization') || '';
