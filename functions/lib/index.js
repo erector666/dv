@@ -15,18 +15,28 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 }) : function(o, v) {
     o["default"] = v;
 });
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getStorageUsage = exports.processDocumentBatch = exports.extractDocumentMetadata = exports.classifyDocument = exports.summarizeDocument = exports.detectLanguage = exports.extractText = exports.translateDocument = exports.getSupportedLanguages = void 0;
+exports.getStorageUsage = exports.processDocumentBatch = exports.extractDocumentMetadata = exports.translateText = exports.classifyDocument = exports.summarizeDocument = exports.detectLanguage = exports.extractText = exports.translateDocument = exports.getSupportedLanguages = void 0;
 const functions = __importStar(require("firebase-functions"));
 const admin = __importStar(require("firebase-admin"));
 const https_1 = require("firebase-functions/v2/https");
@@ -34,7 +44,7 @@ const https_2 = require("firebase-functions/v2/https");
 const node_fetch_1 = __importDefault(require("node-fetch"));
 const language_1 = require("@google-cloud/language");
 const vision_1 = require("@google-cloud/vision");
-const pdfParse = __importStar(require("pdf-parse"));
+const pdf_parse_1 = __importDefault(require("pdf-parse"));
 try {
     admin.initializeApp();
 }
@@ -47,76 +57,14 @@ const assertAuthenticated = (context) => {
         throw new functions.https.HttpsError('unauthenticated', 'Authentication required');
     }
 };
-exports.getSupportedLanguages = (0, https_1.onCall)(async () => {
-    const apiKey = process.env.GOOGLE_TRANSLATE_API_KEY;
-    if (!apiKey) {
-        throw new functions.https.HttpsError('failed-precondition', 'Missing GOOGLE_TRANSLATE_API_KEY');
-    }
-    if (translateLanguagesCache.data.length && Date.now() - translateLanguagesCache.timestamp < CACHE_TTL_MS) {
-        return { languages: translateLanguagesCache.data };
-    }
-    const url = `https://translation.googleapis.com/language/translate/v2/languages?key=${apiKey}&target=en`;
-    const resp = await (0, node_fetch_1.default)(url);
-    if (!resp.ok) {
-        throw new functions.https.HttpsError('internal', `Translate API error: ${resp.status}`);
-    }
-    const data = (await resp.json());
-    const languages = (data.data?.languages || []).map((l) => ({ code: l.language, name: l.name }));
-    translateLanguagesCache.data = languages;
-    translateLanguagesCache.timestamp = Date.now();
-    return { languages };
-});
-exports.translateDocument = (0, https_1.onCall)(async (request) => {
-    const { documentUrl, targetLanguage, sourceLanguage } = request.data;
-    const apiKey = process.env.GOOGLE_TRANSLATE_API_KEY;
-    if (!apiKey) {
-        throw new functions.https.HttpsError('failed-precondition', 'Missing GOOGLE_TRANSLATE_API_KEY');
-    }
-    const cacheKey = `${documentUrl}::${sourceLanguage || 'auto'}::${targetLanguage}`;
-    const cached = translationCache[cacheKey];
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
-        return cached;
-    }
-    const docResp = await (0, node_fetch_1.default)(documentUrl);
-    if (!docResp.ok) {
-        throw new functions.https.HttpsError('not-found', 'Unable to fetch document content');
-    }
-    const text = await docResp.text();
-    const body = {
-        q: text,
-        target: targetLanguage,
-        ...(sourceLanguage ? { source: sourceLanguage } : {}),
-        format: 'text',
-    };
-    const resp = await (0, node_fetch_1.default)(`https://translation.googleapis.com/language/translate/v2?key=${apiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-    });
-    if (!resp.ok) {
-        throw new functions.https.HttpsError('internal', `Translate API error: ${resp.status}`);
-    }
-    const data = (await resp.json());
-    const translatedText = data.data?.translations?.[0]?.translatedText || '';
-    const result = {
-        translatedText,
-        sourceLanguage: sourceLanguage || data.data?.translations?.[0]?.detectedSourceLanguage || 'en',
-        targetLanguage,
-        confidence: 0.9,
-    };
-    translationCache[cacheKey] = { ...result, timestamp: Date.now() };
-    return result;
-});
-exports.extractText = (0, https_1.onCall)(async (request) => {
-    assertAuthenticated(request);
-    const { documentUrl, documentType } = request.data;
+async function extractTextInternal(documentUrl, documentType) {
     if (!documentUrl) {
-        throw new functions.https.HttpsError('invalid-argument', 'Document URL is required');
+        throw new Error('Document URL is required');
     }
     try {
         const response = await (0, node_fetch_1.default)(documentUrl);
         if (!response.ok) {
-            throw new functions.https.HttpsError('not-found', 'Unable to fetch document');
+            throw new Error('Unable to fetch document');
         }
         const buffer = await response.buffer();
         const contentType = response.headers.get('content-type') || '';
@@ -125,7 +73,7 @@ exports.extractText = (0, https_1.onCall)(async (request) => {
         let confidence = 0;
         if (type === 'pdf') {
             try {
-                const pdfData = await pdfParse(buffer);
+                const pdfData = await (0, pdf_parse_1.default)(buffer);
                 extractedText = pdfData.text;
                 confidence = 0.95;
             }
@@ -147,9 +95,74 @@ exports.extractText = (0, https_1.onCall)(async (request) => {
     }
     catch (error) {
         console.error('Text extraction error:', error);
-        throw new functions.https.HttpsError('internal', 'Failed to extract text from document');
+        throw new Error('Failed to extract text from document');
     }
-});
+}
+async function classifyDocumentInternal(documentUrl) {
+    if (!documentUrl) {
+        throw new Error('Document URL is required');
+    }
+    try {
+        const response = await (0, node_fetch_1.default)(documentUrl);
+        if (!response.ok) {
+            throw new Error('Unable to fetch document');
+        }
+        const buffer = await response.buffer();
+        const contentType = response.headers.get('content-type') || '';
+        const extractedText = await extractTextInternal(documentUrl);
+        const classification = {
+            category: contentType.includes('pdf') ? 'document' : 'image',
+            confidence: extractedText.confidence,
+            tags: [],
+            language: 'en'
+        };
+        return classification;
+    }
+    catch (error) {
+        console.error('Document classification error:', error);
+        throw new Error('Failed to classify document');
+    }
+}
+async function translateDocumentInternal(documentUrl, targetLanguage, sourceLanguage) {
+    const apiKey = process.env.GOOGLE_TRANSLATE_API_KEY;
+    if (!apiKey) {
+        throw new Error('Missing GOOGLE_TRANSLATE_API_KEY');
+    }
+    const cacheKey = `${documentUrl}::${sourceLanguage || 'auto'}::${targetLanguage}`;
+    const cached = translationCache[cacheKey];
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+        return cached;
+    }
+    const docResp = await (0, node_fetch_1.default)(documentUrl);
+    if (!docResp.ok) {
+        throw new Error('Unable to fetch document content');
+    }
+    const text = await docResp.text();
+    const body = {
+        q: text,
+        target: targetLanguage,
+        ...(sourceLanguage ? { source: sourceLanguage } : {}),
+        format: 'text',
+    };
+    const resp = await (0, node_fetch_1.default)(`https://translation.googleapis.com/language/translate/v2?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+    });
+    if (!resp.ok) {
+        throw new Error(`Translate API error: ${resp.status}`);
+    }
+    const data = (await resp.json());
+    const translatedText = data.data?.translations?.[0]?.translatedText || '';
+    const result = {
+        translatedText,
+        sourceLanguage: sourceLanguage || data.data?.translations?.[0]?.detectedSourceLanguage || 'en',
+        targetLanguage,
+        confidence: 0.9,
+    };
+    translationCache[cacheKey] = { ...result, timestamp: Date.now() };
+    return result;
+}
 async function extractTextFromImageWithVision(imageBuffer) {
     const visionClient = new vision_1.ImageAnnotatorClient();
     try {
@@ -167,6 +180,44 @@ async function extractTextFromImageWithVision(imageBuffer) {
         throw new Error('Vision API text extraction failed');
     }
 }
+exports.getSupportedLanguages = (0, https_1.onCall)(async () => {
+    const apiKey = process.env.GOOGLE_TRANSLATE_API_KEY;
+    if (!apiKey) {
+        throw new functions.https.HttpsError('failed-precondition', 'Missing GOOGLE_TRANSLATE_API_KEY');
+    }
+    if (translateLanguagesCache.data.length && Date.now() - translateLanguagesCache.timestamp < CACHE_TTL_MS) {
+        return { languages: translateLanguagesCache.data };
+    }
+    const url = `https://translation.googleapis.com/language/translate/v2/languages?key=${apiKey}&target=en`;
+    const resp = await (0, node_fetch_1.default)(url);
+    if (!resp.ok) {
+        throw new functions.https.HttpsError('internal', `Translate API error: ${resp.status}`);
+    }
+    const data = (await resp.json());
+    const languages = (data.data?.languages || []).map((l) => ({ code: l.language, name: l.name }));
+    translateLanguagesCache.data = languages;
+    translateLanguagesCache.timestamp = Date.now();
+    return { languages };
+});
+exports.translateDocument = (0, https_1.onCall)(async (request) => {
+    const { documentUrl, targetLanguage, sourceLanguage } = request.data;
+    try {
+        return await translateDocumentInternal(documentUrl, targetLanguage, sourceLanguage);
+    }
+    catch (error) {
+        throw new functions.https.HttpsError('internal', error instanceof Error ? error.message : 'Translation failed');
+    }
+});
+exports.extractText = (0, https_1.onCall)(async (request) => {
+    assertAuthenticated(request);
+    const { documentUrl, documentType } = request.data;
+    try {
+        return await extractTextInternal(documentUrl, documentType);
+    }
+    catch (error) {
+        throw new functions.https.HttpsError('internal', error instanceof Error ? error.message : 'Text extraction failed');
+    }
+});
 exports.detectLanguage = (0, https_1.onCall)(async (request) => {
     const { documentUrl } = request.data;
     const client = new language_1.LanguageServiceClient();
@@ -190,54 +241,30 @@ exports.summarizeDocument = (0, https_1.onCall)(async (request) => {
     return { summary };
 });
 exports.classifyDocument = (0, https_1.onCall)(async (request) => {
+    assertAuthenticated(request);
     const { documentUrl } = request.data;
-    const client = new language_1.LanguageServiceClient();
-    const textResp = await (0, node_fetch_1.default)(documentUrl);
-    if (!textResp.ok) {
-        throw new functions.https.HttpsError('not-found', 'Unable to fetch document content');
-    }
-    const text = await textResp.text();
     try {
-        const [result] = await client.classifyText({ document: { content: text, type: 'PLAIN_TEXT' } });
-        const categories = (result.categories || []).map(c => c.name || '').filter(Boolean);
-        const tags = (result.categories || []).map(c => (c.name || '').split('/').filter(Boolean).pop() || '').filter(Boolean);
-        const confidence = Math.max(...(result.categories || []).map(c => c.confidence || 0), 0);
-        return {
-            categories: categories.length ? categories : ['Other'],
-            tags,
-            summary: text.slice(0, 160),
-            language: 'en',
-            confidence,
-        };
+        return await classifyDocumentInternal(documentUrl);
     }
-    catch (e) {
-        const lower = text.toLowerCase();
-        const categories = [];
-        const tags = [];
-        if (lower.includes('invoice') || lower.includes('receipt')) {
-            categories.push('Financial');
-            tags.push('invoice', 'payment');
-        }
-        else if (lower.includes('report') || lower.includes('analysis')) {
-            categories.push('Reports');
-            tags.push('report', 'analysis');
-        }
-        else if (lower.includes('contract') || lower.includes('agreement')) {
-            categories.push('Legal');
-            tags.push('contract', 'legal');
-        }
-        return {
-            categories: categories.length ? categories : ['Other'],
-            tags,
-            summary: lower.slice(0, 160),
-            language: 'en',
-            confidence: 0.6,
-        };
+    catch (error) {
+        throw new functions.https.HttpsError('internal', error instanceof Error ? error.message : 'Document classification failed');
+    }
+});
+exports.translateText = (0, https_1.onCall)(async (request) => {
+    const { text, targetLanguage, sourceLanguage } = request.data;
+    try {
+        return await translateDocumentInternal('data:text/plain;base64,' + Buffer.from(text).toString('base64'), targetLanguage, sourceLanguage);
+    }
+    catch (error) {
+        throw new functions.https.HttpsError('internal', error instanceof Error ? error.message : 'Text translation failed');
     }
 });
 exports.extractDocumentMetadata = (0, https_1.onCall)(async (request) => {
     assertAuthenticated(request);
     const { documentUrl } = request.data;
+    if (!documentUrl) {
+        throw new functions.https.HttpsError('invalid-argument', 'Document URL is required');
+    }
     try {
         const response = await (0, node_fetch_1.default)(documentUrl);
         if (!response.ok) {
@@ -245,12 +272,11 @@ exports.extractDocumentMetadata = (0, https_1.onCall)(async (request) => {
         }
         const buffer = await response.buffer();
         const contentType = response.headers.get('content-type') || '';
-        const extractedText = await extractTextFromImageWithVision(buffer);
+        const extractedText = await extractTextInternal(documentUrl);
         const visionClient = new vision_1.ImageAnnotatorClient();
         const [result] = await visionClient.annotateImage({
             image: { content: buffer },
             features: [
-                { type: 'TEXT_DETECTION' },
                 { type: 'DOCUMENT_TEXT_DETECTION' },
                 { type: 'OBJECT_LOCALIZATION' },
                 { type: 'LOGO_DETECTION' }
@@ -259,9 +285,9 @@ exports.extractDocumentMetadata = (0, https_1.onCall)(async (request) => {
         const metadata = {
             fileSize: buffer.length,
             contentType,
-            textLength: extractedText.length,
-            wordCount: extractedText.split(/\s+/).filter(word => word.length > 0).length,
-            hasText: extractedText.length > 0,
+            textLength: extractedText.text.length,
+            wordCount: extractedText.text.split(/\s+/).filter((word) => word.length > 0).length,
+            hasText: extractedText.text.length > 0,
             detectedObjects: result.localizedObjectAnnotations?.map((obj) => ({
                 name: obj.name,
                 confidence: obj.score
@@ -290,22 +316,13 @@ exports.processDocumentBatch = (0, https_1.onCall)(async (request) => {
         try {
             const result = { url, success: true };
             if (operations.includes('extract')) {
-                const extractionRequest = { data: { documentUrl: url }, auth: request.auth };
-                const extraction = await (0, exports.extractText)(extractionRequest);
-                result.extraction = extraction;
+                result.extraction = await extractTextInternal(url);
             }
             if (operations.includes('classify')) {
-                const classificationRequest = { data: { documentUrl: url }, auth: request.auth };
-                const classification = await (0, exports.classifyDocument)(classificationRequest);
-                result.classification = classification;
+                result.classification = await classifyDocumentInternal(url);
             }
             if (operations.includes('translate')) {
-                const translationRequest = {
-                    data: { documentUrl: url, targetLanguage: 'en' },
-                    auth: request.auth
-                };
-                const translation = await (0, exports.translateDocument)(translationRequest);
-                result.translation = translation;
+                result.translation = await translateDocumentInternal(url, 'en');
             }
             results.push(result);
         }
