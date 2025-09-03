@@ -1,6 +1,5 @@
 {
   "version": 2,
-  "projectId": "prj_vyf1se0xS4YddmR3xxWzkXHmRMrP",
   "builds": [
     {
       "src": "package.json",
