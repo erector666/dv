@@ -196,6 +196,11 @@ export const getUserDocuments = async (
     return documents;
   } catch (error) {
     console.error('❌ Error getting user documents:', error);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      stack: error.stack
+    });
     throw error;
   }
 };
