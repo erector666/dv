@@ -140,6 +140,31 @@ const defaultTranslations: Translations = {
     mk: 'Дали сте сигурни дека сакате да го избришете {name}?',
     fr: 'Êtes-vous sûr de vouloir supprimer {name}?',
   },
+  'documents.error.loading': {
+    en: 'Error loading documents. Please try again.',
+    mk: 'Грешка при вчитување на документите. Обидете се повторно.',
+    fr: 'Erreur lors du chargement des documents. Veuillez réessayer.',
+  },
+  'documents.noDocuments': {
+    en: 'No documents found',
+    mk: 'Нема пронајдени документи',
+    fr: 'Aucun document trouvé',
+  },
+  'documents.noCategoryDocuments': {
+    en: 'No documents in this category',
+    mk: 'Нема документи во оваа категорија',
+    fr: 'Aucun document dans cette catégorie',
+  },
+  'documents.noSearchResults': {
+    en: 'No documents match your search',
+    mk: 'Нема документи што одговараат на вашата пребарување',
+    fr: 'Aucun document ne correspond à votre recherche',
+  },
+  'documents.uploadPrompt': {
+    en: 'Upload your first document to get started',
+    mk: 'Прикачете го вашиот прв документ за да започнете',
+    fr: 'Téléchargez votre premier document pour commencer',
+  },
   // Upload translations
   'upload.error.fileSize': {
     en: 'File size exceeds the limit of {maxSize} MB',
@@ -150,6 +175,21 @@ const defaultTranslations: Translations = {
     en: 'File type not allowed. Allowed types: {allowedTypes}',
     mk: 'Типот на датотеката не е дозволен. Дозволени типови: {allowedTypes}',
     fr: 'Type de fichier non autorisé. Types autorisés: {allowedTypes}',
+  },
+  'upload.error.notAuthenticated': {
+    en: 'You must be signed in to upload files',
+    mk: 'Мора да сте најавени за да прикачите датотеки',
+    fr: 'Vous devez être connecté pour télécharger des fichiers',
+  },
+  'upload.error.uploadFailed': {
+    en: 'Upload failed. Please try again.',
+    mk: 'Прикачувањето не успеа. Обидете се повторно.',
+    fr: 'Le téléchargement a échoué. Veuillez réessayer.',
+  },
+  'upload.error.noFiles': {
+    en: 'No files selected for upload',
+    mk: 'Нема избрани датотеки за прикачување',
+    fr: 'Aucun fichier sélectionné pour le téléchargement',
   },
   'upload.allowedTypes': {
     en: 'Allowed file types: {types}',

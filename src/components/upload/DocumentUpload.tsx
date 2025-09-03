@@ -1,9 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useLanguage } from '../../context/LanguageContext';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { storage, db } from '../../services/firebase';
+import { useAuth } from '../../context/AuthContext';
+import { uploadDocument, DocumentUploadProgress } from '../../services/documentService';
 
 interface DocumentUploadProps {
   onUploadComplete?: (documentId: string) => void;
@@ -17,6 +16,7 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
   maxFileSize = 10, // Default 10MB
 }) => {
   const { translate } = useLanguage();
+  const { currentUser } = useAuth();
   const [isDragging, setIsDragging] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
@@ -90,54 +90,43 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
       return;
     }
 
+    if (!currentUser?.uid) {
+      setUploadError(translate('upload.error.notAuthenticated'));
+      return;
+    }
+
     setIsUploading(true);
     setUploadError(null);
 
     try {
       for (const file of files) {
-        const storageRef = ref(storage, `documents/${file.name}-${Date.now()}`);
-        const uploadTask = uploadBytesResumable(storageRef, file);
+        // Use the proper uploadDocument service function
+        const onProgress = (progress: DocumentUploadProgress) => {
+          setUploadProgress(prev => ({
+            ...prev,
+            [file.name]: progress.progress
+          }));
+        };
 
-        uploadTask.on(
-          'state_changed',
-          (snapshot: any) => {
-            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-            setUploadProgress(prev => ({
-              ...prev,
-              [file.name]: progress
-            }));
-          },
-          (error: any) => {
-            console.error('Upload error:', error);
-            setUploadError(translate('upload.error.uploadFailed'));
-            setIsUploading(false);
-          },
-          async () => {
-            // Upload completed successfully
-            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-            
-            // Save document metadata to Firestore
-            const docRef = await addDoc(collection(db, 'documents'), {
-              name: file.name,
-              type: file.type,
-              size: file.size,
-              url: downloadURL,
-              uploadedAt: serverTimestamp(),
-              // Add more metadata as needed
-            });
-
-            if (onUploadComplete) {
-              onUploadComplete(docRef.id);
-            }
-
-            // If this is the last file, reset the component
-            if (file === files[files.length - 1]) {
-              setFiles([]);
-              setUploadProgress({});
-              setIsUploading(false);
-            }
-          }
+        const document = await uploadDocument(
+          file,
+          currentUser.uid,
+          undefined, // category
+          undefined, // tags
+          undefined, // metadata
+          onProgress
         );
+
+        if (onUploadComplete) {
+          onUploadComplete(document.id || '');
+        }
+
+        // If this is the last file, reset the component
+        if (file === files[files.length - 1]) {
+          setFiles([]);
+          setUploadProgress({});
+          setIsUploading(false);
+        }
       }
     } catch (error) {
       console.error('Upload error:', error);
