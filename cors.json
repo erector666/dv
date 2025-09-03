@@ -1,6 +1,12 @@
 [
   {
-    "origin": ["http://localhost:3000", "https://docsort.vercel.app"],
+    "origin": [
+      "http://localhost:3000", 
+      "https://docsort.vercel.app",
+      "https://dv-beta-peach.vercel.app",
+      "https://dv-fzs1q3nn9-nikolas-projects-8cb9fb29.vercel.app",
+      "https://*.vercel.app"
+    ],
     "method": ["GET", "HEAD", "PUT", "POST", "DELETE"],
     "responseHeader": ["Content-Type", "x-goog-resumable"],
     "maxAgeSeconds": 3600
