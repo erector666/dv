@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from 'react-query';
 import './App.css';
 
@@ -15,19 +15,27 @@ import AppRoutes from './routes';
 // Create a client for React Query
 const queryClient = new QueryClient();
 
-function App() {
+// Create router with future flags to fix deprecation warnings
+const router = createBrowserRouter([
+  {
+    path: "*",
+    element: <AppRoutes />
+  }
+], {
+  future: {
+    v7_startTransition: true,
+    v7_relativeSplatPath: true
+  }
+});
 
+function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <LanguageProvider>
           <AuthProvider>
             <UploadModalProvider>
-              <Router>
-                <div className="App">
-                  <AppRoutes />
-                </div>
-              </Router>
+              <RouterProvider router={router} />
             </UploadModalProvider>
           </AuthProvider>
         </LanguageProvider>
