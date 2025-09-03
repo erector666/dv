@@ -42,8 +42,6 @@ const admin = __importStar(require("firebase-admin"));
 const https_1 = require("firebase-functions/v2/https");
 const https_2 = require("firebase-functions/v2/https");
 const node_fetch_1 = __importDefault(require("node-fetch"));
-const language_1 = require("@google-cloud/language");
-const vision_1 = require("@google-cloud/vision");
 const pdf_parse_1 = __importDefault(require("pdf-parse"));
 try {
     admin.initializeApp();
@@ -52,6 +50,34 @@ catch { }
 const translateLanguagesCache = { data: [], timestamp: 0 };
 const translationCache = {};
 const CACHE_TTL_MS = 10 * 60 * 1000;
+let languageClient = null;
+let visionClient = null;
+async function getLanguageClient() {
+    if (!languageClient) {
+        try {
+            const { LanguageServiceClient } = await Promise.resolve().then(() => __importStar(require('@google-cloud/language')));
+            languageClient = new LanguageServiceClient();
+        }
+        catch (error) {
+            console.error('Failed to initialize Language client:', error);
+            throw new Error('Language service not available');
+        }
+    }
+    return languageClient;
+}
+async function getVisionClient() {
+    if (!visionClient) {
+        try {
+            const { ImageAnnotatorClient } = await Promise.resolve().then(() => __importStar(require('@google-cloud/vision')));
+            visionClient = new ImageAnnotatorClient();
+        }
+        catch (error) {
+            console.error('Failed to initialize Vision client:', error);
+            throw new Error('Vision service not available');
+        }
+    }
+    return visionClient;
+}
 const assertAuthenticated = (context) => {
     if (!context.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'Authentication required');
@@ -164,7 +190,7 @@ async function translateDocumentInternal(documentUrl, targetLanguage, sourceLang
     return result;
 }
 async function extractTextFromImageWithVision(imageBuffer) {
-    const visionClient = new vision_1.ImageAnnotatorClient();
+    const visionClient = await getVisionClient();
     try {
         const [result] = await visionClient.textDetection({
             image: { content: imageBuffer }
@@ -220,7 +246,7 @@ exports.extractText = (0, https_1.onCall)(async (request) => {
 });
 exports.detectLanguage = (0, https_1.onCall)(async (request) => {
     const { documentUrl } = request.data;
-    const client = new language_1.LanguageServiceClient();
+    const client = await getLanguageClient();
     const textResp = await (0, node_fetch_1.default)(documentUrl);
     if (!textResp.ok) {
         throw new functions.https.HttpsError('not-found', 'Unable to fetch document content');
@@ -273,7 +299,7 @@ exports.extractDocumentMetadata = (0, https_1.onCall)(async (request) => {
         const buffer = await response.buffer();
         const contentType = response.headers.get('content-type') || '';
         const extractedText = await extractTextInternal(documentUrl);
-        const visionClient = new vision_1.ImageAnnotatorClient();
+        const visionClient = await getVisionClient();
         const [result] = await visionClient.annotateImage({
             image: { content: buffer },
             features: [
