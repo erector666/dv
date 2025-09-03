@@ -27,9 +27,7 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
   }>({});
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [aiProgress, setAiProgress] = useState<{
-    [key: string]: { stage: string; progress: number };
-  }>({});
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
@@ -124,10 +122,6 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
 
         const onAIProgress = (stage: string, progress: number) => {
           console.log(`🤖 AI Processing: ${stage} - ${progress}%`);
-          setAiProgress(prev => ({
-            ...prev,
-            [file.name]: { stage, progress }
-          }));
         };
 
         const document = await uploadDocumentWithAI(

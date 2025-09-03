@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+
 import { useQuery } from 'react-query';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
@@ -24,7 +24,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
 }) => {
   const { currentUser } = useAuth();
   const { translate } = useLanguage();
-  const navigate = useNavigate();
+
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(
     null
   );
