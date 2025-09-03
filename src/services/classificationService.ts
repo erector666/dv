@@ -262,7 +262,7 @@ export const processDocument = async (
     
     // Step 4: Generate summary
     console.log('📝 Step 4: Generating summary...');
-    const summary = await generateDocumentSummary(document.url, 200);
+    const summary = await generateDocumentSummary(document.url, document.type, 200);
 
     // Update document with comprehensive AI processing results
     const updatedDocument: Document = {
