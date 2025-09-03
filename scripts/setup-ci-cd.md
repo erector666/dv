@@ -1,9 +1,11 @@
 # CI/CD Pipeline Setup Guide
 
 ## Overview
+
 This guide will help you set up the complete CI/CD pipeline for GitHub → Firebase → Vercel deployment.
 
 ## Prerequisites
+
 - GitHub repository with your code
 - Firebase project (use your own project ID)
 - Vercel account and project
@@ -12,46 +14,57 @@ This guide will help you set up the complete CI/CD pipeline for GitHub → Fireb
 ## Step 1: Generate Firebase Token
 
 ### 1.1 Install Firebase CLI (if not already installed)
+
 ```bash
 npm install -g firebase-tools
 ```
 
 ### 1.2 Login to Firebase
+
 ```bash
 firebase login
 ```
 
 ### 1.3 Generate CI Token
+
 ```bash
 firebase login:ci
 ```
+
 This will open a browser window. After authentication, copy the token.
 
 ## Step 2: Get Vercel Configuration
 
 ### 2.1 Install Vercel CLI
+
 ```bash
 npm install -g vercel
 ```
 
 ### 2.2 Login to Vercel
+
 ```bash
 vercel login
 ```
 
 ### 2.3 Get Project Information
+
 ```bash
 vercel projects ls
 ```
+
 Note down your project ID.
 
 ### 2.4 Get Organization ID
+
 ```bash
 vercel teams ls
 ```
+
 Note down your organization ID.
 
 ### 2.5 Generate Vercel Token
+
 1. Go to https://vercel.com/account/tokens
 2. Create a new token
 3. Copy the token
@@ -63,14 +76,17 @@ Go to your GitHub repository → Settings → Secrets and variables → Actions
 Add these secrets:
 
 ### Firebase Secrets
+
 - `FIREBASE_TOKEN`: The token from Step 1.3
 
 ### Vercel Secrets
+
 - `VERCEL_TOKEN`: The token from Step 2.5
 - `VERCEL_ORG_ID`: Your organization ID from Step 2.4
 - `VERCEL_PROJECT_ID`: Your project ID from Step 2.3
 
 ### Firebase Environment Variables
+
 - `REACT_APP_FIREBASE_API_KEY`: your_firebase_api_key
 - `REACT_APP_FIREBASE_AUTH_DOMAIN`: your_project.firebaseapp.com
 - `REACT_APP_FIREBASE_PROJECT_ID`: your_project_id
@@ -80,6 +96,7 @@ Add these secrets:
 - `REACT_APP_FUNCTIONS_BASE_URL`: https://us-central1-your_project_id.cloudfunctions.net
 
 ### Functions Environment Variables
+
 - `GOOGLE_TRANSLATE_API_KEY`: your_translate_api_key
 
 ## Step 4: Configure Firebase Auth Domains
@@ -96,6 +113,7 @@ Add these secrets:
 ## Step 6: Test the Pipeline
 
 ### 6.1 Push to Main Branch
+
 ```bash
 git add .
 git commit -m "Add CI/CD pipeline"
@@ -103,11 +121,13 @@ git push origin main
 ```
 
 ### 6.2 Check GitHub Actions
+
 Go to your GitHub repository → Actions tab to monitor the pipeline.
 
 ## Step 7: Branch Strategy
 
 ### Development Workflow
+
 1. Create feature branch: `git checkout -b feature/new-feature`
 2. Make changes and commit
 3. Push to feature branch
@@ -116,6 +136,7 @@ Go to your GitHub repository → Actions tab to monitor the pipeline.
 6. Review and merge
 
 ### Production Deployment
+
 - Push to `main` branch triggers production deployment
 - Automatic deployment to Firebase (backend) and Vercel (frontend)
 

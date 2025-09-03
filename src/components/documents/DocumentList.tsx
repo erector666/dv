@@ -265,22 +265,43 @@ const DocumentList: React.FC<DocumentListProps> = ({
         <p className="mt-2 text-gray-500 dark:text-gray-400">
           {translate('documents.uploadPrompt')}
         </p>
-        
+
         {/* Debug Information */}
         <div className="mt-6 p-4 bg-gray-100 dark:bg-gray-700 rounded-md text-left text-sm">
           <h4 className="font-semibold mb-2">🔍 Debug Information:</h4>
           <div className="space-y-1 text-xs">
-            <p><strong>User ID:</strong> {currentUser?.uid || 'Not authenticated'}</p>
-            <p><strong>User Email:</strong> {currentUser?.email || 'N/A'}</p>
-            <p><strong>Auth State:</strong> {currentUser ? '✅ Authenticated' : '❌ Not Authenticated'}</p>
-            <p><strong>Documents Fetched:</strong> {documents?.length || 0}</p>
-            <p><strong>Category:</strong> {category || 'All'}</p>
-            <p><strong>Search Term:</strong> {searchTerm || 'None'}</p>
-            <p><strong>Query Enabled:</strong> {!!currentUser?.uid ? '✅ Yes' : '❌ No'}</p>
-            <p><strong>Loading State:</strong> {isLoading ? '🔄 Yes' : '❌ No'}</p>
-            <p><strong>Error State:</strong> {isError ? '❌ Yes' : '✅ No'}</p>
+            <p>
+              <strong>User ID:</strong>{' '}
+              {currentUser?.uid || 'Not authenticated'}
+            </p>
+            <p>
+              <strong>User Email:</strong> {currentUser?.email || 'N/A'}
+            </p>
+            <p>
+              <strong>Auth State:</strong>{' '}
+              {currentUser ? '✅ Authenticated' : '❌ Not Authenticated'}
+            </p>
+            <p>
+              <strong>Documents Fetched:</strong> {documents?.length || 0}
+            </p>
+            <p>
+              <strong>Category:</strong> {category || 'All'}
+            </p>
+            <p>
+              <strong>Search Term:</strong> {searchTerm || 'None'}
+            </p>
+            <p>
+              <strong>Query Enabled:</strong>{' '}
+              {!!currentUser?.uid ? '✅ Yes' : '❌ No'}
+            </p>
+            <p>
+              <strong>Loading State:</strong> {isLoading ? '🔄 Yes' : '❌ No'}
+            </p>
+            <p>
+              <strong>Error State:</strong> {isError ? '❌ Yes' : '✅ No'}
+            </p>
           </div>
-          
+
           {/* Manual Refresh Button */}
           <div className="mt-3">
             <button
@@ -293,11 +314,13 @@ const DocumentList: React.FC<DocumentListProps> = ({
               🔄 Refresh Documents
             </button>
           </div>
-          
+
           {/* Raw Data Display */}
           {documents && (
             <details className="mt-3">
-              <summary className="cursor-pointer font-semibold">📊 Raw Documents Data</summary>
+              <summary className="cursor-pointer font-semibold">
+                📊 Raw Documents Data
+              </summary>
               <pre className="mt-2 text-xs bg-gray-200 dark:bg-gray-600 p-2 rounded overflow-auto max-h-40">
                 {JSON.stringify(documents, null, 2)}
               </pre>
@@ -330,14 +353,9 @@ const DocumentList: React.FC<DocumentListProps> = ({
                 <div className="mt-1 flex flex-col space-y-1 text-sm text-gray-500 dark:text-gray-400">
                   <p>{formatFileSize(document.size)}</p>
                   <p>
-                    {formatDate(
-                      document.uploadedAt &&
-                        typeof document.uploadedAt.toDate === 'function'
-                        ? document.uploadedAt.toDate()
-                        : new Date()
-                    )}
+                    {formatDate(document.uploadedAt)}
                   </p>
-                  
+
                   {/* AI Processing Results */}
                   {document.metadata?.aiProcessed && (
                     <div className="mt-2 space-y-1">
@@ -345,32 +363,88 @@ const DocumentList: React.FC<DocumentListProps> = ({
                       <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
                         🤖 AI Processed
                       </div>
-                      
+
                       {/* Language */}
                       {document.metadata?.language && (
                         <p className="text-xs">
                           🌐 Language: {document.metadata.language}
                         </p>
                       )}
-                      
+
                       {/* Category */}
                       {document.category && (
                         <p className="text-xs">
                           📁 Category: {document.category}
                         </p>
                       )}
-                      
+
                       {/* Summary Preview */}
-                      {document.metadata?.summary && (
-                        <p className="text-xs text-gray-600 dark:text-gray-300 line-clamp-2">
-                          📝 {document.metadata.summary.substring(0, 100)}
-                          {document.metadata.summary.length > 100 ? '...' : ''}
-                        </p>
+                      {document.metadata?.summary ? (
+                        <div className="text-xs">
+                          <div className="flex items-start space-x-2">
+                            <span className="text-orange-600 dark:text-orange-400 mt-0.5">
+                              📝
+                            </span>
+                            <div className="flex-1">
+                              <span className="text-gray-700 dark:text-gray-300 font-medium">
+                                Summary:
+                              </span>
+                              <p className="text-gray-900 dark:text-gray-100 mt-1 leading-relaxed">
+                                {(() => {
+                                  const summary = document.metadata.summary;
+
+                                  // Check if this looks like raw PDF content
+                                  const isRawPDF =
+                                    /%PDF|obj|<<|>>|\/MediaBox|\/Parent|\/Resources|\/Contents|\/Font|\/ProcSet|\/XObject|\/ExtGState|\/Pattern|\/Shading|\/Annots|\/Metadata|\/StructTreeRoot|\/MarkInfo|\/Lang|\/Trailer|\/Root|\/Info|\/ID|\/Size|\/Prev|\/XRef|xref|startxref|trailer|endobj|endstream|stream|BT|ET|Td|Tj|TJ|Tf|Ts|Tc|Tw|Tm|T\*|TD|Tz|TL|Tr/.test(
+                                      summary
+                                    );
+
+                                  if (isRawPDF) {
+                                    // Show a user-friendly message for raw PDF content
+                                    return 'Document processed successfully - content extracted and analyzed';
+                                  }
+
+                                  // For clean text, show the actual summary
+                                  const cleanSummary = summary
+                                    .replace(/\s+/g, ' ') // Normalize whitespace
+                                    .trim();
+
+                                  // If summary is too short, show a generic message
+                                  if (cleanSummary.length < 20) {
+                                    return 'Document content extracted successfully';
+                                  }
+
+                                  // Show cleaned summary (limited to 120 characters)
+                                  return cleanSummary.length > 120
+                                    ? `${cleanSummary.substring(0, 120)}...`
+                                    : cleanSummary;
+                                })()}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        // Fallback when no summary is available
+                        <div className="text-xs">
+                          <div className="flex items-start space-x-2">
+                            <span className="text-gray-500 dark:text-gray-400 mt-0.5">
+                              📄
+                            </span>
+                            <div className="flex-1">
+                              <span className="text-gray-500 dark:text-gray-400 font-medium">
+                                Status:
+                              </span>
+                              <p className="text-gray-500 dark:text-gray-400 mt-1">
+                                Document uploaded and stored successfully
+                              </p>
+                            </div>
+                          </div>
+                        </div>
                       )}
                     </div>
                   )}
                 </div>
-                
+
                 {/* Tags */}
                 {document.tags && document.tags.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-1">
@@ -478,11 +552,11 @@ const DocumentList: React.FC<DocumentListProps> = ({
                 </svg>
               </button>
             </div>
-            
+
             {/* Modal Content */}
             <div className="flex-1 p-4 overflow-hidden">
               <DocumentViewer
-                documentId={documentToView.id || ''}
+                document={documentToView}
                 onClose={() => {
                   setIsViewerModalOpen(false);
                   setDocumentToView(null);

@@ -27,6 +27,15 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
   }>({});
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [aiProgress, setAiProgress] = useState<{
+    [key: string]: { stage: string; progress: number; message: string };
+  }>({});
+  const [showCompletionDialog, setShowCompletionDialog] = useState(false);
+  const [completedFiles, setCompletedFiles] = useState<string[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
+  const [sortBy, setSortBy] = useState<'name' | 'size' | 'type'>('name');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [fileTypeFilter, setFileTypeFilter] = useState<string>('all');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -93,12 +102,119 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
   };
 
   const handleRemoveFile = (index: number) => {
+    const fileToRemove = files[index];
     setFiles(prevFiles => prevFiles.filter((_, i) => i !== index));
+    setSelectedFiles(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(fileToRemove.name);
+      return newSet;
+    });
   };
 
-  const handleUpload = async () => {
-    if (files.length === 0) {
-      setUploadError(translate('upload.error.noFiles'));
+  const handleSelectFile = (fileName: string, checked: boolean) => {
+    setSelectedFiles(prev => {
+      const newSet = new Set(prev);
+      if (checked) {
+        newSet.add(fileName);
+      } else {
+        newSet.delete(fileName);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSelectAllFiles = () => {
+    if (selectedFiles.size === files.length) {
+      setSelectedFiles(new Set());
+    } else {
+      setSelectedFiles(new Set(files.map(f => f.name)));
+    }
+  };
+
+  const handleRemoveSelectedFiles = () => {
+    setFiles(prevFiles => prevFiles.filter(f => !selectedFiles.has(f.name)));
+    setSelectedFiles(new Set());
+  };
+
+  const handleClearAllFiles = () => {
+    setFiles([]);
+    setSelectedFiles(new Set());
+    setUploadProgress({});
+    setAiProgress({});
+  };
+
+  const handleSortFiles = (newSortBy: 'name' | 'size' | 'type') => {
+    if (sortBy === newSortBy) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(newSortBy);
+      setSortOrder('asc');
+    }
+  };
+
+  const getFilteredAndSortedFiles = () => {
+    let filteredFiles = files;
+
+    // Apply file type filter
+    if (fileTypeFilter !== 'all') {
+      filteredFiles = files.filter(file => {
+        if (fileTypeFilter === 'images') {
+          return file.type.startsWith('image/');
+        } else if (fileTypeFilter === 'documents') {
+          return (
+            file.type.includes('pdf') ||
+            file.type.includes('document') ||
+            file.type.includes('text')
+          );
+        } else if (fileTypeFilter === 'pdf') {
+          return file.type === 'application/pdf';
+        }
+        return true;
+      });
+    }
+
+    // Apply sorting
+    return filteredFiles.sort((a, b) => {
+      let aValue: string | number;
+      let bValue: string | number;
+
+      switch (sortBy) {
+        case 'name':
+          aValue = a.name.toLowerCase();
+          bValue = b.name.toLowerCase();
+          break;
+        case 'size':
+          aValue = a.size;
+          bValue = b.size;
+          break;
+        case 'type':
+          aValue = a.type || 'unknown';
+          bValue = b.type || 'unknown';
+          break;
+        default:
+          aValue = a.name.toLowerCase();
+          bValue = b.name.toLowerCase();
+      }
+
+      if (sortOrder === 'asc') {
+        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+      } else {
+        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
+      }
+    });
+  };
+
+  const handleUpload = async (uploadSelectedOnly: boolean = false) => {
+    const filesToUpload = uploadSelectedOnly
+      ? files.filter(f => selectedFiles.has(f.name))
+      : files;
+
+    if (filesToUpload.length === 0) {
+      setUploadError(
+        uploadSelectedOnly
+          ? 'No files selected for upload'
+          : translate('upload.error.noFiles')
+      );
       return;
     }
 
@@ -111,7 +227,7 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
     setUploadError(null);
 
     try {
-      for (const file of files) {
+      for (const file of filesToUpload) {
         // Use the AI-enhanced uploadDocumentWithAI service function
         const onProgress = (progress: DocumentUploadProgress) => {
           setUploadProgress(prev => ({
@@ -122,6 +238,38 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
 
         const onAIProgress = (stage: string, progress: number) => {
           console.log(`🤖 AI Processing: ${stage} - ${progress}%`);
+
+          // Map stage to user-friendly message
+          const stageMessages: { [key: string]: string } = {
+            converting_to_pdf: 'Converting to PDF...',
+            uploading_pdf: 'Uploading PDF...',
+            extracting_text: 'Extracting text with OCR...',
+            detecting_language: 'Detecting language...',
+            classifying_document: 'Classifying document...',
+            generating_summary: 'Generating summary...',
+            updating_document: 'Updating document...',
+            completed: 'AI processing completed!',
+          };
+
+          const message = stageMessages[stage] || `Processing: ${stage}`;
+
+          setAiProgress(prev => ({
+            ...prev,
+            [file.name]: { stage, progress, message },
+          }));
+
+          // If AI processing is complete, update the progress to show completion
+          if (stage === 'completed') {
+            setTimeout(() => {
+              setAiProgress(prev => ({
+                ...prev,
+                [file.name]: {
+                  ...prev[file.name],
+                  message: '✅ Processing complete!',
+                },
+              }));
+            }, 1000);
+          }
         };
 
         const document = await uploadDocumentWithAI(
@@ -138,11 +286,30 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
           onUploadComplete(document.id || '');
         }
 
-        // If this is the last file, reset the component
-        if (file === files[files.length - 1]) {
-          setFiles([]);
-          setUploadProgress({});
-          setIsUploading(false);
+        // Add to completed files
+        setCompletedFiles(prev => [...prev, file.name]);
+
+        // If this is the last file, show completion dialog
+        if (file === filesToUpload[filesToUpload.length - 1]) {
+          setShowCompletionDialog(true);
+          // Reset after a delay to show the completion dialog
+          setTimeout(() => {
+            // Remove only the uploaded files from the list
+            if (uploadSelectedOnly) {
+              setFiles(prevFiles =>
+                prevFiles.filter(f => !selectedFiles.has(f.name))
+              );
+              setSelectedFiles(new Set());
+            } else {
+              setFiles([]);
+              setSelectedFiles(new Set());
+            }
+            setUploadProgress({});
+            setAiProgress({});
+            setCompletedFiles([]);
+            setIsUploading(false);
+            setShowCompletionDialog(false);
+          }, 3000);
         }
       }
     } catch (error) {
@@ -157,12 +324,13 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
   };
 
   return (
-    <div className="w-full max-w-3xl mx-auto">
-      <div
-        className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
+    <div className="w-full">
+      {/* Drag & Drop Zone */}
+      <motion.div
+        className={`relative border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-all duration-300 ${
           isDragging
-            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-            : 'border-gray-300 dark:border-gray-700'
+            ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-900/20 scale-105'
+            : 'border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600'
         }`}
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
@@ -170,6 +338,8 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
         onDrop={handleFileDrop}
         onClick={handleBrowseClick}
         aria-label={translate('upload.dropzone')}
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.98 }}
       >
         <input
           type="file"
@@ -180,96 +350,341 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
           accept={allowedFileTypes.join(',')}
         />
 
-        <div className="flex flex-col items-center justify-center space-y-4">
-          <div className="text-4xl text-blue-500">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-16 w-16"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-              />
+        <div className="flex flex-col items-center justify-center space-y-6">
+          <motion.div
+            className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg"
+            animate={isDragging ? { rotate: 360 } : {}}
+            transition={{ duration: 0.5 }}
+          >
+            <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
             </svg>
+          </motion.div>
+          
+          <div className="space-y-2">
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+              {translate('upload.title')}
+            </h3>
+            <p className="text-gray-600 dark:text-gray-300 max-w-md">
+              {translate('upload.instructions')}
+            </p>
           </div>
-          <h3 className="text-lg font-medium">{translate('upload.title')}</h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            {translate('upload.instructions')}
-          </p>
-          <button
-            className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+
+          <motion.button
+            className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium rounded-xl hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-lg hover:shadow-xl transition-all duration-200"
             onClick={e => {
               e.stopPropagation();
               handleBrowseClick();
             }}
+            whileHover={{ y: -2 }}
+            whileTap={{ y: 0 }}
           >
             {translate('upload.browse')}
-          </button>
-          <p className="text-xs text-gray-500 dark:text-gray-400">
-            {translate('upload.allowedTypes', {
-              types: allowedFileTypes.join(', '),
-            })}
-          </p>
+          </motion.button>
+
+          <div className="flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400">
+            <span>📄 PDF, JPG, PNG, DOCX</span>
+            <span>•</span>
+            <span>Max {maxFileSize}MB</span>
+          </div>
         </div>
-      </div>
+      </motion.div>
+
+      {/* AI Processing Status */}
+      {isUploading && Object.keys(aiProgress).length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mt-6 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-2xl p-6 border border-blue-200 dark:border-blue-800"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-3">
+              <motion.div
+                className="w-3 h-3 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full"
+                animate={{ scale: [1, 1.2, 1] }}
+                transition={{ duration: 1.5, repeat: Infinity }}
+              />
+              <h4 className="text-lg font-semibold text-gray-900 dark:text-white">
+                AI Processing
+              </h4>
+              <span className="text-sm text-gray-600 dark:text-gray-300">
+                {Object.keys(aiProgress).length} file{Object.keys(aiProgress).length !== 1 ? 's' : ''}
+              </span>
+            </div>
+          </div>
+          
+          <div className="space-y-3">
+            {Object.entries(aiProgress).map(([fileName, progress]) => (
+              <motion.div
+                key={fileName}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-blue-100 dark:border-blue-800"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-gray-900 dark:text-white truncate max-w-48">
+                    {fileName}
+                  </span>
+                  <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">
+                    {progress.progress}%
+                  </span>
+                </div>
+                
+                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
+                  <motion.div
+                    className="h-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${progress.progress}%` }}
+                    transition={{ duration: 0.8, ease: 'easeOut' }}
+                  />
+                </div>
+                
+                <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
+                  {progress.message}
+                </p>
+              </motion.div>
+            ))}
+          </div>
+        </motion.div>
+      )}
+
+      {/* Batch Actions Toolbar */}
+      {files.length > 0 && (
+        <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-4">
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={selectedFiles.size === files.length}
+                  onChange={handleSelectAllFiles}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm font-medium">
+                  {selectedFiles.size === files.length
+                    ? 'Deselect All'
+                    : 'Select All'}
+                </span>
+              </label>
+              <span className="text-sm text-gray-500">
+                {selectedFiles.size} of {files.length} files selected
+              </span>
+              <span className="text-xs text-gray-400 bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded">
+                {getFilteredAndSortedFiles().length} files shown
+              </span>
+            </div>
+
+            <div className="flex items-center space-x-4">
+              {/* File Type Filter */}
+              <div className="flex items-center space-x-2">
+                <span className="text-xs text-gray-500">Filter:</span>
+                <select
+                  value={fileTypeFilter}
+                  onChange={e => setFileTypeFilter(e.target.value)}
+                  className="px-2 py-1 text-xs border border-gray-300 rounded-md bg-white dark:bg-gray-700 dark:border-gray-600 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="all">All Files</option>
+                  <option value="images">Images</option>
+                  <option value="documents">Documents</option>
+                  <option value="pdf">PDF Only</option>
+                </select>
+              </div>
+
+              {/* Sorting Controls */}
+              <div className="flex items-center space-x-2">
+                <span className="text-xs text-gray-500">Sort by:</span>
+                {(['name', 'size', 'type'] as const).map(sortOption => (
+                  <button
+                    key={sortOption}
+                    onClick={() => handleSortFiles(sortOption)}
+                    className={`px-2 py-1 text-xs rounded-md transition-colors ${
+                      sortBy === sortOption
+                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
+                        : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-300 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    {sortOption.charAt(0).toUpperCase() + sortOption.slice(1)}
+                    {sortBy === sortOption && (
+                      <span className="ml-1">
+                        {sortOrder === 'asc' ? '↑' : '↓'}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-center space-x-2">
+                {selectedFiles.size > 0 && (
+                  <>
+                    <button
+                      onClick={handleRemoveSelectedFiles}
+                      className="px-3 py-1 text-sm text-red-600 hover:text-red-800 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/20 rounded-md transition-colors"
+                    >
+                      Remove Selected ({selectedFiles.size})
+                    </button>
+                    <span className="text-gray-300">|</span>
+                  </>
+                )}
+                <button
+                  onClick={handleClearAllFiles}
+                  className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-50 dark:text-gray-400 dark:hover:text-gray-300 dark:hover:bg-gray-700 rounded-md transition-colors"
+                >
+                  Clear All
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* File List */}
       {files.length > 0 && (
-        <div className="mt-6">
-          <h4 className="text-md font-medium mb-2">
+        <div className="mt-4">
+          <h4 className="text-lg font-medium mb-4">
             {translate('upload.selectedFiles')}
           </h4>
-          <ul className="space-y-2">
-            {files.map((file, index) => (
+          <ul className="space-y-3">
+            {getFilteredAndSortedFiles().map((file, index) => (
               <motion.li
                 key={`${file.name}-${index}`}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-md"
+                transition={{ delay: index * 0.1 }}
+                whileHover={{ scale: 1.02, y: -2 }}
+                className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-md shadow-sm hover:shadow-md transition-all duration-200"
               >
                 <div className="flex items-center space-x-3">
+                  {/* File Selection Checkbox */}
+                  <input
+                    type="checkbox"
+                    checked={selectedFiles.has(file.name)}
+                    onChange={e =>
+                      handleSelectFile(file.name, e.target.checked)
+                    }
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    disabled={isUploading}
+                  />
+
                   <div className="text-gray-500 dark:text-gray-400">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-5 w-5"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                      />
-                    </svg>
+                    {file.type.startsWith('image/') ? (
+                      <svg
+                        className="h-5 w-5 text-blue-500"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    ) : file.type === 'application/pdf' ? (
+                      <svg
+                        className="h-5 w-5 text-red-500"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    ) : (
+                      <svg
+                        className="h-5 w-5"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-                      {file.name}
-                    </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {(file.size / 1024 / 1024).toFixed(2)} MB
-                    </p>
+                    <div className="flex items-center space-x-2">
+                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                        {file.name}
+                      </p>
+                      {file.type !== 'application/pdf' && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                          Will convert to PDF
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center space-x-2 mt-1">
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {(file.size / 1024 / 1024).toFixed(2)} MB
+                      </p>
+                      <span className="text-xs text-gray-400">•</span>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {file.type}
+                      </p>
+                    </div>
                   </div>
                 </div>
 
                 {isUploading && uploadProgress[file.name] !== undefined ? (
-                  <div className="w-24">
-                    <div className="h-2 bg-gray-200 rounded-full">
-                      <div
-                        className="h-2 bg-blue-500 rounded-full"
-                        style={{ width: `${uploadProgress[file.name]}%` }}
-                      ></div>
+                  <div className="w-32">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                      <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">
+                        Uploading
+                      </span>
                     </div>
-                    <p className="text-xs text-right mt-1">
+                    <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                      <motion.div
+                        className="h-2 bg-blue-500 rounded-full"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${uploadProgress[file.name]}%` }}
+                        transition={{ duration: 0.5, ease: 'easeOut' }}
+                      ></motion.div>
+                    </div>
+                    <p className="text-xs text-right mt-1 text-blue-600 dark:text-blue-400">
                       {Math.round(uploadProgress[file.name])}%
                     </p>
+
+                    {/* AI Processing Progress */}
+                    {aiProgress[file.name] && (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="mt-3 p-2 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800"
+                      >
+                        <div className="flex items-center space-x-2 mb-2">
+                          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                          <span className="text-xs font-medium text-green-700 dark:text-green-300">
+                            AI Processing
+                          </span>
+                        </div>
+                        <div className="h-2 bg-green-200 dark:bg-green-800 rounded-full overflow-hidden">
+                          <motion.div
+                            className="h-2 bg-green-500 rounded-full"
+                            initial={{ width: 0 }}
+                            animate={{
+                              width: `${aiProgress[file.name].progress}%`,
+                            }}
+                            transition={{ duration: 0.5, ease: 'easeOut' }}
+                          ></motion.div>
+                        </div>
+                        <div className="flex items-center justify-between mt-1">
+                          <motion.p
+                            key={aiProgress[file.name].stage}
+                            initial={{ opacity: 0, y: 5 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="text-xs text-green-600 dark:text-green-400 font-medium"
+                          >
+                            🤖 {aiProgress[file.name].message}
+                          </motion.p>
+                          <span className="text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30 px-2 py-0.5 rounded">
+                            {aiProgress[file.name].progress}%
+                          </span>
+                        </div>
+                      </motion.div>
+                    )}
                   </div>
                 ) : (
                   <button
@@ -313,23 +728,239 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
         </motion.div>
       )}
 
-      {/* Upload Button */}
+      {/* Upload Buttons */}
       {files.length > 0 && (
-        <div className="mt-6 flex justify-end">
-          <button
-            onClick={handleUpload}
-            disabled={isUploading}
-            className={`px-6 py-2 rounded-md text-white ${
-              isUploading
-                ? 'bg-gray-400 cursor-not-allowed'
-                : 'bg-blue-500 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2'
-            }`}
-          >
-            {isUploading
-              ? translate('upload.uploading')
-              : translate('upload.uploadFiles')}
-          </button>
+        <div className="mt-6 flex justify-between items-center">
+          <div className="flex items-center space-x-2">
+            {selectedFiles.size > 0 && (
+              <motion.button
+                onClick={() => handleUpload(true)} // true = upload only selected
+                disabled={isUploading}
+                whileHover={!isUploading ? { scale: 1.05, y: -2 } : {}}
+                whileTap={!isUploading ? { scale: 0.95 } : {}}
+                className={`px-4 py-2 rounded-md text-white text-sm font-medium shadow-lg transition-all duration-200 ${
+                  isUploading
+                    ? 'bg-gradient-to-r from-gray-400 to-gray-500 cursor-not-allowed shadow-md'
+                    : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 hover:shadow-xl'
+                }`}
+              >
+                {isUploading ? (
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{
+                      duration: 1,
+                      repeat: Infinity,
+                      ease: 'linear',
+                    }}
+                    className="inline-flex items-center space-x-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24">
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      />
+                    </svg>
+                    <span>Uploading...</span>
+                  </motion.div>
+                ) : (
+                  `Upload Selected (${selectedFiles.size})`
+                )}
+              </motion.button>
+            )}
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <motion.button
+              onClick={() => handleUpload(false)} // false = upload all
+              disabled={isUploading}
+              whileHover={!isUploading ? { scale: 1.05, y: -2 } : {}}
+              whileTap={!isUploading ? { scale: 0.95 } : {}}
+              className={`px-6 py-2 rounded-md text-white font-medium shadow-lg transition-all duration-200 ${
+                isUploading
+                  ? 'bg-gradient-to-r from-gray-400 to-gray-500 cursor-not-allowed shadow-md'
+                  : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 hover:shadow-xl'
+              }`}
+            >
+              {isUploading ? (
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                  className="inline-flex items-center space-x-2"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24">
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    />
+                  </svg>
+                  <span>Uploading...</span>
+                </motion.div>
+              ) : (
+                `Upload All (${files.length})`
+              )}
+            </motion.button>
+          </div>
         </div>
+      )}
+
+      {/* AI Processing Completion Dialog */}
+      {showCompletionDialog && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+        >
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            className="bg-white dark:bg-gray-800 rounded-2xl p-8 max-w-lg w-full mx-4 shadow-2xl border border-green-200 dark:border-green-700"
+          >
+            <div className="text-center">
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{
+                  delay: 0.2,
+                  type: 'spring',
+                  damping: 15,
+                  stiffness: 300,
+                }}
+                className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-gradient-to-r from-green-100 to-blue-100 dark:from-green-900 to-blue-900"
+              >
+                <motion.div
+                  animate={{
+                    scale: [1, 1.1, 1],
+                    rotate: [0, 5, -5, 0],
+                  }}
+                  transition={{
+                    duration: 2,
+                    repeat: Infinity,
+                    ease: 'easeInOut',
+                  }}
+                >
+                  🎉
+                </motion.div>
+              </motion.div>
+
+              <motion.h3
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="mt-6 text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-600 to-blue-600 dark:from-green-400 dark:to-blue-400"
+              >
+                AI Processing Complete!
+              </motion.h3>
+
+              <motion.p
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+                className="mt-3 text-lg text-gray-600 dark:text-gray-300 font-medium"
+              >
+                {completedFiles.length} file
+                {completedFiles.length !== 1 ? 's' : ''} processed successfully
+              </motion.p>
+
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+                className="mt-4 p-4 bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 rounded-xl border border-green-200 dark:border-green-700"
+              >
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="text-center">
+                    <p className="text-gray-500 dark:text-gray-400">
+                      Total Size
+                    </p>
+                    <p className="font-bold text-green-600 dark:text-green-400">
+                      {(
+                        completedFiles.reduce((total, fileName) => {
+                          const file = files.find(f => f.name === fileName);
+                          return total + (file ? file.size : 0);
+                        }, 0) /
+                        1024 /
+                        1024
+                      ).toFixed(2)}{' '}
+                      MB
+                    </p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-gray-500 dark:text-gray-400">Files</p>
+                    <p className="font-bold text-blue-600 dark:text-blue-400">
+                      {completedFiles.length}
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6 }}
+                className="mt-6"
+              >
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                  Files processed:
+                </p>
+                <div className="max-h-32 overflow-y-auto space-y-2">
+                  {completedFiles.map((fileName, index) => (
+                    <motion.li
+                      key={index}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.7 + index * 0.1 }}
+                      className="flex items-center justify-center space-x-3 p-2 bg-white dark:bg-gray-700 rounded-lg border border-green-200 dark:border-green-600"
+                    >
+                      <motion.span
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{
+                          delay: 0.8 + index * 0.1,
+                          type: 'spring',
+                        }}
+                        className="text-green-500 text-lg"
+                      >
+                        ✅
+                      </motion.span>
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate max-w-48">
+                        {fileName}
+                      </span>
+                    </motion.li>
+                  ))}
+                </div>
+              </motion.div>
+
+              <motion.button
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.8 }}
+                onClick={() => setShowCompletionDialog(false)}
+                className="mt-6 px-6 py-2 bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-500 text-white font-medium rounded-lg shadow-lg hover:shadow-xl transition-all duration-200"
+              >
+                Awesome! 🚀
+              </motion.button>
+            </div>
+          </motion.div>
+        </motion.div>
       )}
     </div>
   );

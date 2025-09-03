@@ -6,6 +6,7 @@
     "@google-cloud/vision": "^5.3.3",
     "@headlessui/react": "^2.2.7",
     "@heroicons/react": "^2.2.0",
+
     "@testing-library/jest-dom": "^5.16.5",
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^13.5.0",
@@ -20,6 +21,8 @@
     "firebase": "^10.14.1",
     "firebase-tools": "^14.15.1",
     "framer-motion": "^9.0.1",
+    "jspdf": "^3.0.2",
+
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-query": "^3.39.3",

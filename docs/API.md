@@ -22,30 +22,33 @@ const user = auth.currentUser;
 
 ```typescript
 // Get documents from a collection
-const querySnapshot = await getDocs(collection(db, "documents"));
+const querySnapshot = await getDocs(collection(db, 'documents'));
 
 // Add a document to a collection
-await addDoc(collection(db, "documents"), {
-  title: "Document Title",
-  category: "Category",
+await addDoc(collection(db, 'documents'), {
+  title: 'Document Title',
+  category: 'Category',
   uploadDate: serverTimestamp(),
-  userId: auth.currentUser?.uid
+  userId: auth.currentUser?.uid,
 });
 
 // Update a document
-await updateDoc(doc(db, "documents", documentId), {
-  title: "Updated Title"
+await updateDoc(doc(db, 'documents', documentId), {
+  title: 'Updated Title',
 });
 
 // Delete a document
-await deleteDoc(doc(db, "documents", documentId));
+await deleteDoc(doc(db, 'documents', documentId));
 ```
 
 ### Storage
 
 ```typescript
 // Upload a file
-const storageRef = ref(storage, `documents/${auth.currentUser?.uid}/${file.name}`);
+const storageRef = ref(
+  storage,
+  `documents/${auth.currentUser?.uid}/${file.name}`
+);
 await uploadBytes(storageRef, file);
 
 // Get download URL
@@ -82,7 +85,7 @@ const preferences = await getUserPreferences(userId);
 
 // Update user preferences
 await updateUserPreferences(userId, {
-  theme: "dark",
-  language: "en"
+  theme: 'dark',
+  language: 'en',
 });
 ```

@@ -47,7 +47,7 @@ const DocumentTranslation: React.FC<DocumentTranslationProps> = ({
         targetLanguage,
         document.metadata?.language
       );
-      
+
       // Create a new document object with translated content
       const translatedDocument: Document = {
         ...document,
@@ -67,7 +67,7 @@ const DocumentTranslation: React.FC<DocumentTranslationProps> = ({
         // Note: In a real implementation, you might want to save this to Firestore
         // For now, we'll just return the translated document object
       };
-      
+
       return translatedDocument;
     },
     {

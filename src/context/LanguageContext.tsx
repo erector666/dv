@@ -58,6 +58,16 @@ const defaultTranslations: Translations = {
     mk: 'Друго',
     fr: 'Autre',
   },
+  document: {
+    en: 'document',
+    mk: 'документ',
+    fr: 'document',
+  },
+  documents: {
+    en: 'documents',
+    mk: 'документи',
+    fr: 'documents',
+  },
   recentUploads: {
     en: 'Recent Uploads',
     mk: 'Неодамна Прикачени',
@@ -206,6 +216,11 @@ const defaultTranslations: Translations = {
     en: 'Cancel',
     mk: 'Откажи',
     fr: 'Annuler',
+  },
+  'common.delete': {
+    en: 'Delete',
+    mk: 'Избриши',
+    fr: 'Supprimer',
   },
   'documents.deleteConfirmation.title': {
     en: 'Delete Document',
@@ -378,6 +393,62 @@ const defaultTranslations: Translations = {
     en: 'Failed to reset password. Please check your email and try again.',
     mk: 'Неуспешно ресетирање на лозинката. Проверете ја вашата е-пошта и обидете се повторно.',
     fr: 'Échec de la réinitialisation du mot de passe. Veuillez vérifier votre email et réessayer.',
+  },
+  // Viewer translations
+  'viewer.loading': {
+    en: 'Loading...',
+    mk: 'Се вчитува...',
+    fr: 'Chargement...',
+  },
+  'viewer.close': {
+    en: 'Close',
+    mk: 'Затвори',
+    fr: 'Fermer',
+  },
+  'viewer.download': {
+    en: 'Download',
+    mk: 'Преземи',
+    fr: 'Télécharger',
+  },
+  'viewer.type': {
+    en: 'Type',
+    mk: 'Тип',
+    fr: 'Type',
+  },
+  'viewer.size': {
+    en: 'Size',
+    mk: 'Големина',
+    fr: 'Taille',
+  },
+  'viewer.uploaded': {
+    en: 'Uploaded',
+    mk: 'Прикачен',
+    fr: 'Téléchargé',
+  },
+  'viewer.unsupportedFormat': {
+    en: 'Unsupported Format',
+    mk: 'Неподдржан формат',
+    fr: 'Format non pris en charge',
+  },
+  'viewer.downloadInstead': {
+    en: 'This file type is not supported for viewing. Please download it instead.',
+    mk: 'Овој тип на датотека не е поддржан за преглед. Ве молиме преземете ја.',
+    fr: 'Ce type de fichier n\'est pas pris en charge pour la visualisation. Veuillez le télécharger à la place.',
+  },
+  'viewer.error.title': {
+    en: 'Error',
+    mk: 'Грешка',
+    fr: 'Erreur',
+  },
+  'viewer.error.notFound': {
+    en: 'Document not found',
+    mk: 'Документот не е пронајден',
+    fr: 'Document introuvable',
+  },
+  'viewer.error.fetchFailed': {
+    en: 'Failed to fetch document',
+    mk: 'Неуспешно преземање на документот',
+    fr: 'Échec de la récupération du document',
   },
 };
 

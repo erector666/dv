@@ -77,41 +77,46 @@ export const classifyDocument = async (
 ): Promise<ClassificationResult> => {
   try {
     console.log('🔍 Starting AI document classification for:', documentId);
-    
+
     // Get the current user's ID token for authentication
     const auth = getAuth();
     const user = auth.currentUser;
-    
+
     if (!user) {
       throw new Error('User not authenticated');
     }
-    
+
     const idToken = await user.getIdToken();
-    
+
     // Call the Firebase Cloud Function as HTTP request
-    const response = await fetch('https://us-central1-gpt1-77ce0.cloudfunctions.net/classifyDocumentHttp', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${idToken}`
-      },
-      body: JSON.stringify({
-        documentUrl,
-      })
-    });
+    const response = await fetch(
+      'https://us-central1-gpt1-77ce0.cloudfunctions.net/classifyDocumentHttp',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({
+          documentUrl,
+        }),
+      }
+    );
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+      throw new Error(
+        errorData.error || `HTTP ${response.status}: ${response.statusText}`
+      );
     }
 
-    const classification = await response.json() as ClassificationResult;
-    
+    const classification = (await response.json()) as ClassificationResult;
+
     console.log('✅ AI classification completed:', {
       category: classification.category,
       confidence: classification.confidence,
       tags: classification.tags.length,
-      language: classification.language
+      language: classification.language,
     });
 
     return classification;
@@ -136,17 +141,17 @@ export const extractTextFromDocument = async (
 ): Promise<TextExtractionResult> => {
   try {
     console.log('📄 Starting text extraction from:', documentUrl);
-    
+
     // Get the current user's ID token for authentication
     const auth = getAuth();
     const user = auth.currentUser;
-    
+
     if (!user) {
       throw new Error('User not authenticated');
     }
-    
+
     const idToken = await user.getIdToken();
-    
+
     // Convert MIME type to document type format expected by the function
     let docType: 'pdf' | 'image' | 'auto' = 'auto';
     if (documentType.includes('pdf')) {
@@ -156,29 +161,34 @@ export const extractTextFromDocument = async (
     }
 
     // Call the Firebase Cloud Function as HTTP request
-    const response = await fetch('https://us-central1-gpt1-77ce0.cloudfunctions.net/extractTextHttp', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${idToken}`
-      },
-      body: JSON.stringify({
-        documentUrl,
-        documentType: docType,
-      })
-    });
+    const response = await fetch(
+      'https://us-central1-gpt1-77ce0.cloudfunctions.net/extractTextHttp',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({
+          documentUrl,
+          documentType: docType,
+        }),
+      }
+    );
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+      throw new Error(
+        errorData.error || `HTTP ${response.status}: ${response.statusText}`
+      );
     }
 
-    const extraction = await response.json() as TextExtractionResult;
-    
+    const extraction = (await response.json()) as TextExtractionResult;
+
     console.log('✅ Text extraction completed:', {
       wordCount: extraction.wordCount,
       confidence: extraction.confidence,
-      documentType: extraction.documentType
+      documentType: extraction.documentType,
     });
 
     return extraction;
@@ -203,39 +213,44 @@ export const detectLanguage = async (
 ): Promise<LanguageDetectionResult> => {
   try {
     console.log('🌐 Starting language detection for:', documentUrl);
-    
+
     // Get the current user's ID token for authentication
     const auth = getAuth();
     const user = auth.currentUser;
-    
+
     if (!user) {
       throw new Error('User not authenticated');
     }
-    
+
     const idToken = await user.getIdToken();
-    
+
     // Call the Firebase Cloud Function as HTTP request
-    const response = await fetch('https://us-central1-gpt1-77ce0.cloudfunctions.net/detectLanguageHttp', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${idToken}`
-      },
-      body: JSON.stringify({
-        documentUrl,
-      })
-    });
+    const response = await fetch(
+      'https://us-central1-gpt1-77ce0.cloudfunctions.net/detectLanguageHttp',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({
+          documentUrl,
+        }),
+      }
+    );
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+      throw new Error(
+        errorData.error || `HTTP ${response.status}: ${response.statusText}`
+      );
     }
 
-    const detection = await response.json() as LanguageDetectionResult;
-    
+    const detection = (await response.json()) as LanguageDetectionResult;
+
     console.log('✅ Language detection completed:', {
       language: detection.language,
-      confidence: detection.confidence
+      confidence: detection.confidence,
     });
 
     return detection;
@@ -261,41 +276,46 @@ export const generateDocumentSummary = async (
 ): Promise<DocumentSummaryResult> => {
   try {
     console.log('📝 Starting AI document summarization for:', documentUrl);
-    
+
     // Get the current user's ID token for authentication
     const auth = getAuth();
     const user = auth.currentUser;
-    
+
     if (!user) {
       throw new Error('User not authenticated');
     }
-    
+
     const idToken = await user.getIdToken();
-    
+
     // Call the Firebase Cloud Function as HTTP request
-    const response = await fetch('https://us-central1-gpt1-77ce0.cloudfunctions.net/summarizeDocumentHttp', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${idToken}`
-      },
-      body: JSON.stringify({
-        documentUrl,
-        maxLength,
-      })
-    });
+    const response = await fetch(
+      'https://us-central1-gpt1-77ce0.cloudfunctions.net/summarizeDocumentHttp',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({
+          documentUrl,
+          maxLength,
+        }),
+      }
+    );
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+      throw new Error(
+        errorData.error || `HTTP ${response.status}: ${response.statusText}`
+      );
     }
 
-    const summary = await response.json() as DocumentSummaryResult;
-    
+    const summary = (await response.json()) as DocumentSummaryResult;
+
     console.log('✅ Document summarization completed:', {
       quality: summary.quality,
       confidence: summary.confidence,
-      compressionRatio: summary.metrics.compressionRatio
+      compressionRatio: summary.metrics?.compressionRatio || 'N/A',
     });
 
     return summary;
@@ -318,27 +338,41 @@ export const processDocument = async (
   document: Document
 ): Promise<Document> => {
   try {
-    console.log('🚀 Starting comprehensive document processing for:', document.id);
-    
+    console.log(
+      '🚀 Starting comprehensive document processing for:',
+      document.id
+    );
+
     if (!document.url) {
       throw new Error('Document URL is required for processing');
     }
 
     // Step 1: Extract text content
     console.log('📄 Step 1: Extracting text content...');
-    const textExtraction = await extractTextFromDocument(document.url, document.type);
-    
+    const textExtraction = await extractTextFromDocument(
+      document.url,
+      document.type
+    );
+
     // Step 2: Detect language
     console.log('🌐 Step 2: Detecting language...');
     const languageDetection = await detectLanguage(document.url, document.type);
-    
+
     // Step 3: Classify document
     console.log('🏷️ Step 3: Classifying document...');
-    const classification = await classifyDocument(document.id || '', document.url, document.type);
-    
+    const classification = await classifyDocument(
+      document.id || '',
+      document.url,
+      document.type
+    );
+
     // Step 4: Generate summary
     console.log('📝 Step 4: Generating summary...');
-    const summary = await generateDocumentSummary(document.url, document.type, 200);
+    const summary = await generateDocumentSummary(
+      document.url,
+      document.type,
+      200
+    );
 
     // Update document with comprehensive AI processing results
     const updatedDocument: Document = {
@@ -354,25 +388,24 @@ export const processDocument = async (
         textExtraction: {
           confidence: textExtraction.confidence,
           wordCount: textExtraction.wordCount,
-          documentType: textExtraction.documentType
+          documentType: textExtraction.documentType,
         },
         languageDetection: {
           confidence: languageDetection.confidence,
-          allLanguages: languageDetection.allLanguages
+          allLanguages: languageDetection.allLanguages,
         },
         summarization: {
           confidence: summary.confidence,
           quality: summary.quality,
-          metrics: summary.metrics
+          metrics: summary.metrics || {},
         },
         entities: classification.classificationDetails.entities,
-        sentiment: classification.classificationDetails.sentiment
+        sentiment: classification.classificationDetails.sentiment,
       },
     };
 
     console.log('✅ Document processing completed successfully');
     return updatedDocument;
-    
   } catch (error) {
     console.error('❌ Error processing document:', error);
     // Return original document if processing fails
@@ -389,21 +422,24 @@ export const mockClassifyDocument = async (
 ): Promise<ClassificationResult> => {
   // Simulate API delay
   await new Promise(resolve => setTimeout(resolve, 1000));
-  
+
   // Mock classification based on document type
   const mockCategories = {
-    'pdf': 'document',
-    'image': 'image',
-    'text': 'text',
-    'spreadsheet': 'business',
-    'presentation': 'business'
+    pdf: 'document',
+    image: 'image',
+    text: 'text',
+    spreadsheet: 'business',
+    presentation: 'business',
   };
-  
+
   const mockTags = ['sample', 'test', 'document', 'ai', 'classification'];
-  const mockSummary = 'This is a sample document for testing AI classification capabilities.';
-  
+  const mockSummary =
+    'This is a sample document for testing AI classification capabilities.';
+
   return {
-    category: mockCategories[document.type as keyof typeof mockCategories] || 'document',
+    category:
+      mockCategories[document.type as keyof typeof mockCategories] ||
+      'document',
     tags: mockTags,
     summary: mockSummary,
     language: 'en',
@@ -411,21 +447,17 @@ export const mockClassifyDocument = async (
     documentType: document.type,
     wordCount: 25,
     classificationDetails: {
-      categories: [
-        { name: '/Business & Industrial', confidence: 0.85 }
-      ],
+      categories: [{ name: '/Business & Industrial', confidence: 0.85 }],
       entities: [
         { name: 'sample', type: 'OTHER', salience: 0.3 },
         { name: 'document', type: 'OTHER', salience: 0.4 },
-        { name: 'testing', type: 'OTHER', salience: 0.2 }
+        { name: 'testing', type: 'OTHER', salience: 0.2 },
       ],
       sentiment: {
         score: 0.1,
         magnitude: 0.5,
-        sentences: [
-          { text: mockSummary, score: 0.1, magnitude: 0.5 }
-        ]
-      }
-    }
+        sentences: [{ text: mockSummary, score: 0.1, magnitude: 0.5 }],
+      },
+    },
   };
 };

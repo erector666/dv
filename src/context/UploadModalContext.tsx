@@ -35,10 +35,10 @@ export const UploadModalProvider: React.FC<UploadModalProviderProps> = ({
 
   const handleUploadComplete = () => {
     console.log('🔄 Upload completed, invalidating documents cache...');
-    
+
     // Invalidate and refetch the documents query to show the new document
     queryClient.invalidateQueries(['documents']);
-    
+
     // Close the modal
     closeModal();
   };
