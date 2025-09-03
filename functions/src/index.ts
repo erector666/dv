@@ -322,6 +322,59 @@ export const extractText = onCall(async (request) => {
   }
 });
 
+// HTTP version of extractText for direct API calls
+export const extractTextHttp = onRequest(async (req, res) => {
+  // Handle CORS preflight
+  if (req.method === 'OPTIONS') {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.status(204).send('');
+    return;
+  }
+
+  // Set CORS headers for actual request
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  try {
+    // Check authentication
+    const authHeader = req.get('Authorization') || '';
+    if (!authHeader.startsWith('Bearer ')) {
+      res.status(401).json({ error: 'Unauthorized - Missing or invalid Authorization header' });
+      return;
+    }
+
+    const idToken = authHeader.replace('Bearer ', '');
+    const decoded = await admin.auth().verifyIdToken(idToken);
+    
+    if (!decoded.uid) {
+      res.status(401).json({ error: 'Unauthorized - Invalid token' });
+      return;
+    }
+
+    const { documentUrl, documentType } = req.body as { 
+      documentUrl: string; 
+      documentType?: 'pdf' | 'image' | 'auto' 
+    };
+
+    if (!documentUrl) {
+      res.status(400).json({ error: 'documentUrl is required' });
+      return;
+    }
+
+    const result = await extractTextInternal(documentUrl, documentType);
+    res.json(result);
+  } catch (error) {
+    console.error('ExtractText error:', error);
+    res.status(500).json({ 
+      error: 'Internal server error', 
+      message: error instanceof Error ? error.message : 'Unknown error' 
+    });
+  }
+});
+
 export const detectLanguage = onCall(async (request) => {
   const { documentUrl } = request.data as { documentUrl: string };
   const client = await getLanguageClient();

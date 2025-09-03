@@ -1,5 +1,6 @@
 import { httpsCallable } from 'firebase/functions';
 import { functions } from './firebase';
+import { getAuth } from 'firebase/auth';
 import { Document } from './documentService';
 
 export interface ClassificationResult {
@@ -121,9 +122,16 @@ export const extractTextFromDocument = async (
   try {
     console.log('📄 Starting text extraction from:', documentUrl);
     
-    // Call the Firebase Cloud Function
-    const extractTextFunction = httpsCallable(functions, 'extractText');
-
+    // Get the current user's ID token for authentication
+    const auth = getAuth();
+    const user = auth.currentUser;
+    
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+    
+    const idToken = await user.getIdToken();
+    
     // Convert MIME type to document type format expected by the function
     let docType: 'pdf' | 'image' | 'auto' = 'auto';
     if (documentType.includes('pdf')) {
@@ -132,12 +140,25 @@ export const extractTextFromDocument = async (
       docType = 'image';
     }
 
-    const result = await extractTextFunction({
-      documentUrl,
-      documentType: docType,
+    // Call the Firebase Cloud Function as HTTP request
+    const response = await fetch('https://us-central1-gpt1-77ce0.cloudfunctions.net/extractTextHttp', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${idToken}`
+      },
+      body: JSON.stringify({
+        documentUrl,
+        documentType: docType,
+      })
     });
 
-    const extraction = result.data as TextExtractionResult;
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const extraction = await response.json() as TextExtractionResult;
     
     console.log('✅ Text extraction completed:', {
       wordCount: extraction.wordCount,

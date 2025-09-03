@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getStorageUsage = exports.processDocumentBatch = exports.extractDocumentMetadata = exports.translateText = exports.classifyDocument = exports.summarizeDocument = exports.detectTextLanguage = exports.detectLanguage = exports.extractText = exports.translateDocument = exports.getSupportedLanguages = void 0;
+exports.getStorageUsage = exports.processDocumentBatch = exports.extractDocumentMetadata = exports.translateText = exports.classifyDocument = exports.summarizeDocument = exports.detectTextLanguage = exports.detectLanguage = exports.extractTextHttp = exports.extractText = exports.translateDocument = exports.getSupportedLanguages = void 0;
 const functions = __importStar(require("firebase-functions"));
 const admin = __importStar(require("firebase-admin"));
 const https_1 = require("firebase-functions/v2/https");
@@ -298,6 +298,45 @@ exports.extractText = (0, https_1.onCall)(async (request) => {
     }
     catch (error) {
         throw new functions.https.HttpsError('internal', error instanceof Error ? error.message : 'Text extraction failed');
+    }
+});
+exports.extractTextHttp = (0, https_2.onRequest)(async (req, res) => {
+    if (req.method === 'OPTIONS') {
+        res.set('Access-Control-Allow-Origin', '*');
+        res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+        res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+        res.status(204).send('');
+        return;
+    }
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    try {
+        const authHeader = req.get('Authorization') || '';
+        if (!authHeader.startsWith('Bearer ')) {
+            res.status(401).json({ error: 'Unauthorized - Missing or invalid Authorization header' });
+            return;
+        }
+        const idToken = authHeader.replace('Bearer ', '');
+        const decoded = await admin.auth().verifyIdToken(idToken);
+        if (!decoded.uid) {
+            res.status(401).json({ error: 'Unauthorized - Invalid token' });
+            return;
+        }
+        const { documentUrl, documentType } = req.body;
+        if (!documentUrl) {
+            res.status(400).json({ error: 'documentUrl is required' });
+            return;
+        }
+        const result = await extractTextInternal(documentUrl, documentType);
+        res.json(result);
+    }
+    catch (error) {
+        console.error('ExtractText error:', error);
+        res.status(500).json({
+            error: 'Internal server error',
+            message: error instanceof Error ? error.message : 'Unknown error'
+        });
     }
 });
 exports.detectLanguage = (0, https_1.onCall)(async (request) => {
