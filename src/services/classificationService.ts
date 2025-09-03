@@ -1,5 +1,3 @@
-import { httpsCallable } from 'firebase/functions';
-import { functions } from './firebase';
 import { getAuth } from 'firebase/auth';
 import { Document } from './documentService';
 
@@ -80,17 +78,34 @@ export const classifyDocument = async (
   try {
     console.log('🔍 Starting AI document classification for:', documentId);
     
-    // Call the Firebase Cloud Function
-    const classifyDocumentFunction = httpsCallable(
-      functions,
-      'classifyDocument'
-    );
-
-    const result = await classifyDocumentFunction({
-      documentUrl,
+    // Get the current user's ID token for authentication
+    const auth = getAuth();
+    const user = auth.currentUser;
+    
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+    
+    const idToken = await user.getIdToken();
+    
+    // Call the Firebase Cloud Function as HTTP request
+    const response = await fetch('https://us-central1-gpt1-77ce0.cloudfunctions.net/classifyDocumentHttp', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${idToken}`
+      },
+      body: JSON.stringify({
+        documentUrl,
+      })
     });
 
-    const classification = result.data as ClassificationResult;
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const classification = await response.json() as ClassificationResult;
     
     console.log('✅ AI classification completed:', {
       category: classification.category,
@@ -189,14 +204,34 @@ export const detectLanguage = async (
   try {
     console.log('🌐 Starting language detection for:', documentUrl);
     
-    // Call the Firebase Cloud Function
-    const detectLanguageFunction = httpsCallable(functions, 'detectLanguage');
-
-    const result = await detectLanguageFunction({
-      documentUrl,
+    // Get the current user's ID token for authentication
+    const auth = getAuth();
+    const user = auth.currentUser;
+    
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+    
+    const idToken = await user.getIdToken();
+    
+    // Call the Firebase Cloud Function as HTTP request
+    const response = await fetch('https://us-central1-gpt1-77ce0.cloudfunctions.net/detectLanguageHttp', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${idToken}`
+      },
+      body: JSON.stringify({
+        documentUrl,
+      })
     });
 
-    const detection = result.data as LanguageDetectionResult;
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const detection = await response.json() as LanguageDetectionResult;
     
     console.log('✅ Language detection completed:', {
       language: detection.language,
@@ -227,15 +262,35 @@ export const generateDocumentSummary = async (
   try {
     console.log('📝 Starting AI document summarization for:', documentUrl);
     
-    // Call the Firebase Cloud Function
-    const summarizeDocumentFunction = httpsCallable(functions, 'summarizeDocument');
-
-    const result = await summarizeDocumentFunction({
-      documentUrl,
-      maxLength,
+    // Get the current user's ID token for authentication
+    const auth = getAuth();
+    const user = auth.currentUser;
+    
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+    
+    const idToken = await user.getIdToken();
+    
+    // Call the Firebase Cloud Function as HTTP request
+    const response = await fetch('https://us-central1-gpt1-77ce0.cloudfunctions.net/summarizeDocumentHttp', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${idToken}`
+      },
+      body: JSON.stringify({
+        documentUrl,
+        maxLength,
+      })
     });
 
-    const summary = result.data as DocumentSummaryResult;
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const summary = await response.json() as DocumentSummaryResult;
     
     console.log('✅ Document summarization completed:', {
       quality: summary.quality,

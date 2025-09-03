@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getStorageUsage = exports.processDocumentBatch = exports.extractDocumentMetadata = exports.translateText = exports.classifyDocument = exports.summarizeDocument = exports.detectTextLanguage = exports.detectLanguage = exports.extractTextHttp = exports.extractText = exports.translateDocument = exports.getSupportedLanguages = void 0;
+exports.getStorageUsage = exports.processDocumentBatch = exports.extractDocumentMetadata = exports.translateText = exports.classifyDocumentHttp = exports.classifyDocument = exports.summarizeDocumentHttp = exports.summarizeDocument = exports.detectTextLanguage = exports.detectLanguageHttp = exports.detectLanguage = exports.extractTextHttp = exports.extractText = exports.translateDocument = exports.getSupportedLanguages = void 0;
 const functions = __importStar(require("firebase-functions"));
 const admin = __importStar(require("firebase-admin"));
 const https_1 = require("firebase-functions/v2/https");
@@ -351,6 +351,53 @@ exports.detectLanguage = (0, https_1.onCall)(async (request) => {
     const language = syntax?.language || 'en';
     return { language };
 });
+exports.detectLanguageHttp = (0, https_2.onRequest)(async (req, res) => {
+    if (req.method === 'OPTIONS') {
+        res.set('Access-Control-Allow-Origin', '*');
+        res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+        res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+        res.status(204).send('');
+        return;
+    }
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    try {
+        const authHeader = req.get('Authorization') || '';
+        if (!authHeader.startsWith('Bearer ')) {
+            res.status(401).json({ error: 'Unauthorized - Missing or invalid Authorization header' });
+            return;
+        }
+        const idToken = authHeader.replace('Bearer ', '');
+        const decoded = await admin.auth().verifyIdToken(idToken);
+        if (!decoded.uid) {
+            res.status(401).json({ error: 'Unauthorized - Invalid token' });
+            return;
+        }
+        const { documentUrl } = req.body;
+        if (!documentUrl) {
+            res.status(400).json({ error: 'documentUrl is required' });
+            return;
+        }
+        const client = await getLanguageClient();
+        const textResp = await (0, node_fetch_1.default)(documentUrl);
+        if (!textResp.ok) {
+            res.status(404).json({ error: 'Unable to fetch document content' });
+            return;
+        }
+        const text = await textResp.text();
+        const [syntax] = await client.analyzeSyntax({ document: { content: text, type: 'PLAIN_TEXT' } });
+        const language = syntax?.language || 'en';
+        res.json({ language });
+    }
+    catch (error) {
+        console.error('DetectLanguage error:', error);
+        res.status(500).json({
+            error: 'Internal server error',
+            message: error instanceof Error ? error.message : 'Unknown error'
+        });
+    }
+});
 exports.detectTextLanguage = (0, https_1.onCall)(async (request) => {
     const { text } = request.data;
     try {
@@ -370,6 +417,51 @@ exports.summarizeDocument = (0, https_1.onCall)(async (request) => {
     const summary = text.length > maxLength ? `${text.slice(0, maxLength)}...` : text;
     return { summary };
 });
+exports.summarizeDocumentHttp = (0, https_2.onRequest)(async (req, res) => {
+    if (req.method === 'OPTIONS') {
+        res.set('Access-Control-Allow-Origin', '*');
+        res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+        res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+        res.status(204).send('');
+        return;
+    }
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    try {
+        const authHeader = req.get('Authorization') || '';
+        if (!authHeader.startsWith('Bearer ')) {
+            res.status(401).json({ error: 'Unauthorized - Missing or invalid Authorization header' });
+            return;
+        }
+        const idToken = authHeader.replace('Bearer ', '');
+        const decoded = await admin.auth().verifyIdToken(idToken);
+        if (!decoded.uid) {
+            res.status(401).json({ error: 'Unauthorized - Invalid token' });
+            return;
+        }
+        const { documentUrl, maxLength = 200 } = req.body;
+        if (!documentUrl) {
+            res.status(400).json({ error: 'documentUrl is required' });
+            return;
+        }
+        const textResp = await (0, node_fetch_1.default)(documentUrl);
+        if (!textResp.ok) {
+            res.status(404).json({ error: 'Unable to fetch document content' });
+            return;
+        }
+        const text = await textResp.text();
+        const summary = text.length > maxLength ? `${text.slice(0, maxLength)}...` : text;
+        res.json({ summary });
+    }
+    catch (error) {
+        console.error('SummarizeDocument error:', error);
+        res.status(500).json({
+            error: 'Internal server error',
+            message: error instanceof Error ? error.message : 'Unknown error'
+        });
+    }
+});
 exports.classifyDocument = (0, https_1.onCall)(async (request) => {
     assertAuthenticated(request);
     const { documentUrl } = request.data;
@@ -378,6 +470,45 @@ exports.classifyDocument = (0, https_1.onCall)(async (request) => {
     }
     catch (error) {
         throw new functions.https.HttpsError('internal', error instanceof Error ? error.message : 'Document classification failed');
+    }
+});
+exports.classifyDocumentHttp = (0, https_2.onRequest)(async (req, res) => {
+    if (req.method === 'OPTIONS') {
+        res.set('Access-Control-Allow-Origin', '*');
+        res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+        res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+        res.status(204).send('');
+        return;
+    }
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    try {
+        const authHeader = req.get('Authorization') || '';
+        if (!authHeader.startsWith('Bearer ')) {
+            res.status(401).json({ error: 'Unauthorized - Missing or invalid Authorization header' });
+            return;
+        }
+        const idToken = authHeader.replace('Bearer ', '');
+        const decoded = await admin.auth().verifyIdToken(idToken);
+        if (!decoded.uid) {
+            res.status(401).json({ error: 'Unauthorized - Invalid token' });
+            return;
+        }
+        const { documentUrl } = req.body;
+        if (!documentUrl) {
+            res.status(400).json({ error: 'documentUrl is required' });
+            return;
+        }
+        const result = await classifyDocumentInternal(documentUrl);
+        res.json(result);
+    }
+    catch (error) {
+        console.error('ClassifyDocument error:', error);
+        res.status(500).json({
+            error: 'Internal server error',
+            message: error instanceof Error ? error.message : 'Unknown error'
+        });
     }
 });
 exports.translateText = (0, https_1.onCall)(async (request) => {

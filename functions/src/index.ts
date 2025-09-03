@@ -388,6 +388,64 @@ export const detectLanguage = onCall(async (request) => {
   return { language };
 });
 
+// HTTP version of detectLanguage for direct API calls
+export const detectLanguageHttp = onRequest(async (req, res) => {
+  // Handle CORS preflight
+  if (req.method === 'OPTIONS') {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.status(204).send('');
+    return;
+  }
+
+  // Set CORS headers for actual request
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  try {
+    // Check authentication
+    const authHeader = req.get('Authorization') || '';
+    if (!authHeader.startsWith('Bearer ')) {
+      res.status(401).json({ error: 'Unauthorized - Missing or invalid Authorization header' });
+      return;
+    }
+
+    const idToken = authHeader.replace('Bearer ', '');
+    const decoded = await admin.auth().verifyIdToken(idToken);
+    
+    if (!decoded.uid) {
+      res.status(401).json({ error: 'Unauthorized - Invalid token' });
+      return;
+    }
+
+    const { documentUrl } = req.body as { documentUrl: string };
+
+    if (!documentUrl) {
+      res.status(400).json({ error: 'documentUrl is required' });
+      return;
+    }
+
+    const client = await getLanguageClient();
+    const textResp = await fetch(documentUrl);
+    if (!textResp.ok) {
+      res.status(404).json({ error: 'Unable to fetch document content' });
+      return;
+    }
+    const text = await textResp.text();
+    const [syntax] = await client.analyzeSyntax({ document: { content: text, type: 'PLAIN_TEXT' } });
+    const language = (syntax as any)?.language || 'en';
+    res.json({ language });
+  } catch (error) {
+    console.error('DetectLanguage error:', error);
+    res.status(500).json({ 
+      error: 'Internal server error', 
+      message: error instanceof Error ? error.message : 'Unknown error' 
+    });
+  }
+});
+
 export const detectTextLanguage = onCall(async (request) => {
   const { text } = request.data as { text: string };
   
@@ -409,6 +467,62 @@ export const summarizeDocument = onCall(async (request) => {
   return { summary };
 });
 
+// HTTP version of summarizeDocument for direct API calls
+export const summarizeDocumentHttp = onRequest(async (req, res) => {
+  // Handle CORS preflight
+  if (req.method === 'OPTIONS') {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.status(204).send('');
+    return;
+  }
+
+  // Set CORS headers for actual request
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  try {
+    // Check authentication
+    const authHeader = req.get('Authorization') || '';
+    if (!authHeader.startsWith('Bearer ')) {
+      res.status(401).json({ error: 'Unauthorized - Missing or invalid Authorization header' });
+      return;
+    }
+
+    const idToken = authHeader.replace('Bearer ', '');
+    const decoded = await admin.auth().verifyIdToken(idToken);
+    
+    if (!decoded.uid) {
+      res.status(401).json({ error: 'Unauthorized - Invalid token' });
+      return;
+    }
+
+    const { documentUrl, maxLength = 200 } = req.body as { documentUrl: string; maxLength?: number };
+
+    if (!documentUrl) {
+      res.status(400).json({ error: 'documentUrl is required' });
+      return;
+    }
+
+    const textResp = await fetch(documentUrl);
+    if (!textResp.ok) {
+      res.status(404).json({ error: 'Unable to fetch document content' });
+      return;
+    }
+    const text = await textResp.text();
+    const summary = text.length > maxLength ? `${text.slice(0, maxLength)}...` : text;
+    res.json({ summary });
+  } catch (error) {
+    console.error('SummarizeDocument error:', error);
+    res.status(500).json({ 
+      error: 'Internal server error', 
+      message: error instanceof Error ? error.message : 'Unknown error' 
+    });
+  }
+});
+
 export const classifyDocument = onCall(async (request) => {
   assertAuthenticated(request);
   const { documentUrl } = request.data as { documentUrl: string };
@@ -417,6 +531,56 @@ export const classifyDocument = onCall(async (request) => {
     return await classifyDocumentInternal(documentUrl);
   } catch (error) {
     throw new functions.https.HttpsError('internal', error instanceof Error ? error.message : 'Document classification failed');
+  }
+});
+
+// HTTP version of classifyDocument for direct API calls
+export const classifyDocumentHttp = onRequest(async (req, res) => {
+  // Handle CORS preflight
+  if (req.method === 'OPTIONS') {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.status(204).send('');
+    return;
+  }
+
+  // Set CORS headers for actual request
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  try {
+    // Check authentication
+    const authHeader = req.get('Authorization') || '';
+    if (!authHeader.startsWith('Bearer ')) {
+      res.status(401).json({ error: 'Unauthorized - Missing or invalid Authorization header' });
+      return;
+    }
+
+    const idToken = authHeader.replace('Bearer ', '');
+    const decoded = await admin.auth().verifyIdToken(idToken);
+    
+    if (!decoded.uid) {
+      res.status(401).json({ error: 'Unauthorized - Invalid token' });
+      return;
+    }
+
+    const { documentUrl } = req.body as { documentUrl: string };
+
+    if (!documentUrl) {
+      res.status(400).json({ error: 'documentUrl is required' });
+      return;
+    }
+
+    const result = await classifyDocumentInternal(documentUrl);
+    res.json(result);
+  } catch (error) {
+    console.error('ClassifyDocument error:', error);
+    res.status(500).json({ 
+      error: 'Internal server error', 
+      message: error instanceof Error ? error.message : 'Unknown error' 
+    });
   }
 });
 
