@@ -15,13 +15,18 @@ import AppRoutes from './routes';
 // Create a client for React Query
 const queryClient = new QueryClient();
 
-// Create router with proper configuration for React Router v6
+// Create router with React Router v7 future flags to eliminate deprecation warnings
 const router = createBrowserRouter([
   {
     path: "*",
     element: <AppRoutes />
   }
-]);
+], {
+  future: {
+    v7_startTransition: true,
+    v7_relativeSplatPath: true
+  }
+});
 
 function App() {
   return (
