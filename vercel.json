@@ -27,6 +27,18 @@
       "dest": "/dorian-io.jpg"
     },
     {
+      "src": "/logo2.png",
+      "dest": "/logo2.png"
+    },
+    {
+      "src": "/logo192.png",
+      "dest": "/logo192.png"
+    },
+    {
+      "src": "/logo512.png",
+      "dest": "/logo512.png"
+    },
+    {
       "src": "/(.*)",
       "dest": "/index.html"
     }
