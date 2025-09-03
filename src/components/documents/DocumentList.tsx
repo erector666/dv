@@ -31,6 +31,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [documentToView, setDocumentToView] = useState<Document | null>(null);
   const [isViewerModalOpen, setIsViewerModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Debug logging
   useEffect(() => {
@@ -111,13 +112,23 @@ const DocumentList: React.FC<DocumentListProps> = ({
   const confirmDelete = async () => {
     if (selectedDocument?.id) {
       try {
+        setIsDeleting(true);
+        console.log('🗑️ Starting deletion of document:', selectedDocument.id);
         await deleteDocument(selectedDocument.id);
+        console.log('✅ Document deleted successfully');
         refetch();
         setIsDeleteModalOpen(false);
         setSelectedDocument(null);
       } catch (error) {
-        console.error('Error deleting document:', error);
+        console.error('❌ Error deleting document:', error);
+        // Show error to user
+        alert(`Failed to delete document: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      } finally {
+        setIsDeleting(false);
       }
+    } else {
+      console.error('❌ No document ID for deletion');
+      alert('Cannot delete document: No document ID found');
     }
   };
 
@@ -336,9 +347,9 @@ const DocumentList: React.FC<DocumentListProps> = ({
   return (
     <>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredDocuments.map(document => (
+        {filteredDocuments.map((document, index) => (
           <div
-            key={document.id}
+            key={document.id || `doc-${index}-${document.name}`}
             className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden cursor-pointer hover:shadow-lg transition-shadow duration-200"
             onClick={() => handleDocumentClick(document)}
           >
@@ -511,9 +522,17 @@ const DocumentList: React.FC<DocumentListProps> = ({
               </button>
               <button
                 onClick={confirmDelete}
-                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
+                disabled={isDeleting}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {translate('common.delete')}
+                {isDeleting ? (
+                  <div className="flex items-center">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Deleting...
+                  </div>
+                ) : (
+                  translate('common.delete')
+                )}
               </button>
             </div>
           </div>
