@@ -4,7 +4,6 @@ import { Document } from '../../services/documentService';
 import {
   getSupportedLanguages,
   translateDocument,
-  saveTranslatedDocument,
   SupportedLanguage,
   TranslationResult,
 } from '../../services/translationService';
@@ -44,16 +43,31 @@ const DocumentTranslation: React.FC<DocumentTranslationProps> = ({
     async () => {
       setTranslationInProgress(true);
       const translationResult = await translateDocument(
-        document.id || '',
         document.url,
-        document.type,
         targetLanguage,
         document.metadata?.language
       );
-      const translatedDocument = await saveTranslatedDocument(
-        document,
-        translationResult
-      );
+      
+      // Create a new document object with translated content
+      const translatedDocument: Document = {
+        ...document,
+        id: `${document.id}_translated_${targetLanguage}`,
+        name: `${document.name} (${targetLanguage})`,
+        metadata: {
+          ...document.metadata,
+          language: targetLanguage,
+          translation: {
+            sourceLanguage: document.metadata?.language || 'unknown',
+            targetLanguage: targetLanguage,
+            confidence: translationResult.confidence,
+            quality: translationResult.quality.assessment,
+            translatedAt: new Date().toISOString(),
+          },
+        },
+        // Note: In a real implementation, you might want to save this to Firestore
+        // For now, we'll just return the translated document object
+      };
+      
       return translatedDocument;
     },
     {

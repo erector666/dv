@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { useQueryClient } from 'react-query';
 import { useLanguage } from '../context/LanguageContext';
 import { UploadModal } from '../components/upload';
 
@@ -7,12 +8,18 @@ const CategoryView: React.FC = () => {
   const { categoryId } = useParams<{ categoryId: string }>();
   const { translate } = useLanguage();
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const queryClient = useQueryClient();
 
   // Map category ID to translation key
   const categoryKey = categoryId || 'other';
 
   const handleUploadComplete = () => {
-    // Here you could refresh the document list, for example
+    console.log('🔄 Upload completed in CategoryView, invalidating documents cache...');
+    
+    // Invalidate and refetch the documents query to show the new document
+    queryClient.invalidateQueries(['documents']);
+    
+    // Close the upload modal
     setIsUploadModalOpen(false);
   };
 

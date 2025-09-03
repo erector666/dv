@@ -1,5 +1,6 @@
 import React from 'react';
 import { useLanguage } from '../context/LanguageContext';
+import { DocumentList } from '../components/documents';
 
 const Dashboard: React.FC = () => {
   const { translate } = useLanguage();
@@ -7,6 +8,14 @@ const Dashboard: React.FC = () => {
   return (
     <div className="p-6">
       <h1 className="text-3xl font-bold mb-6">{translate('dashboard')}</h1>
+
+      {/* Documents Section */}
+      <div className="mb-8">
+        <h2 className="text-xl font-semibold mb-4">
+          {translate('documents.title') || 'Your Documents'}
+        </h2>
+        <DocumentList />
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* Recent Uploads Section */}

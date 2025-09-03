@@ -4,11 +4,24 @@ import { onCall } from 'firebase-functions/v2/https';
 import { onRequest } from 'firebase-functions/v2/https';
 import fetch from 'node-fetch';
 import pdfParse from 'pdf-parse';
+import cors from 'cors';
 
 // Initialize Admin SDK
 try {
   admin.initializeApp();
 } catch {}
+
+// CORS configuration
+const corsHandler = cors({
+  origin: [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'https://dv-beta-peach.vercel.app',
+    'https://*.vercel.app',
+    'https://docsort.vercel.app'
+  ],
+  credentials: true
+});
 
 // In-memory caches (ephemeral in serverless, but useful within instance lifetime)
 const translateLanguagesCache: { data: any[]; timestamp: number } = { data: [], timestamp: 0 };
@@ -51,6 +64,56 @@ const assertAuthenticated = (context: functions.https.CallableContext) => {
     throw new functions.https.HttpsError('unauthenticated', 'Authentication required');
   }
 };
+
+// Enhanced language detection with confidence scoring
+async function detectLanguageInternal(text: string): Promise<any> {
+  try {
+    console.log('🌐 Starting language detection');
+    
+    if (!text || text.trim().length < 10) {
+      console.log('⚠️ Text too short for reliable language detection');
+      return { language: 'en', confidence: 0.0 };
+    }
+    
+    const languageClient = await getLanguageClient();
+    
+    const [detection] = await languageClient.detectLanguage({
+      content: text.substring(0, 1000) // Limit content for API efficiency
+    });
+    
+    if (detection.languages && detection.languages.length > 0) {
+      const topLanguage = detection.languages[0];
+      const result = {
+        language: topLanguage.language || 'en',
+        confidence: topLanguage.confidence || 0.0,
+        allLanguages: detection.languages.map((lang: any) => ({
+          language: lang.language,
+          confidence: lang.confidence
+        }))
+      };
+      
+      console.log('✅ Language detection successful:', result.language, 'confidence:', result.confidence);
+      return result;
+    }
+    
+    console.log('⚠️ No language detected, using default');
+    return { language: 'en', confidence: 0.0 };
+    
+  } catch (error) {
+    console.error('❌ Language detection failed:', error);
+    return { language: 'en', confidence: 0.0 };
+  }
+}
+
+// Get quality assessment description
+function getQualityAssessment(score: number): string {
+  if (score >= 0.9) return 'Excellent';
+  if (score >= 0.8) return 'Very Good';
+  if (score >= 0.7) return 'Good';
+  if (score >= 0.6) return 'Fair';
+  if (score >= 0.5) return 'Acceptable';
+  return 'Poor';
+}
 
 // Internal helper functions (not wrapped in Firebase Functions)
 async function extractTextInternal(documentUrl: string, documentType?: 'pdf' | 'image' | 'auto'): Promise<any> {
@@ -270,6 +333,16 @@ export const detectLanguage = onCall(async (request) => {
   const [syntax] = await client.analyzeSyntax({ document: { content: text, type: 'PLAIN_TEXT' } });
   const language = (syntax as any)?.language || 'en';
   return { language };
+});
+
+export const detectTextLanguage = onCall(async (request) => {
+  const { text } = request.data as { text: string };
+  
+  try {
+    return await detectLanguageInternal(text);
+  } catch (error) {
+    throw new functions.https.HttpsError('internal', error instanceof Error ? error.message : 'Text language detection failed');
+  }
 });
 
 export const summarizeDocument = onCall(async (request) => {

@@ -1,4 +1,5 @@
 import React, { createContext, useState, useContext, ReactNode } from 'react';
+import { useQueryClient } from 'react-query';
 import { UploadModal } from '../components/upload';
 
 interface UploadModalContextType {
@@ -27,12 +28,18 @@ export const UploadModalProvider: React.FC<UploadModalProviderProps> = ({
   children,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const queryClient = useQueryClient();
 
   const openModal = () => setIsOpen(true);
   const closeModal = () => setIsOpen(false);
 
   const handleUploadComplete = () => {
-    // You can add logic here to refresh data after an upload
+    console.log('🔄 Upload completed, invalidating documents cache...');
+    
+    // Invalidate and refetch the documents query to show the new document
+    queryClient.invalidateQueries(['documents']);
+    
+    // Close the modal
     closeModal();
   };
 

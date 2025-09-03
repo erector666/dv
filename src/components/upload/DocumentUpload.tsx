@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { useLanguage } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
 import {
-  uploadDocument,
+  uploadDocumentWithAI,
   DocumentUploadProgress,
 } from '../../services/documentService';
 
@@ -27,6 +27,9 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
   }>({});
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [aiProgress, setAiProgress] = useState<{
+    [key: string]: { stage: string; progress: number };
+  }>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
@@ -111,7 +114,7 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
 
     try {
       for (const file of files) {
-        // Use the proper uploadDocument service function
+        // Use the AI-enhanced uploadDocumentWithAI service function
         const onProgress = (progress: DocumentUploadProgress) => {
           setUploadProgress(prev => ({
             ...prev,
@@ -119,13 +122,22 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
           }));
         };
 
-        const document = await uploadDocument(
+        const onAIProgress = (stage: string, progress: number) => {
+          console.log(`🤖 AI Processing: ${stage} - ${progress}%`);
+          setAiProgress(prev => ({
+            ...prev,
+            [file.name]: { stage, progress }
+          }));
+        };
+
+        const document = await uploadDocumentWithAI(
           file,
           currentUser.uid,
           undefined, // category
           undefined, // tags
           undefined, // metadata
-          onProgress
+          onProgress,
+          onAIProgress
         );
 
         if (onUploadComplete) {

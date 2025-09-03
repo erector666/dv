@@ -36,17 +36,28 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getStorageUsage = exports.processDocumentBatch = exports.extractDocumentMetadata = exports.translateText = exports.classifyDocument = exports.summarizeDocument = exports.detectLanguage = exports.extractText = exports.translateDocument = exports.getSupportedLanguages = void 0;
+exports.getStorageUsage = exports.processDocumentBatch = exports.extractDocumentMetadata = exports.translateText = exports.classifyDocument = exports.summarizeDocument = exports.detectTextLanguage = exports.detectLanguage = exports.extractText = exports.translateDocument = exports.getSupportedLanguages = void 0;
 const functions = __importStar(require("firebase-functions"));
 const admin = __importStar(require("firebase-admin"));
 const https_1 = require("firebase-functions/v2/https");
 const https_2 = require("firebase-functions/v2/https");
 const node_fetch_1 = __importDefault(require("node-fetch"));
 const pdf_parse_1 = __importDefault(require("pdf-parse"));
+const cors_1 = __importDefault(require("cors"));
 try {
     admin.initializeApp();
 }
 catch { }
+const corsHandler = (0, cors_1.default)({
+    origin: [
+        'http://localhost:3000',
+        'http://localhost:3001',
+        'https://dv-beta-peach.vercel.app',
+        'https://*.vercel.app',
+        'https://docsort.vercel.app'
+    ],
+    credentials: true
+});
 const translateLanguagesCache = { data: [], timestamp: 0 };
 const translationCache = {};
 const CACHE_TTL_MS = 10 * 60 * 1000;
@@ -83,6 +94,51 @@ const assertAuthenticated = (context) => {
         throw new functions.https.HttpsError('unauthenticated', 'Authentication required');
     }
 };
+async function detectLanguageInternal(text) {
+    try {
+        console.log('🌐 Starting language detection');
+        if (!text || text.trim().length < 10) {
+            console.log('⚠️ Text too short for reliable language detection');
+            return { language: 'en', confidence: 0.0 };
+        }
+        const languageClient = await getLanguageClient();
+        const [detection] = await languageClient.detectLanguage({
+            content: text.substring(0, 1000)
+        });
+        if (detection.languages && detection.languages.length > 0) {
+            const topLanguage = detection.languages[0];
+            const result = {
+                language: topLanguage.language || 'en',
+                confidence: topLanguage.confidence || 0.0,
+                allLanguages: detection.languages.map((lang) => ({
+                    language: lang.language,
+                    confidence: lang.confidence
+                }))
+            };
+            console.log('✅ Language detection successful:', result.language, 'confidence:', result.confidence);
+            return result;
+        }
+        console.log('⚠️ No language detected, using default');
+        return { language: 'en', confidence: 0.0 };
+    }
+    catch (error) {
+        console.error('❌ Language detection failed:', error);
+        return { language: 'en', confidence: 0.0 };
+    }
+}
+function getQualityAssessment(score) {
+    if (score >= 0.9)
+        return 'Excellent';
+    if (score >= 0.8)
+        return 'Very Good';
+    if (score >= 0.7)
+        return 'Good';
+    if (score >= 0.6)
+        return 'Fair';
+    if (score >= 0.5)
+        return 'Acceptable';
+    return 'Poor';
+}
 async function extractTextInternal(documentUrl, documentType) {
     if (!documentUrl) {
         throw new Error('Document URL is required');
@@ -255,6 +311,15 @@ exports.detectLanguage = (0, https_1.onCall)(async (request) => {
     const [syntax] = await client.analyzeSyntax({ document: { content: text, type: 'PLAIN_TEXT' } });
     const language = syntax?.language || 'en';
     return { language };
+});
+exports.detectTextLanguage = (0, https_1.onCall)(async (request) => {
+    const { text } = request.data;
+    try {
+        return await detectLanguageInternal(text);
+    }
+    catch (error) {
+        throw new functions.https.HttpsError('internal', error instanceof Error ? error.message : 'Text language detection failed');
+    }
 });
 exports.summarizeDocument = (0, https_1.onCall)(async (request) => {
     const { documentUrl, maxLength = 200 } = request.data;

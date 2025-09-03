@@ -135,6 +135,11 @@ const defaultTranslations: Translations = {
     fr: "S'inscrire",
   },
   // Document translations
+  'documents.title': {
+    en: 'Your Documents',
+    mk: 'Вашите документи',
+    fr: 'Vos documents',
+  },
   'documents.deleteConfirmation.message': {
     en: 'Are you sure you want to delete {name}?',
     mk: 'Дали сте сигурни дека сакате да го избришете {name}?',

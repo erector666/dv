@@ -8,6 +8,7 @@ import {
   Document,
   deleteDocument,
 } from '../../services/documentService';
+import { DocumentViewer } from '../viewer';
 import { formatFileSize, formatDate } from '../../utils/formatters';
 
 interface DocumentListProps {
@@ -28,6 +29,8 @@ const DocumentList: React.FC<DocumentListProps> = ({
     null
   );
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [documentToView, setDocumentToView] = useState<Document | null>(null);
+  const [isViewerModalOpen, setIsViewerModalOpen] = useState(false);
 
   // Debug logging
   useEffect(() => {
@@ -91,7 +94,9 @@ const DocumentList: React.FC<DocumentListProps> = ({
     if (onViewDocument) {
       onViewDocument(document);
     } else {
-      navigate(`/document/${document.id}`);
+      // Open document in modal instead of navigating to route
+      setDocumentToView(document);
+      setIsViewerModalOpen(true);
     }
   };
 
@@ -260,11 +265,44 @@ const DocumentList: React.FC<DocumentListProps> = ({
         <p className="mt-2 text-gray-500 dark:text-gray-400">
           {translate('documents.uploadPrompt')}
         </p>
-        <div className="mt-4 text-sm text-gray-400">
-          <p>Debug Info:</p>
-          <p>User ID: {currentUser?.uid || 'Not authenticated'}</p>
-          <p>Documents fetched: {documents?.length || 0}</p>
-          <p>Category: {category || 'All'}</p>
+        
+        {/* Debug Information */}
+        <div className="mt-6 p-4 bg-gray-100 dark:bg-gray-700 rounded-md text-left text-sm">
+          <h4 className="font-semibold mb-2">🔍 Debug Information:</h4>
+          <div className="space-y-1 text-xs">
+            <p><strong>User ID:</strong> {currentUser?.uid || 'Not authenticated'}</p>
+            <p><strong>User Email:</strong> {currentUser?.email || 'N/A'}</p>
+            <p><strong>Auth State:</strong> {currentUser ? '✅ Authenticated' : '❌ Not Authenticated'}</p>
+            <p><strong>Documents Fetched:</strong> {documents?.length || 0}</p>
+            <p><strong>Category:</strong> {category || 'All'}</p>
+            <p><strong>Search Term:</strong> {searchTerm || 'None'}</p>
+            <p><strong>Query Enabled:</strong> {!!currentUser?.uid ? '✅ Yes' : '❌ No'}</p>
+            <p><strong>Loading State:</strong> {isLoading ? '🔄 Yes' : '❌ No'}</p>
+            <p><strong>Error State:</strong> {isError ? '❌ Yes' : '✅ No'}</p>
+          </div>
+          
+          {/* Manual Refresh Button */}
+          <div className="mt-3">
+            <button
+              onClick={() => {
+                console.log('🔄 Manual refresh triggered');
+                refetch();
+              }}
+              className="px-3 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600"
+            >
+              🔄 Refresh Documents
+            </button>
+          </div>
+          
+          {/* Raw Data Display */}
+          {documents && (
+            <details className="mt-3">
+              <summary className="cursor-pointer font-semibold">📊 Raw Documents Data</summary>
+              <pre className="mt-2 text-xs bg-gray-200 dark:bg-gray-600 p-2 rounded overflow-auto max-h-40">
+                {JSON.stringify(documents, null, 2)}
+              </pre>
+            </details>
+          )}
         </div>
       </div>
     );
@@ -299,7 +337,41 @@ const DocumentList: React.FC<DocumentListProps> = ({
                         : new Date()
                     )}
                   </p>
+                  
+                  {/* AI Processing Results */}
+                  {document.metadata?.aiProcessed && (
+                    <div className="mt-2 space-y-1">
+                      {/* AI Processing Badge */}
+                      <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                        🤖 AI Processed
+                      </div>
+                      
+                      {/* Language */}
+                      {document.metadata?.language && (
+                        <p className="text-xs">
+                          🌐 Language: {document.metadata.language}
+                        </p>
+                      )}
+                      
+                      {/* Category */}
+                      {document.category && (
+                        <p className="text-xs">
+                          📁 Category: {document.category}
+                        </p>
+                      )}
+                      
+                      {/* Summary Preview */}
+                      {document.metadata?.summary && (
+                        <p className="text-xs text-gray-600 dark:text-gray-300 line-clamp-2">
+                          📝 {document.metadata.summary.substring(0, 100)}
+                          {document.metadata.summary.length > 100 ? '...' : ''}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
+                
+                {/* Tags */}
                 {document.tags && document.tags.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-1">
                     {document.tags.slice(0, 3).map((tag, index) => (
@@ -311,7 +383,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
                       </span>
                     ))}
                     {document.tags.length > 3 && (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800 dark:text-gray-700 dark:text-gray-200">
                         +{document.tags.length - 3}
                       </span>
                     )}
@@ -369,6 +441,53 @@ const DocumentList: React.FC<DocumentListProps> = ({
               >
                 {translate('common.delete')}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Document Viewer Modal */}
+      {isViewerModalOpen && documentToView && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg max-w-6xl w-full h-5/6 flex flex-col">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                {documentToView.name}
+              </h3>
+              <button
+                onClick={() => {
+                  setIsViewerModalOpen(false);
+                  setDocumentToView(null);
+                }}
+                className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 focus:outline-none"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-6 w-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+            
+            {/* Modal Content */}
+            <div className="flex-1 p-4 overflow-hidden">
+              <DocumentViewer
+                documentId={documentToView.id || ''}
+                onClose={() => {
+                  setIsViewerModalOpen(false);
+                  setDocumentToView(null);
+                }}
+              />
             </div>
           </div>
         </div>
