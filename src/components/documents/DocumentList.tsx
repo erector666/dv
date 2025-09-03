@@ -23,26 +23,58 @@ const DocumentList: React.FC<DocumentListProps> = ({
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
+  // Debug logging
+  useEffect(() => {
+    console.log('=== DOCUMENT LIST DEBUG ===');
+    console.log('Current User:', currentUser);
+    console.log('User UID:', currentUser?.uid);
+    console.log('Category:', category);
+    console.log('Search Term:', searchTerm);
+  }, [currentUser, category, searchTerm]);
+
   // Fetch documents using React Query
   const { 
     data: documents, 
     isLoading, 
     isError, 
+    error,
     refetch 
   } = useQuery(
     ['documents', currentUser?.uid, category],
     () => getUserDocuments(currentUser?.uid || '', category),
     {
-      enabled: !!currentUser,
+      enabled: !!currentUser?.uid,
       staleTime: 60000, // 1 minute
+      onSuccess: (data) => {
+        console.log('✅ Documents fetched successfully:', data);
+        console.log('Document count:', data?.length || 0);
+      },
+      onError: (err) => {
+        console.error('❌ Error fetching documents:', err);
+      }
     }
   );
+
+  // Debug logging for documents
+  useEffect(() => {
+    console.log('Documents data:', documents);
+    console.log('Documents length:', documents?.length || 0);
+    if (documents && documents.length > 0) {
+      console.log('First document:', documents[0]);
+    }
+  }, [documents]);
 
   // Filter documents based on search term
   const filteredDocuments = documents?.filter(doc => 
     doc.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (doc.tags && doc.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase())))
   );
+
+  // Debug logging for filtered documents
+  useEffect(() => {
+    console.log('Filtered documents:', filteredDocuments);
+    console.log('Filtered count:', filteredDocuments?.length || 0);
+  }, [filteredDocuments]);
 
   // Handle document click
   const handleDocumentClick = (document: Document) => {
@@ -110,6 +142,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
   };
 
   if (isLoading) {
+    console.log('🔄 Document list is loading...');
     return (
       <div className="flex justify-center items-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
@@ -118,16 +151,24 @@ const DocumentList: React.FC<DocumentListProps> = ({
   }
 
   if (isError) {
+    console.error('❌ Document list error:', error);
     return (
       <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-md">
         <p className="text-red-600 dark:text-red-400">
           {translate('documents.error.loading')}
         </p>
+        <details className="mt-2 text-sm">
+          <summary className="cursor-pointer">Error Details</summary>
+          <pre className="mt-2 text-xs bg-red-100 p-2 rounded overflow-auto">
+            {JSON.stringify(error, null, 2)}
+          </pre>
+        </details>
       </div>
     );
   }
 
   if (!filteredDocuments?.length) {
+    console.log('📭 No documents found to display');
     return (
       <div className="bg-gray-50 dark:bg-gray-800 p-8 rounded-md text-center">
         <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -143,9 +184,17 @@ const DocumentList: React.FC<DocumentListProps> = ({
         <p className="mt-2 text-gray-500 dark:text-gray-400">
           {translate('documents.uploadPrompt')}
         </p>
+        <div className="mt-4 text-sm text-gray-400">
+          <p>Debug Info:</p>
+          <p>User ID: {currentUser?.uid || 'Not authenticated'}</p>
+          <p>Documents fetched: {documents?.length || 0}</p>
+          <p>Category: {category || 'All'}</p>
+        </div>
       </div>
     );
   }
+
+  console.log(`✅ Rendering ${filteredDocuments.length} documents`);
 
   return (
     <>

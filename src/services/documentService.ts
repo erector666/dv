@@ -149,6 +149,16 @@ export const getUserDocuments = async (
   orderDirection: 'asc' | 'desc' = 'desc'
 ): Promise<Document[]> => {
   try {
+    console.log('=== getUserDocuments DEBUG ===');
+    console.log('User ID:', userId);
+    console.log('Category:', category);
+    console.log('Order by:', orderByField, orderDirection);
+    
+    if (!userId) {
+      console.warn('⚠️ No userId provided, returning empty array');
+      return [];
+    }
+    
     let q = query(
       collection(db, 'documents'),
       where('userId', '==', userId),
@@ -164,19 +174,28 @@ export const getUserDocuments = async (
       );
     }
     
+    console.log('Executing Firestore query...');
     const querySnapshot = await getDocs(q);
+    console.log('Query result:', querySnapshot);
+    console.log('Query size:', querySnapshot.size);
+    
     const documents: Document[] = [];
     
     querySnapshot.forEach((doc) => {
+      const data = doc.data();
+      console.log('Document data:', { id: doc.id, ...data });
       documents.push({
         id: doc.id,
-        ...doc.data()
+        ...data
       } as Document);
     });
     
+    console.log('Final documents array:', documents);
+    console.log('Returning', documents.length, 'documents');
+    
     return documents;
   } catch (error) {
-    console.error('Error getting user documents:', error);
+    console.error('❌ Error getting user documents:', error);
     throw error;
   }
 };
