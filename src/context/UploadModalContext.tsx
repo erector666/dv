@@ -5,12 +5,16 @@ interface UploadModalContextType {
   openModal: () => void;
 }
 
-const UploadModalContext = createContext<UploadModalContextType | undefined>(undefined);
+const UploadModalContext = createContext<UploadModalContextType | undefined>(
+  undefined
+);
 
 export const useUploadModal = () => {
   const context = useContext(UploadModalContext);
   if (!context) {
-    throw new Error('useUploadModal must be used within an UploadModalProvider');
+    throw new Error(
+      'useUploadModal must be used within an UploadModalProvider'
+    );
   }
   return context;
 };
@@ -19,7 +23,9 @@ interface UploadModalProviderProps {
   children: ReactNode;
 }
 
-export const UploadModalProvider: React.FC<UploadModalProviderProps> = ({ children }) => {
+export const UploadModalProvider: React.FC<UploadModalProviderProps> = ({
+  children,
+}) => {
   const [isOpen, setIsOpen] = useState(false);
 
   const openModal = () => setIsOpen(true);
@@ -33,10 +39,10 @@ export const UploadModalProvider: React.FC<UploadModalProviderProps> = ({ childr
   return (
     <UploadModalContext.Provider value={{ openModal }}>
       {children}
-      <UploadModal 
-        isOpen={isOpen} 
-        onClose={closeModal} 
-        onUploadComplete={handleUploadComplete} 
+      <UploadModal
+        isOpen={isOpen}
+        onClose={closeModal}
+        onUploadComplete={handleUploadComplete}
       />
     </UploadModalContext.Provider>
   );

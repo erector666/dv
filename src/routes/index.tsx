@@ -15,7 +15,9 @@ const NotFound = React.lazy(() => import('../pages/NotFound'));
 // Auth pages
 const Login = React.lazy(() => import('../components/auth/Login'));
 const Register = React.lazy(() => import('../components/auth/Register'));
-const ForgotPassword = React.lazy(() => import('../components/auth/ForgotPassword'));
+const ForgotPassword = React.lazy(
+  () => import('../components/auth/ForgotPassword')
+);
 
 // Loading component for lazy-loaded routes
 const LoadingFallback = () => (
@@ -32,48 +34,67 @@ const AppRoutes: React.FC = () => {
       <Routes>
         {/* Public routes */}
         <Route path="/" element={<SplashScreen />} />
-        <Route path="/login" element={!currentUser ? <Login /> : <Navigate to="/dashboard" replace />} />
-        <Route path="/register" element={!currentUser ? <Register /> : <Navigate to="/dashboard" replace />} />
-        <Route path="/forgot-password" element={!currentUser ? <ForgotPassword /> : <Navigate to="/dashboard" replace />} />
-        <Route 
-          path="/dashboard" 
+        <Route
+          path="/login"
+          element={
+            !currentUser ? <Login /> : <Navigate to="/dashboard" replace />
+          }
+        />
+        <Route
+          path="/register"
+          element={
+            !currentUser ? <Register /> : <Navigate to="/dashboard" replace />
+          }
+        />
+        <Route
+          path="/forgot-password"
+          element={
+            !currentUser ? (
+              <ForgotPassword />
+            ) : (
+              <Navigate to="/dashboard" replace />
+            )
+          }
+        />
+        <Route
+          path="/dashboard"
           element={
             <ProtectedRoute>
               <Layout>
                 <Dashboard />
               </Layout>
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/category/:categoryId" 
+        <Route
+          path="/category/:categoryId"
           element={
             <ProtectedRoute>
               <Layout>
                 <CategoryView />
               </Layout>
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/settings" 
+        <Route
+          path="/settings"
           element={
             <ProtectedRoute>
               <Layout>
                 <Settings />
               </Layout>
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/profile" 
+        <Route
+          path="/profile"
           element={
             <ProtectedRoute>
               <Layout>
                 <Profile />
               </Layout>
             </ProtectedRoute>
-          } 
+          }
         />
         <Route path="*" element={<NotFound />} />
       </Routes>

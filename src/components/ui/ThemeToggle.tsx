@@ -7,22 +7,22 @@ interface ThemeToggleProps {
   size?: 'sm' | 'md' | 'lg';
 }
 
-export const ThemeToggle: React.FC<ThemeToggleProps> = ({ 
-  className = '', 
-  size = 'md' 
+export const ThemeToggle: React.FC<ThemeToggleProps> = ({
+  className = '',
+  size = 'md',
 }) => {
   const { theme, toggleTheme } = useTheme();
 
   const sizeClasses = {
     sm: 'w-8 h-8',
     md: 'w-10 h-10',
-    lg: 'w-12 h-12'
+    lg: 'w-12 h-12',
   };
 
   const iconSizes = {
     sm: 'w-4 h-4',
     md: 'w-5 h-5',
-    lg: 'w-6 h-6'
+    lg: 'w-6 h-6',
   };
 
   return (
@@ -47,22 +47,24 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({
           className={`
             ${iconSizes[size]}
             transition-all duration-300 ease-in-out
-            ${theme === 'light' 
-              ? 'rotate-0 scale-100 opacity-100' 
-              : 'rotate-90 scale-0 opacity-0'
+            ${
+              theme === 'light'
+                ? 'rotate-0 scale-100 opacity-100'
+                : 'rotate-90 scale-0 opacity-0'
             }
             absolute inset-0
           `}
         />
-        
+
         {/* Moon Icon */}
         <MoonIcon
           className={`
             ${iconSizes[size]}
             transition-all duration-300 ease-in-out
-            ${theme === 'dark' 
-              ? 'rotate-0 scale-100 opacity-100' 
-              : '-rotate-90 scale-0 opacity-0'
+            ${
+              theme === 'dark'
+                ? 'rotate-0 scale-100 opacity-100'
+                : '-rotate-90 scale-0 opacity-0'
             }
             absolute inset-0
           `}

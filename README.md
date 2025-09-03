@@ -80,12 +80,14 @@ You don’t have to ever use `eject`. The curated feature set is suitable for sm
 ## Installation
 
 1. Clone the repository:
+
    ```bash
    git clone https://github.com/erector666/DocVault.git
    cd DocVault/appvault
    ```
 
 2. Install dependencies:
+
    ```bash
    npm install
    # or

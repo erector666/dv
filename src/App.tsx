@@ -16,17 +16,20 @@ import AppRoutes from './routes';
 const queryClient = new QueryClient();
 
 // Create router with React Router v7 future flags to eliminate deprecation warnings
-const router = createBrowserRouter([
+const router = createBrowserRouter(
+  [
+    {
+      path: '*',
+      element: <AppRoutes />,
+    },
+  ],
   {
-    path: "*",
-    element: <AppRoutes />
+    future: {
+      v7_startTransition: true,
+      v7_relativeSplatPath: true,
+    },
   }
-], {
-  future: {
-    v7_startTransition: true,
-    v7_relativeSplatPath: true
-  }
-});
+);
 
 function App() {
   return (

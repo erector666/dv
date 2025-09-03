@@ -13,12 +13,29 @@ declare module 'firebase/auth' {
   }
 
   export function getAuth(app?: any): any;
-  export function createUserWithEmailAndPassword(auth: any, email: string, password: string): Promise<UserCredential>;
-  export function signInWithEmailAndPassword(auth: any, email: string, password: string): Promise<UserCredential>;
+  export function createUserWithEmailAndPassword(
+    auth: any,
+    email: string,
+    password: string
+  ): Promise<UserCredential>;
+  export function signInWithEmailAndPassword(
+    auth: any,
+    email: string,
+    password: string
+  ): Promise<UserCredential>;
   export function signOut(auth: any): Promise<void>;
-  export function onAuthStateChanged(auth: any, callback: (user: User | null) => void): () => void;
-  export function sendPasswordResetEmail(auth: any, email: string): Promise<void>;
-  export function updateProfile(user: User, profile: { displayName?: string; photoURL?: string | null }): Promise<void>;
+  export function onAuthStateChanged(
+    auth: any,
+    callback: (user: User | null) => void
+  ): () => void;
+  export function sendPasswordResetEmail(
+    auth: any,
+    email: string
+  ): Promise<void>;
+  export function updateProfile(
+    user: User,
+    profile: { displayName?: string; photoURL?: string | null }
+  ): Promise<void>;
   export function sendEmailVerification(user: User): Promise<void>;
 }
 
@@ -49,13 +66,21 @@ declare module 'firebase/storage' {
   }
 
   export function ref(storage: any, path?: string): any;
-  export function uploadBytesResumable(ref: any, data: Blob | Uint8Array | ArrayBuffer): UploadTask;
-  export function uploadBytes(ref: any, data: Blob | Uint8Array | ArrayBuffer): Promise<UploadTaskSnapshot>;
+  export function uploadBytesResumable(
+    ref: any,
+    data: Blob | Uint8Array | ArrayBuffer
+  ): UploadTask;
+  export function uploadBytes(
+    ref: any,
+    data: Blob | Uint8Array | ArrayBuffer
+  ): Promise<UploadTaskSnapshot>;
   export function getDownloadURL(ref: any): Promise<string>;
   export function deleteObject(ref: any): Promise<void>;
   export function getStorage(app?: any): any;
   export function listAll(ref: any): Promise<{ items: any[] }>;
-  export function getMetadata(ref: any): Promise<{ size: number; name: string; fullPath: string }>;
+  export function getMetadata(
+    ref: any
+  ): Promise<{ size: number; name: string; fullPath: string }>;
 }
 
 declare module 'firebase/firestore' {
@@ -92,7 +117,10 @@ declare module 'firebase/firestore' {
   export function where(fieldPath: string, opStr: any, value: any): any;
   export function orderBy(fieldPath: string, directionStr?: string): any;
   export function limit(limit: number): any;
-  export function onSnapshot(query: any, callback: (snapshot: any) => void): () => void;
+  export function onSnapshot(
+    query: any,
+    callback: (snapshot: any) => void
+  ): () => void;
   export function serverTimestamp(): any;
   export const Timestamp: {
     now(): FirestoreTimestamp;
@@ -110,7 +138,10 @@ declare module 'firebase/functions' {
     (data?: T): Promise<HttpsCallableResult<R>>;
   }
 
-  export function httpsCallable<T = any, R = any>(functions: any, name: string): HttpsCallable<T, R>;
+  export function httpsCallable<T = any, R = any>(
+    functions: any,
+    name: string
+  ): HttpsCallable<T, R>;
   export function getFunctions(app?: any): any;
 }
 

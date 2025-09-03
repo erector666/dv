@@ -1,21 +1,25 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { 
-  User, 
-  createUserWithEmailAndPassword, 
-  signInWithEmailAndPassword, 
-  signOut, 
+import {
+  User,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
   onAuthStateChanged,
   sendPasswordResetEmail,
   updateProfile,
   sendEmailVerification,
-  UserCredential
+  UserCredential,
 } from 'firebase/auth';
 import { auth } from '../services/firebase';
 
 interface AuthContextType {
   currentUser: User | null;
   loading: boolean;
-  signUp: (email: string, password: string, displayName: string) => Promise<UserCredential>;
+  signUp: (
+    email: string,
+    password: string,
+    displayName: string
+  ) => Promise<UserCredential>;
   signIn: (email: string, password: string) => Promise<UserCredential>;
   logOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
@@ -42,32 +46,37 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   // Sign up with email and password
-  const signUp = async (email: string, password: string, displayName: string): Promise<UserCredential> => {
+  const signUp = async (
+    email: string,
+    password: string,
+    displayName: string
+  ): Promise<UserCredential> => {
     try {
-      
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+
       // Update the user's display name
       if (userCredential.user) {
-        
         await updateProfile(userCredential.user, {
-          displayName
+          displayName,
         });
-        
+
         // Send email verification
-        
+
         try {
           await sendEmailVerification(userCredential.user);
-          
         } catch (verificationError) {
           console.error('Error sending email verification:', verificationError);
           throw verificationError;
         }
-        
+
         // Don't sign out immediately - let the user see the success message
         // await signOut(auth);
       }
-      
+
       return userCredential;
     } catch (error) {
       console.error('Error in signUp:', error);
@@ -89,7 +98,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const resetPassword = async (email: string): Promise<void> => {
     try {
       await sendPasswordResetEmail(auth, email);
-      
     } catch (error) {
       console.error('Error in resetPassword:', error);
       throw error;
@@ -100,28 +108,35 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const updateUserProfile = async (displayName: string): Promise<void> => {
     if (auth.currentUser) {
       await updateProfile(auth.currentUser, {
-        displayName
+        displayName,
       });
     }
   };
 
   // Resend verification email
-  const resendVerificationEmail = async (email: string, password: string): Promise<void> => {
+  const resendVerificationEmail = async (
+    email: string,
+    password: string
+  ): Promise<void> => {
     try {
-      
       // Sign in temporarily to get the user object
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+
       if (userCredential.user && !userCredential.user.emailVerified) {
-        
         try {
           await sendEmailVerification(userCredential.user);
-          
         } catch (verificationError) {
-          console.error('Error resending email verification:', verificationError);
+          console.error(
+            'Error resending email verification:',
+            verificationError
+          );
           throw verificationError;
         }
-        
+
         // Sign out after sending verification
         await signOut(auth);
       } else if (userCredential.user && userCredential.user.emailVerified) {
@@ -139,7 +154,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Listen for auth state changes
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, user => {
       setCurrentUser(user);
       setLoading(false);
     });
@@ -155,7 +170,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     logOut,
     resetPassword,
     updateUserProfile,
-    resendVerificationEmail
+    resendVerificationEmail,
   };
 
   return (

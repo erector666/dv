@@ -73,8 +73,19 @@ const Profile: React.FC = () => {
               className="absolute bottom-0 right-0 bg-primary-600 hover:bg-primary-700 text-white p-2 rounded-full shadow-md"
               aria-label="Change avatar"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L14.732 5.232z" />
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L14.732 5.232z"
+                />
               </svg>
             </button>
             <input
@@ -87,12 +98,17 @@ const Profile: React.FC = () => {
           </div>
 
           <div className="w-full">
-            <label htmlFor="displayName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Full Name</label>
+            <label
+              htmlFor="displayName"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+            >
+              Full Name
+            </label>
             <input
               type="text"
               id="displayName"
               value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
+              onChange={e => setDisplayName(e.target.value)}
               className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
             />
           </div>
@@ -105,7 +121,11 @@ const Profile: React.FC = () => {
             {loading ? 'Saving...' : 'Save Changes'}
           </button>
 
-          {message && <p className="text-sm text-green-600 dark:text-green-400">{message}</p>}
+          {message && (
+            <p className="text-sm text-green-600 dark:text-green-400">
+              {message}
+            </p>
+          )}
         </div>
       </div>
     </div>

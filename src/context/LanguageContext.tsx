@@ -125,14 +125,14 @@ const defaultTranslations: Translations = {
     fr: 'Connexion',
   },
   'auth.login.noAccount': {
-    en: 'Don\'t have an account?',
+    en: "Don't have an account?",
     mk: 'Немаш сметка?',
-    fr: 'Vous n\'avez pas de compte?',
+    fr: "Vous n'avez pas de compte?",
   },
   'auth.login.signUp': {
     en: 'Sign Up',
     mk: 'Регистрирај се',
-    fr: 'S\'inscrire',
+    fr: "S'inscrire",
   },
   // Document translations
   'documents.deleteConfirmation.message': {
@@ -230,7 +230,7 @@ const defaultTranslations: Translations = {
   'auth.register.title': {
     en: 'Sign Up',
     mk: 'Регистрирај се',
-    fr: 'S\'inscrire',
+    fr: "S'inscrire",
   },
   'auth.register.subtitle': {
     en: 'Create your account',
@@ -240,7 +240,7 @@ const defaultTranslations: Translations = {
   'auth.register.createAccount': {
     en: 'Sign Up',
     mk: 'Регистрирај се',
-    fr: 'S\'inscrire',
+    fr: "S'inscrire",
   },
   'auth.register.creating': {
     en: 'Creating Account...',
@@ -294,7 +294,7 @@ const defaultTranslations: Translations = {
     fr: 'Télécharger les fichiers',
   },
   // Loading states
-  'loading': {
+  loading: {
     en: 'Loading...',
     mk: 'Се вчитува...',
     fr: 'Chargement...',
@@ -327,12 +327,12 @@ const defaultTranslations: Translations = {
   'auth.errors.emailInUse': {
     en: 'Email is already in use',
     mk: 'Е-поштата е веќе во употреба',
-    fr: 'L\'email est déjà utilisé',
+    fr: "L'email est déjà utilisé",
   },
   'auth.errors.registrationFailed': {
     en: 'Failed to register. Please try again',
     mk: 'Неуспешна регистрација. Обидете се повторно',
-    fr: 'Échec de l\'inscription. Veuillez réessayer',
+    fr: "Échec de l'inscription. Veuillez réessayer",
   },
   'auth.forgotPassword.title': {
     en: 'Forgot Password',
@@ -376,18 +376,23 @@ const defaultTranslations: Translations = {
   },
 };
 
-const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
+const LanguageContext = createContext<LanguageContextType | undefined>(
+  undefined
+);
 
-export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const [language, setLanguage] = useState<LanguageType>(() => {
     // Check if language is stored in localStorage
     const savedLanguage = localStorage.getItem('language') as LanguageType;
     // Default to browser language or English
     const browserLanguage = navigator.language.split('-')[0];
-    const defaultLanguage = (browserLanguage === 'mk' || browserLanguage === 'fr') 
-      ? browserLanguage as LanguageType 
-      : 'en';
-    
+    const defaultLanguage =
+      browserLanguage === 'mk' || browserLanguage === 'fr'
+        ? (browserLanguage as LanguageType)
+        : 'en';
+
     return savedLanguage || defaultLanguage;
   });
 
@@ -407,16 +412,19 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       console.warn(`Translation key not found: ${key}`);
       return key;
     }
-    
+
     let text = translations[key][language] || translations[key]['en'] || key;
-    
+
     // Replace parameters in the text if provided
     if (params) {
       Object.entries(params).forEach(([paramKey, paramValue]) => {
-        text = text.replace(new RegExp(`\\{${paramKey}\\}`, 'g'), String(paramValue));
+        text = text.replace(
+          new RegExp(`\\{${paramKey}\\}`, 'g'),
+          String(paramValue)
+        );
       });
     }
-    
+
     return text;
   };
 

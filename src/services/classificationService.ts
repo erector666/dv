@@ -12,7 +12,7 @@ export interface ClassificationResult {
 
 /**
  * Classify a document using AI to extract categories, tags, and summary
- * 
+ *
  * Note: This requires a Firebase Cloud Function to be set up that integrates
  * with an AI service like Google Cloud Natural Language API or a custom model.
  */
@@ -31,7 +31,7 @@ export const classifyDocument = async (
     const result = await classifyDocumentFunction({
       documentId,
       documentUrl,
-      documentType
+      documentType,
     });
 
     return result.data as ClassificationResult;
@@ -43,7 +43,7 @@ export const classifyDocument = async (
 
 /**
  * Extract text content from a document
- * 
+ *
  * Note: This requires a Firebase Cloud Function to be set up that can
  * extract text from different document types (PDF, DOCX, etc.)
  */
@@ -53,14 +53,11 @@ export const extractTextFromDocument = async (
 ): Promise<string> => {
   try {
     // Call the Firebase Cloud Function
-    const extractTextFunction = httpsCallable(
-      functions,
-      'extractText'
-    );
+    const extractTextFunction = httpsCallable(functions, 'extractText');
 
     const result = await extractTextFunction({
       documentUrl,
-      documentType
+      documentType,
     });
 
     return (result.data as { text: string }).text;
@@ -79,14 +76,11 @@ export const detectLanguage = async (
 ): Promise<string> => {
   try {
     // Call the Firebase Cloud Function
-    const detectLanguageFunction = httpsCallable(
-      functions,
-      'detectLanguage'
-    );
+    const detectLanguageFunction = httpsCallable(functions, 'detectLanguage');
 
     const result = await detectLanguageFunction({
       documentUrl,
-      documentType
+      documentType,
     });
 
     return (result.data as { language: string }).language;
@@ -114,7 +108,7 @@ export const generateDocumentSummary = async (
     const result = await summarizeDocumentFunction({
       documentUrl,
       documentType,
-      maxLength
+      maxLength,
     });
 
     return (result.data as { summary: string }).summary;
@@ -127,7 +121,9 @@ export const generateDocumentSummary = async (
 /**
  * Process a document after upload to extract metadata, classify, and tag
  */
-export const processDocument = async (document: Document): Promise<Document> => {
+export const processDocument = async (
+  document: Document
+): Promise<Document> => {
   try {
     // Classify the document
     const classificationResult = await classifyDocument(
@@ -135,7 +131,7 @@ export const processDocument = async (document: Document): Promise<Document> => 
       document.url,
       document.type
     );
-    
+
     // Update document with classification results
     const updatedDocument: Document = {
       ...document,
@@ -146,10 +142,10 @@ export const processDocument = async (document: Document): Promise<Document> => 
         summary: classificationResult.summary,
         language: classificationResult.language,
         categories: classificationResult.categories,
-        classificationConfidence: classificationResult.confidence
-      }
+        classificationConfidence: classificationResult.confidence,
+      },
     };
-    
+
     return updatedDocument;
   } catch (error) {
     console.error('Error processing document:', error);

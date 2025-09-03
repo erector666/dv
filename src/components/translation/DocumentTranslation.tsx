@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { Document } from '../../services/documentService';
-import { 
+import {
   getSupportedLanguages,
   translateDocument,
   saveTranslatedDocument,
   SupportedLanguage,
-  TranslationResult
+  TranslationResult,
 } from '../../services/translationService';
 import { useLanguage } from '../../context/LanguageContext';
 
@@ -19,18 +19,19 @@ interface DocumentTranslationProps {
 const DocumentTranslation: React.FC<DocumentTranslationProps> = ({
   document,
   onTranslationComplete,
-  onCancel
+  onCancel,
 }) => {
   const { translate } = useLanguage();
   const [targetLanguage, setTargetLanguage] = useState<string>('');
-  const [translationInProgress, setTranslationInProgress] = useState<boolean>(false);
+  const [translationInProgress, setTranslationInProgress] =
+    useState<boolean>(false);
   const queryClient = useQueryClient();
 
   // Get supported languages
-  const { 
-    data: languages, 
-    isLoading: isLoadingLanguages, 
-    isError: isLanguagesError 
+  const {
+    data: languages,
+    isLoading: isLoadingLanguages,
+    isError: isLanguagesError,
   } = useQuery('supportedLanguages', getSupportedLanguages);
 
   // Filter out the current document language from the options
@@ -49,24 +50,27 @@ const DocumentTranslation: React.FC<DocumentTranslationProps> = ({
         targetLanguage,
         document.metadata?.language
       );
-      const translatedDocument = await saveTranslatedDocument(document, translationResult);
+      const translatedDocument = await saveTranslatedDocument(
+        document,
+        translationResult
+      );
       return translatedDocument;
     },
     {
       onSuccess: (translatedDocument: Document) => {
         // Invalidate and refetch documents query to update the list
         queryClient.invalidateQueries(['documents']);
-        
+
         if (onTranslationComplete) {
           onTranslationComplete(translatedDocument);
         }
-        
+
         setTranslationInProgress(false);
       },
       onError: (error: Error) => {
         console.error('Translation error:', error);
         setTranslationInProgress(false);
-      }
+      },
     }
   );
 
@@ -83,15 +87,20 @@ const DocumentTranslation: React.FC<DocumentTranslationProps> = ({
       <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
         {translate('translation.title')}
       </h2>
-      
+
       <div className="mb-4">
         <p className="text-gray-600 dark:text-gray-300 mb-2">
-          {translate('translation.documentName')}: <span className="font-medium">{document.name}</span>
+          {translate('translation.documentName')}:{' '}
+          <span className="font-medium">{document.name}</span>
         </p>
         <p className="text-gray-600 dark:text-gray-300">
-          {translate('translation.sourceLanguage')}: <span className="font-medium">
-            {document.metadata?.language 
-              ? languages?.find((l: SupportedLanguage) => l.code === document.metadata?.language)?.name || document.metadata.language
+          {translate('translation.sourceLanguage')}:{' '}
+          <span className="font-medium">
+            {document.metadata?.language
+              ? languages?.find(
+                  (l: SupportedLanguage) =>
+                    l.code === document.metadata?.language
+                )?.name || document.metadata.language
               : translate('translation.unknown')}
           </span>
         </p>
@@ -110,8 +119,8 @@ const DocumentTranslation: React.FC<DocumentTranslationProps> = ({
       ) : (
         <form onSubmit={handleSubmit}>
           <div className="mb-6">
-            <label 
-              htmlFor="targetLanguage" 
+            <label
+              htmlFor="targetLanguage"
               className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
             >
               {translate('translation.selectTargetLanguage')}
@@ -119,12 +128,14 @@ const DocumentTranslation: React.FC<DocumentTranslationProps> = ({
             <select
               id="targetLanguage"
               value={targetLanguage}
-              onChange={(e) => setTargetLanguage(e.target.value)}
+              onChange={e => setTargetLanguage(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
               required
               disabled={translationInProgress}
             >
-              <option value="">{translate('translation.selectLanguage')}</option>
+              <option value="">
+                {translate('translation.selectLanguage')}
+              </option>
               {availableLanguages?.map((language: SupportedLanguage) => (
                 <option key={language.code} value={language.code}>
                   {language.name}

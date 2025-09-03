@@ -12,7 +12,7 @@ const SplashScreen: React.FC = () => {
   useEffect(() => {
     const timer = setTimeout(() => {
       setFadeOut(true);
-      
+
       // Wait for fade out animation to complete before navigating
       setTimeout(() => {
         // Navigate to dashboard if user is logged in, otherwise to login
@@ -24,14 +24,18 @@ const SplashScreen: React.FC = () => {
   }, [navigate, currentUser]);
 
   return (
-    <div 
+    <div
       className={`fixed inset-0 flex items-center justify-center bg-primary-600 dark:bg-primary-900 z-50 transition-opacity duration-500 ${
         fadeOut ? 'opacity-0' : 'opacity-100'
       }`}
     >
       <div className="text-center">
         <div className="mb-4">
-          <img src="/logo2.png" alt="DocVault Logo" className="h-40 w-40 animate-pulse rounded-full" />
+          <img
+            src="/logo2.png"
+            alt="DocVault Logo"
+            className="h-40 w-40 animate-pulse rounded-full"
+          />
         </div>
         <p className="text-white text-2xl font-semibold opacity-90 animate-pulse">
           {translate('loading') || 'loading DocVault...'}

@@ -1,4 +1,3 @@
-
 import { getAuth } from 'firebase/auth';
 
 // Helper function to get auth token
@@ -27,7 +26,7 @@ export const getStorageUsage = async () => {
     const response = await fetch(`${functionsBaseUrl}/getStorageUsage`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({}),

@@ -12,8 +12,8 @@ const NotFound: React.FC = () => {
       <p className="text-gray-600 dark:text-gray-400 mb-8 max-w-md">
         The page you are looking for doesn't exist or has been moved.
       </p>
-      <Link 
-        to="/dashboard" 
+      <Link
+        to="/dashboard"
         className="bg-primary-600 hover:bg-primary-700 text-white px-6 py-2 rounded-md transition-colors"
       >
         {translate('dashboard')}

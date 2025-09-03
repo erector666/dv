@@ -17,12 +17,17 @@ interface DocumentData {
   uploadedAt: any; // Firestore timestamp
 }
 
-const DocumentViewer: React.FC<DocumentViewerProps> = ({ documentId, onClose }) => {
+const DocumentViewer: React.FC<DocumentViewerProps> = ({
+  documentId,
+  onClose,
+}) => {
   const { translate } = useLanguage();
   const [document, setDocument] = useState<DocumentData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [viewerType, setViewerType] = useState<'pdf' | 'image' | 'text' | 'other'>('other');
+  const [viewerType, setViewerType] = useState<
+    'pdf' | 'image' | 'text' | 'other'
+  >('other');
 
   useEffect(() => {
     const fetchDocument = async () => {
@@ -219,7 +224,9 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({ documentId, onClose }) 
                   d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                 />
               </svg>
-              <h3 className="text-lg font-medium mb-2">{translate('viewer.error.title')}</h3>
+              <h3 className="text-lg font-medium mb-2">
+                {translate('viewer.error.title')}
+              </h3>
               <p>{error}</p>
             </div>
           </div>
@@ -236,7 +243,8 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({ documentId, onClose }) 
               {translate('viewer.type')}: {document.type}
             </div>
             <div>
-              {translate('viewer.size')}: {(document.size / 1024 / 1024).toFixed(2)} MB
+              {translate('viewer.size')}:{' '}
+              {(document.size / 1024 / 1024).toFixed(2)} MB
             </div>
             {document.uploadedAt && (
               <div>

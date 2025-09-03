@@ -8,7 +8,11 @@ import '@testing-library/jest-dom';
 import { TextEncoder, TextDecoder } from 'util';
 
 // Polyfill for Web Streams (required for Firebase fetch in Node.js test environment)
-import { ReadableStream, WritableStream, TransformStream } from 'web-streams-polyfill';
+import {
+  ReadableStream,
+  WritableStream,
+  TransformStream,
+} from 'web-streams-polyfill';
 
 global.TextEncoder = TextEncoder;
 global.TextDecoder = TextDecoder as any;

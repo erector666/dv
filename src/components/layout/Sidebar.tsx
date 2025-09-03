@@ -24,20 +24,20 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile = false, onClose }) => {
   const { currentUser } = useAuth();
 
   // Fetch real storage usage data
-  const { data: storageData, isLoading, error } = useQuery(
-    'storageUsage',
-    () => getStorageUsage(currentUser?.uid || ''),
-    {
-      enabled: !!currentUser?.uid,
-      refetchInterval: 30000, // Refetch every 30 seconds
-      staleTime: 10000, // Consider data stale after 10 seconds
-    }
-  );
+  const {
+    data: storageData,
+    isLoading,
+    error,
+  } = useQuery('storageUsage', () => getStorageUsage(currentUser?.uid || ''), {
+    enabled: !!currentUser?.uid,
+    refetchInterval: 30000, // Refetch every 30 seconds
+    staleTime: 10000, // Consider data stale after 10 seconds
+  });
 
   const totalStorage = 10 * 1024 * 1024 * 1024; // 10 GB in bytes
   const usedStorage = storageData?.totalSize ?? 0;
-  const usagePercentage = totalStorage > 0 ? (usedStorage / totalStorage) * 100 : 0;
-
+  const usagePercentage =
+    totalStorage > 0 ? (usedStorage / totalStorage) * 100 : 0;
 
   const handleLinkClick = () => {
     if (isMobile && onClose) {
@@ -53,10 +53,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile = false, onClose }) => {
     >
       {/* Logo */}
       <div className="flex items-center p-4 border-b border-gray-200 dark:border-gray-700">
-        <img src="/logo2.png" alt="DocVault Logo" className="h-8 w-8 rounded-full" />
-        <span className="ml-2 text-xl font-semibold">
-          DocVault
-        </span>
+        <img
+          src="/logo2.png"
+          alt="DocVault Logo"
+          className="h-8 w-8 rounded-full"
+        />
+        <span className="ml-2 text-xl font-semibold">DocVault</span>
       </div>
 
       {/* Navigation Links */}
@@ -64,23 +66,32 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile = false, onClose }) => {
         <ul className="space-y-2 px-2">
           {/* Dashboard */}
           <li>
-            <NavLink 
-              to="/dashboard" 
+            <NavLink
+              to="/dashboard"
               onClick={handleLinkClick}
-              className={({ isActive }) => 
+              className={({ isActive }) =>
                 `flex items-center p-2 rounded-lg transition-colors ${
-                  isActive 
-                    ? 'bg-primary-100 dark:bg-primary-900 text-primary-600 dark:text-primary-300' 
+                  isActive
+                    ? 'bg-primary-100 dark:bg-primary-900 text-primary-600 dark:text-primary-300'
                     : 'hover:bg-gray-100 dark:hover:bg-gray-700'
                 }`
               }
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-8 w-8"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+                />
               </svg>
-              <span className="ml-3">
-                {translate('dashboard')}
-              </span>
+              <span className="ml-3">{translate('dashboard')}</span>
             </NavLink>
           </li>
 
@@ -93,93 +104,83 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile = false, onClose }) => {
             </div>
 
             {/* Personal */}
-            <NavLink 
-              to="/category/personal" 
+            <NavLink
+              to="/category/personal"
               onClick={handleLinkClick}
-              className={({ isActive }) => 
+              className={({ isActive }) =>
                 `flex items-center p-2 rounded-lg transition-colors ${
-                  isActive 
-                    ? 'bg-primary-100 dark:bg-primary-900 text-primary-600 dark:text-primary-300' 
+                  isActive
+                    ? 'bg-primary-100 dark:bg-primary-900 text-primary-600 dark:text-primary-300'
                     : 'hover:bg-gray-100 dark:hover:bg-gray-700'
                 }`
               }
             >
               <span className="text-3xl">📄</span>
-              <span className="ml-3">
-                {translate('personal')}
-              </span>
+              <span className="ml-3">{translate('personal')}</span>
             </NavLink>
 
             {/* Bills */}
-            <NavLink 
-              to="/category/bills" 
+            <NavLink
+              to="/category/bills"
               onClick={handleLinkClick}
-              className={({ isActive }) => 
+              className={({ isActive }) =>
                 `flex items-center p-2 rounded-lg transition-colors ${
-                  isActive 
-                    ? 'bg-primary-100 dark:bg-primary-900 text-primary-600 dark:text-primary-300' 
+                  isActive
+                    ? 'bg-primary-100 dark:bg-primary-900 text-primary-600 dark:text-primary-300'
                     : 'hover:bg-gray-100 dark:hover:bg-gray-700'
                 }`
               }
             >
               <span className="text-3xl">💰</span>
-              <span className="ml-3">
-                {translate('bills')}
-              </span>
+              <span className="ml-3">{translate('bills')}</span>
             </NavLink>
 
             {/* Medical */}
-            <NavLink 
-              to="/category/medical" 
+            <NavLink
+              to="/category/medical"
               onClick={handleLinkClick}
-              className={({ isActive }) => 
+              className={({ isActive }) =>
                 `flex items-center p-2 rounded-lg transition-colors ${
-                  isActive 
-                    ? 'bg-primary-100 dark:bg-primary-900 text-primary-600 dark:text-primary-300' 
+                  isActive
+                    ? 'bg-primary-100 dark:bg-primary-900 text-primary-600 dark:text-primary-300'
                     : 'hover:bg-gray-100 dark:hover:bg-gray-700'
                 }`
               }
             >
               <span className="text-3xl">🏥</span>
-              <span className="ml-3">
-                {translate('medical')}
-              </span>
+              <span className="ml-3">{translate('medical')}</span>
             </NavLink>
 
             {/* Insurance */}
-            <NavLink 
-              to="/category/insurance" 
+            <NavLink
+              to="/category/insurance"
               onClick={handleLinkClick}
-              className={({ isActive }) => 
+              className={({ isActive }) =>
                 `flex items-center p-2 rounded-lg transition-colors ${
-                  isActive 
-                    ? 'bg-primary-100 dark:bg-primary-900 text-primary-600 dark:text-primary-300' 
+                  isActive
+                    ? 'bg-primary-100 dark:bg-primary-900 text-primary-600 dark:text-primary-300'
                     : 'hover:bg-gray-100 dark:hover:bg-gray-700'
                 }`
               }
             >
               <span className="text-3xl">🔒</span>
-              <span className="ml-3">
-                {translate('insurance')}
-              </span>
+              <span className="ml-3">{translate('insurance')}</span>
             </NavLink>
 
             {/* Other */}
-            <NavLink 
-              to="/category/other" 
+            <NavLink
+              to="/category/other"
               onClick={handleLinkClick}
-              className={({ isActive }) => 
+              className={({ isActive }) =>
                 `flex items-center p-2 rounded-lg transition-colors ${
-                  isActive 
-                    ? 'bg-primary-100 dark:bg-primary-900 text-primary-600 dark:text-primary-300' 
+                  isActive
+                    ? 'bg-primary-100 dark:bg-primary-900 text-primary-600 dark:text-primary-300'
                     : 'hover:bg-gray-100 dark:hover:bg-gray-700'
                 }`
               }
             >
               <span className="text-3xl">📁</span>
-              <span className="ml-3">
-                {translate('other')}
-              </span>
+              <span className="ml-3">{translate('other')}</span>
             </NavLink>
           </li>
         </ul>
@@ -190,34 +191,52 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile = false, onClose }) => {
         {/* Storage Indicator */}
         <div className="mb-4">
           <div className="flex items-center mb-2">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-gray-500 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-6 w-6 mr-2 text-gray-500 dark:text-gray-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"
+              />
             </svg>
-            <span className="text-sm font-medium">
-              Storage
-            </span>
+            <span className="text-sm font-medium">Storage</span>
           </div>
           <div>
             {isLoading ? (
-              <p className="text-xs text-gray-500 dark:text-gray-400">Loading storage...</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Loading storage...
+              </p>
             ) : error ? (
-              <p className="text-xs text-red-500 dark:text-red-400">Error loading storage</p>
+              <p className="text-xs text-red-500 dark:text-red-400">
+                Error loading storage
+              </p>
             ) : storageData ? (
               <>
                 <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mb-1">
-                  <div className="bg-primary-600 h-2 rounded-full" style={{ width: `${usagePercentage}%` }}></div>
+                  <div
+                    className="bg-primary-600 h-2 rounded-full"
+                    style={{ width: `${usagePercentage}%` }}
+                  ></div>
                 </div>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
                   {formatBytes(usedStorage)} / {formatBytes(totalStorage)} used
                 </p>
                 {storageData.documentCount === 0 && (
                   <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                    No documents uploaded yet. Upload a file to see storage usage.
+                    No documents uploaded yet. Upload a file to see storage
+                    usage.
                   </p>
                 )}
                 {storageData.documentCount > 0 && (
                   <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                    {storageData.documentCount} document{storageData.documentCount !== 1 ? 's' : ''}
+                    {storageData.documentCount} document
+                    {storageData.documentCount !== 1 ? 's' : ''}
                   </p>
                 )}
               </>
@@ -226,24 +245,38 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile = false, onClose }) => {
         </div>
 
         {/* Settings Link */}
-        <NavLink 
-          to="/settings" 
+        <NavLink
+          to="/settings"
           onClick={handleLinkClick}
-          className={({ isActive }) => 
+          className={({ isActive }) =>
             `flex items-center p-2 rounded-lg transition-colors ${
-              isActive 
-                ? 'bg-primary-100 dark:bg-primary-900 text-primary-600 dark:text-primary-300' 
+              isActive
+                ? 'bg-primary-100 dark:bg-primary-900 text-primary-600 dark:text-primary-300'
                 : 'hover:bg-gray-100 dark:hover:bg-gray-700'
             }`
           }
         >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-8 w-8"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+            />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+            />
           </svg>
-          <span className="ml-3">
-            {translate('settings')}
-          </span>
+          <span className="ml-3">{translate('settings')}</span>
         </NavLink>
       </div>
     </div>

@@ -1,21 +1,21 @@
-import { 
-  collection, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  doc, 
-  getDoc, 
-  getDocs, 
-  query, 
-  where, 
+import {
+  collection,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  where,
   orderBy,
-  serverTimestamp
+  serverTimestamp,
 } from 'firebase/firestore';
-import { 
-  ref, 
-  uploadBytesResumable, 
-  getDownloadURL, 
-  deleteObject
+import {
+  ref,
+  uploadBytesResumable,
+  getDownloadURL,
+  deleteObject,
 } from 'firebase/storage';
 import { db, storage } from './firebase';
 import { clearStorageCache } from './storageService';
@@ -44,7 +44,7 @@ export interface DocumentUploadProgress {
  * Upload a document to Firebase Storage and save metadata to Firestore
  */
 export const uploadDocument = async (
-  file: File, 
+  file: File,
   userId: string,
   category?: string,
   tags?: string[],
@@ -53,23 +53,27 @@ export const uploadDocument = async (
 ): Promise<Document> => {
   try {
     // Create a storage reference
-    const storageRef = ref(storage, `documents/${userId}/${Date.now()}_${file.name}`);
-    
+    const storageRef = ref(
+      storage,
+      `documents/${userId}/${Date.now()}_${file.name}`
+    );
+
     // Upload file to Firebase Storage
     const uploadTask = uploadBytesResumable(storageRef, file);
-    
+
     // Return a promise that resolves when the upload is complete
     return new Promise((resolve, reject) => {
       uploadTask.on(
         'state_changed',
-        (snapshot) => {
+        snapshot => {
           // Track upload progress
-          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          const progress =
+            (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
           if (onProgress) {
             onProgress({ progress, snapshot });
           }
         },
-        (error) => {
+        error => {
           // Handle upload errors
           reject(error);
         },
@@ -78,7 +82,7 @@ export const uploadDocument = async (
           try {
             // Get download URL
             const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-            
+
             // Create document metadata in Firestore
             const documentData: Omit<Document, 'id'> = {
               name: file.name,
@@ -91,19 +95,22 @@ export const uploadDocument = async (
               lastModified: serverTimestamp(),
               ...(category && { category }),
               ...(tags && { tags }),
-              ...(metadata && { metadata })
+              ...(metadata && { metadata }),
             };
-            
+
             // Add document to Firestore
-            const docRef = await addDoc(collection(db, 'documents'), documentData);
-            
+            const docRef = await addDoc(
+              collection(db, 'documents'),
+              documentData
+            );
+
             // Clear storage cache to reflect new upload
             clearStorageCache(documentData.userId);
-            
+
             // Return the document with its ID
             resolve({
               id: docRef.id,
-              ...documentData
+              ...documentData,
             });
           } catch (error) {
             reject(error);
@@ -120,15 +127,17 @@ export const uploadDocument = async (
 /**
  * Get a document by ID
  */
-export const getDocument = async (documentId: string): Promise<Document | null> => {
+export const getDocument = async (
+  documentId: string
+): Promise<Document | null> => {
   try {
     const docRef = doc(db, `documents/${documentId}`);
     const docSnap = await getDoc(docRef);
-    
+
     if (docSnap.exists()) {
       return {
         id: docSnap.id,
-        ...docSnap.data()
+        ...docSnap.data(),
       } as Document;
     } else {
       return null;
@@ -153,18 +162,18 @@ export const getUserDocuments = async (
     console.log('User ID:', userId);
     console.log('Category:', category);
     console.log('Order by:', orderByField, orderDirection);
-    
+
     if (!userId) {
       console.warn('⚠️ No userId provided, returning empty array');
       return [];
     }
-    
+
     let q = query(
       collection(db, 'documents'),
       where('userId', '==', userId),
       orderBy(orderByField, orderDirection)
     );
-    
+
     if (category) {
       q = query(
         collection(db, 'documents'),
@@ -173,33 +182,33 @@ export const getUserDocuments = async (
         orderBy(orderByField, orderDirection)
       );
     }
-    
+
     console.log('Executing Firestore query...');
     const querySnapshot = await getDocs(q);
     console.log('Query result:', querySnapshot);
     console.log('Query size:', querySnapshot.size);
-    
+
     const documents: Document[] = [];
-    
-    querySnapshot.forEach((doc) => {
+
+    querySnapshot.forEach(doc => {
       const data = doc.data();
       console.log('Document data:', { id: doc.id, ...data });
       documents.push({
         id: doc.id,
-        ...data
+        ...data,
       } as Document);
     });
-    
+
     console.log('Final documents array:', documents);
     console.log('Returning', documents.length, 'documents');
-    
+
     return documents;
   } catch (error) {
     console.error('❌ Error getting user documents:', error);
     console.error('Error details:', {
-      message: error.message,
-      code: error.code,
-      stack: error.stack
+      message: error instanceof Error ? error.message : 'Unknown error',
+      code: (error as any)?.code || 'No code',
+      stack: error instanceof Error ? error.stack : 'No stack',
     });
     throw error;
   }
@@ -214,13 +223,13 @@ export const updateDocument = async (
 ): Promise<void> => {
   try {
     const docRef = doc(db, `documents/${documentId}`);
-    
+
     // Add last modified timestamp
     const updatedData = {
       ...updates,
-      lastModified: serverTimestamp()
+      lastModified: serverTimestamp(),
     };
-    
+
     await updateDoc(docRef, updatedData);
   } catch (error) {
     console.error('Error updating document:', error);
@@ -236,20 +245,20 @@ export const deleteDocument = async (documentId: string): Promise<void> => {
     // Get document data to get the storage path
     const docRef = doc(db, `documents/${documentId}`);
     const docSnap = await getDoc(docRef);
-    
+
     if (!docSnap.exists()) {
       throw new Error('Document not found');
     }
-    
+
     const documentData = docSnap.data() as Document;
-    
+
     // Delete from Storage
     const storageRef = ref(storage, documentData.path);
     await deleteObject(storageRef);
-    
+
     // Delete from Firestore
     await deleteDoc(docRef);
-    
+
     // Clear storage cache to reflect deletion
     clearStorageCache(documentData.userId);
   } catch (error) {
@@ -273,26 +282,33 @@ export const searchDocuments = async (
       where('userId', '==', userId),
       orderBy('uploadedAt', 'desc')
     );
-    
+
     const querySnapshot = await getDocs(q);
     const documents: Document[] = [];
-    
-    querySnapshot.forEach((doc) => {
+
+    querySnapshot.forEach(doc => {
       const data = doc.data() as Document;
-      
+
       // Simple client-side filtering
       if (
         data.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (data.tags && data.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))) ||
-        (data.metadata && data.metadata.content && data.metadata.content.toLowerCase().includes(searchTerm.toLowerCase()))
+        (data.tags &&
+          data.tags.some(tag =>
+            tag.toLowerCase().includes(searchTerm.toLowerCase())
+          )) ||
+        (data.metadata &&
+          data.metadata.content &&
+          data.metadata.content
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase()))
       ) {
         documents.push({
           id: doc.id,
-          ...data
+          ...data,
         });
       }
     });
-    
+
     return documents;
   } catch (error) {
     console.error('Error searching documents:', error);
@@ -303,23 +319,22 @@ export const searchDocuments = async (
 /**
  * Get document categories for a user
  */
-export const getDocumentCategories = async (userId: string): Promise<string[]> => {
+export const getDocumentCategories = async (
+  userId: string
+): Promise<string[]> => {
   try {
-    const q = query(
-      collection(db, 'documents'),
-      where('userId', '==', userId)
-    );
-    
+    const q = query(collection(db, 'documents'), where('userId', '==', userId));
+
     const querySnapshot = await getDocs(q);
     const categories = new Set<string>();
-    
-    querySnapshot.forEach((doc) => {
+
+    querySnapshot.forEach(doc => {
       const data = doc.data();
       if (data.category) {
         categories.add(data.category);
       }
     });
-    
+
     return Array.from(categories);
   } catch (error) {
     console.error('Error getting document categories:', error);
@@ -332,21 +347,18 @@ export const getDocumentCategories = async (userId: string): Promise<string[]> =
  */
 export const getDocumentTags = async (userId: string): Promise<string[]> => {
   try {
-    const q = query(
-      collection(db, 'documents'),
-      where('userId', '==', userId)
-    );
-    
+    const q = query(collection(db, 'documents'), where('userId', '==', userId));
+
     const querySnapshot = await getDocs(q);
     const tags = new Set<string>();
-    
-    querySnapshot.forEach((doc) => {
+
+    querySnapshot.forEach(doc => {
       const data = doc.data();
       if (data.tags && Array.isArray(data.tags)) {
         data.tags.forEach((tag: string) => tags.add(tag));
       }
     });
-    
+
     return Array.from(tags);
   } catch (error) {
     console.error('Error getting document tags:', error);

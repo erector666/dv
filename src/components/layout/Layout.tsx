@@ -28,7 +28,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       {/* Mobile Sidebar */}
       {isMobileSidebarOpen && (
         <div className="md:hidden">
-          <div 
+          <div
             className="fixed inset-0 bg-gray-900 bg-opacity-50 z-40"
             onClick={closeMobileSidebar}
           ></div>
@@ -39,10 +39,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       {/* Main Content */}
       <div className="flex flex-col flex-1 overflow-hidden">
         <Header onMenuClick={toggleMobileSidebar} />
-        
-        <main className="flex-1 overflow-y-auto">
-          {children || <Outlet />}
-        </main>
+
+        <main className="flex-1 overflow-y-auto">{children || <Outlet />}</main>
       </div>
     </div>
   );

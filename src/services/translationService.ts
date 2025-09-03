@@ -16,7 +16,7 @@ export interface SupportedLanguage {
 
 /**
  * Translate document text content to a target language
- * 
+ *
  * Note: This requires a Firebase Cloud Function to be set up that integrates
  * with a translation service like Google Cloud Translation API.
  */
@@ -39,7 +39,7 @@ export const translateDocument = async (
       documentUrl,
       documentType,
       targetLanguage,
-      sourceLanguage
+      sourceLanguage,
     });
 
     return result.data as TranslationResult;
@@ -83,7 +83,7 @@ export const saveTranslatedDocument = async (
       originalDocumentId: originalDocument.id,
       sourceLanguage: translationResult.sourceLanguage,
       targetLanguage: translationResult.targetLanguage,
-      translationConfidence: translationResult.confidence
+      translationConfidence: translationResult.confidence,
     };
 
     // Update the original document to include reference to this translation
@@ -91,14 +91,14 @@ export const saveTranslatedDocument = async (
       const translations = originalDocument.metadata?.translations || {};
       translations[translationResult.targetLanguage] = {
         timestamp: new Date().getTime(),
-        confidence: translationResult.confidence
+        confidence: translationResult.confidence,
       };
 
       await updateDocument(originalDocument.id, {
         metadata: {
           ...originalDocument.metadata,
-          translations
-        }
+          translations,
+        },
       });
     }
 
@@ -108,7 +108,7 @@ export const saveTranslatedDocument = async (
     return {
       ...originalDocument,
       name: `${originalDocument.name} (${translationResult.targetLanguage})`,
-      metadata: translatedDocumentMetadata
+      metadata: translatedDocumentMetadata,
     };
   } catch (error) {
     console.error('Error saving translated document:', error);
