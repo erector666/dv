@@ -90,6 +90,16 @@ const DocumentList: React.FC<DocumentListProps> = ({
     console.log('Filtered count:', filteredDocuments?.length || 0);
   }, [filteredDocuments]);
 
+  // Debug logging for delete modal state
+  useEffect(() => {
+    console.log('🔍 Delete modal state:', {
+      isDeleteModalOpen,
+      selectedDocument: selectedDocument?.id,
+      selectedDocumentName: selectedDocument?.name,
+      selectedDocumentObject: selectedDocument
+    });
+  }, [isDeleteModalOpen, selectedDocument]);
+
   // Handle document click
   const handleDocumentClick = (document: Document) => {
     if (onViewDocument) {
@@ -103,13 +113,22 @@ const DocumentList: React.FC<DocumentListProps> = ({
 
   // Handle document delete
   const handleDeleteClick = (e: React.MouseEvent, document: Document) => {
+    console.log('🗑️ Delete button clicked for document:', document);
+    console.log('Document ID:', document.id);
+    console.log('Document name:', document.name);
     e.stopPropagation();
     setSelectedDocument(document);
     setIsDeleteModalOpen(true);
+    console.log('Selected document set and delete modal opened');
   };
 
   // Confirm document deletion
   const confirmDelete = async () => {
+    console.log('🗑️ Confirm delete called');
+    console.log('Selected document:', selectedDocument);
+    console.log('Selected document ID:', selectedDocument?.id);
+    console.log('Selected document name:', selectedDocument?.name);
+    
     if (selectedDocument?.id) {
       try {
         setIsDeleting(true);
@@ -128,6 +147,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
       }
     } else {
       console.error('❌ No document ID for deletion');
+      console.error('Selected document object:', selectedDocument);
       alert('Cannot delete document: No document ID found');
     }
   };
@@ -347,12 +367,17 @@ const DocumentList: React.FC<DocumentListProps> = ({
   return (
     <>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredDocuments.map((document, index) => (
-          <div
-            key={document.id || `doc-${index}-${document.name}`}
-            className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden cursor-pointer hover:shadow-lg transition-shadow duration-200"
-            onClick={() => handleDocumentClick(document)}
-          >
+        {filteredDocuments.map((document, index) => {
+          // Ensure we have a valid key for React
+          const documentKey = document.id || `doc-${index}-${document.name || 'unnamed'}`;
+          console.log(`Rendering document ${index}:`, { id: document.id, name: document.name, key: documentKey });
+          
+          return (
+            <div
+              key={documentKey}
+              className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden cursor-pointer hover:shadow-lg transition-shadow duration-200"
+              onClick={() => handleDocumentClick(document)}
+            >
             <div className="p-4 flex items-start space-x-4">
               <div className="flex-shrink-0">
                 {getDocumentIcon(document.type)}
@@ -461,7 +486,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
                   <div className="mt-2 flex flex-wrap gap-1">
                     {document.tags.slice(0, 3).map((tag, index) => (
                       <span
-                        key={index}
+                        key={`${document.id || 'doc'}-tag-${index}-${tag || 'empty'}`}
                         className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
                       >
                         {tag}
@@ -498,7 +523,8 @@ const DocumentList: React.FC<DocumentListProps> = ({
               </div>
             </div>
           </div>
-        ))}
+        );
+        })}
       </div>
 
       {/* Delete Confirmation Modal */}

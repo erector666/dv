@@ -71,12 +71,17 @@ const Dashboard: React.FC = () => {
                   }
                 })
                 .slice(0, 4)
-                .map((doc) => (
-                  <div
-                    key={doc.id}
-                    className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600 hover:border-primary-300 dark:hover:border-primary-600 transition-colors cursor-pointer"
-                    onClick={() => navigate(`/document/${doc.id}`)}
-                  >
+                .map((doc, index) => {
+                  // Ensure we have a valid key for React
+                  const docKey = doc.id || `recent-doc-${index}-${doc.name || 'unnamed'}`;
+                  console.log(`Rendering recent document ${index}:`, { id: doc.id, name: doc.name, key: docKey });
+                  
+                  return (
+                    <div
+                      key={docKey}
+                      className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600 hover:border-primary-300 dark:hover:border-primary-600 transition-colors cursor-pointer"
+                      onClick={() => navigate(`/document/${doc.id}`)}
+                    >
                     <div className="flex items-center space-x-3">
                       <div className="flex-shrink-0">
                         <div className="w-10 h-10 bg-primary-100 dark:bg-primary-900 rounded-lg flex items-center justify-center">
@@ -98,7 +103,8 @@ const Dashboard: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                ))
+                );
+                })
             ) : (
               // Show empty state
               <div className="col-span-full bg-gray-100 dark:bg-gray-700 rounded-lg h-40 flex items-center justify-center">
@@ -164,12 +170,17 @@ const Dashboard: React.FC = () => {
                 color:
                   'from-gray-100 to-gray-200 dark:from-gray-900/30 dark:to-gray-900/20',
               },
-            ].map(({ key, icon, color }) => (
-              <div
-                key={key}
-                onClick={() => handleCategoryClick(key)}
-                className="bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 border border-gray-100 dark:border-gray-700 cursor-pointer group"
-              >
+            ].map(({ key, icon, color }) => {
+              // Ensure we have a valid key and translation
+              const categoryKey = key || 'unknown';
+              const categoryName = translate(categoryKey) || categoryKey;
+              
+              return (
+                <div
+                  key={`category-${categoryKey}`}
+                  onClick={() => handleCategoryClick(categoryKey)}
+                  className="bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 border border-gray-100 dark:border-gray-700 cursor-pointer group"
+                >
                 <div className="p-6 flex flex-col items-center justify-center h-40">
                   <div
                     className={`w-16 h-16 rounded-full bg-gradient-to-br ${color} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-200`}
@@ -177,19 +188,20 @@ const Dashboard: React.FC = () => {
                     <span className="text-2xl">{icon}</span>
                   </div>
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                    {translate(key)}
+                    {categoryName}
                   </h3>
                   <div className="text-3xl font-bold text-primary-600 dark:text-primary-400">
-                    {getCategoryCount(key)}
+                    {getCategoryCount(categoryKey)}
                   </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    {getCategoryCount(key) === 1
+                    {getCategoryCount(categoryKey) === 1
                       ? translate('document')
                       : translate('documents')}
                   </p>
                 </div>
               </div>
-            ))}
+            );
+            })}
           </div>
         </div>
       </div>
