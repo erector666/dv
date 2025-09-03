@@ -218,6 +218,8 @@ async function extractTextInternal(documentUrl, documentType) {
                     .replace(/T\*[^\n]*/g, '')
                     .replace(/\s+/g, ' ')
                     .trim();
+                console.log('📄 Extracted PDF text (first 500 chars):', extractedText.substring(0, 500));
+                console.log('📄 Extracted PDF text length:', extractedText.length);
                 if (extractedText.length < 100) {
                     console.log('PDF text too short after cleaning, trying Vision API...');
                     extractedText = await extractTextFromImageWithVision(buffer);
@@ -266,12 +268,18 @@ async function classifyDocumentInternal(documentUrl) {
         let confidence = extractedText.confidence;
         let tags = [];
         const text = extractedText.text.toLowerCase();
+        const hasMacedonian = /[а-яё]/i.test(text) ||
+            text.includes('уверение') || text.includes('сертификат') ||
+            text.includes('документ') || text.includes('универзитет') ||
+            text.includes('институт') || text.includes('академија');
         if (text.includes('legal') || text.includes('contract') || text.includes('agreement') ||
             text.includes('terms') || text.includes('conditions') || text.includes('clause') ||
-            text.includes('party') || text.includes('signature') || text.includes('notary')) {
+            text.includes('party') || text.includes('signature') || text.includes('notary') ||
+            text.includes('уверение') || text.includes('сертификат') || text.includes('договор') ||
+            text.includes('соглашение') || text.includes('услови') || text.includes('клаузула')) {
             category = 'legal';
             confidence = Math.max(confidence, 0.9);
-            tags = ['legal', 'contract', 'agreement'];
+            tags = ['legal', 'contract', 'agreement', 'certificate'];
         }
         else if (text.includes('medical') || text.includes('doctor') || text.includes('hospital') ||
             text.includes('prescription') || text.includes('diagnosis') || text.includes('treatment') ||
@@ -283,10 +291,12 @@ async function classifyDocumentInternal(documentUrl) {
         else if (text.includes('bill') || text.includes('invoice') || text.includes('payment') ||
             text.includes('amount') || text.includes('total') || text.includes('due') ||
             text.includes('$') || text.includes('dollar') || text.includes('cost') ||
-            text.includes('balance') || text.includes('account') || text.includes('statement')) {
+            text.includes('balance') || text.includes('account') || text.includes('statement') ||
+            text.includes('receipt') || text.includes('price') || text.includes('fee') ||
+            text.includes('charge') || text.includes('tax') || text.includes('discount')) {
             category = 'financial';
             confidence = Math.max(confidence, 0.8);
-            tags = ['financial', 'bills', 'invoice', 'payment'];
+            tags = ['financial', 'bills', 'invoice', 'payment', 'receipt'];
         }
         else if (text.includes('insurance') || text.includes('policy') || text.includes('coverage') ||
             text.includes('claim') || text.includes('premium') || text.includes('deductible') ||
@@ -297,10 +307,13 @@ async function classifyDocumentInternal(documentUrl) {
         }
         else if (text.includes('education') || text.includes('school') || text.includes('university') ||
             text.includes('course') || text.includes('grade') || text.includes('transcript') ||
-            text.includes('diploma') || text.includes('certificate') || text.includes('degree')) {
+            text.includes('diploma') || text.includes('certificate') || text.includes('degree') ||
+            text.includes('универзитет') || text.includes('институт') || text.includes('академија') ||
+            text.includes('школа') || text.includes('курс') || text.includes('испит') ||
+            text.includes('диплома') || text.includes('сертификат') || text.includes('степен')) {
             category = 'education';
-            confidence = Math.max(confidence, 0.8);
-            tags = ['education', 'academic', 'school'];
+            confidence = Math.max(confidence, 0.9);
+            tags = ['education', 'academic', 'school', 'university'];
         }
         else if (text.includes('employment') || text.includes('job') || text.includes('work') ||
             text.includes('resume') || text.includes('cv') || text.includes('application') ||
@@ -316,33 +329,82 @@ async function classifyDocumentInternal(documentUrl) {
             confidence = Math.max(confidence, 0.8);
             tags = ['government', 'official', 'certificate'];
         }
-        else if (contentType.includes('pdf')) {
-            category = 'personal';
-            confidence = Math.max(confidence, 0.7);
-            tags = ['personal', 'document'];
-        }
-        else {
+        else if (text.length < 50) {
             category = 'personal';
             confidence = Math.max(confidence, 0.6);
-            tags = ['image', 'personal'];
+            tags = ['personal', 'unclassified'];
         }
+        if (category === 'other' && contentType.includes('pdf')) {
+            if (text.includes('invoice') || text.includes('bill') || text.includes('payment')) {
+                category = 'financial';
+                confidence = Math.max(confidence, 0.7);
+                tags = ['financial', 'invoice'];
+            }
+            else if (text.includes('contract') || text.includes('agreement')) {
+                category = 'legal';
+                confidence = Math.max(confidence, 0.7);
+                tags = ['legal', 'contract'];
+            }
+            else if (text.includes('receipt')) {
+                category = 'financial';
+                confidence = Math.max(confidence, 0.7);
+                tags = ['financial', 'receipt'];
+            }
+        }
+        let extractedDates = [];
+        const datePatterns = [
+            /(\d{1,2})\.(\d{1,2})\.(\d{4})/g,
+            /(\d{1,2})\/(\d{1,2})\/(\d{4})/g,
+            /(\d{1,2})-(\d{1,2})-(\d{4})/g,
+            /(\d{1,2})\/(\d{1,2})\/(\d{4})/g,
+            /(\d{4})-(\d{1,2})-(\d{1,2})/g,
+            /(\d{1,2})\s+(јануари|февруари|март|април|мај|јуни|јули|август|септември|октомври|ноември|декември)\s+(\d{4})/gi,
+            /(\d{1,2})\s+(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{4})/gi
+        ];
+        datePatterns.forEach(pattern => {
+            const matches = text.match(pattern);
+            if (matches) {
+                extractedDates.push(...matches);
+            }
+        });
+        console.log('📅 Extracted dates:', extractedDates);
         let detectedLanguage = 'en';
         let languageConfidence = 0.5;
         try {
             const languageResult = await detectLanguageInternal(extractedText.text);
             detectedLanguage = languageResult.language;
             languageConfidence = languageResult.confidence;
+            if (hasMacedonian && detectedLanguage === 'en') {
+                detectedLanguage = 'mk';
+                languageConfidence = 0.9;
+                console.log('🌐 Overriding language detection to Macedonian based on text content');
+            }
         }
         catch (langError) {
             console.warn('Language detection failed, using default:', langError);
+            if (hasMacedonian) {
+                detectedLanguage = 'mk';
+                languageConfidence = 0.8;
+            }
         }
+        const finalCategory = category !== 'other' ? category : 'personal';
+        const finalConfidence = category !== 'other' ? confidence : Math.max(confidence, 0.6);
+        console.log('🔍 Category Assignment Debug:', {
+            originalCategory: category,
+            finalCategory: finalCategory,
+            confidence: finalConfidence,
+            tags: tags,
+            textLength: extractedText.text.length,
+            textPreview: extractedText.text.substring(0, 200) + '...'
+        });
         const classification = {
-            category,
-            confidence,
-            tags,
+            category: finalCategory,
+            confidence: finalConfidence,
+            tags: tags.length > 0 ? tags : ['document'],
             language: detectedLanguage,
+            extractedDates: extractedDates,
             classificationDetails: {
-                categories: [category],
+                categories: [finalCategory],
                 entities: [],
                 sentiment: null,
             },
@@ -593,30 +655,55 @@ exports.summarizeDocument = (0, https_1.onCall)(async (request) => {
         let summary = '';
         let quality = 'medium';
         let confidence = extractedText.confidence || 0.5;
-        if (text.length <= maxLength) {
-            summary = text;
-            quality = 'high';
-        }
-        else {
-            const sentences = text.split(/[.!?]+/).filter((s) => s.trim().length > 10);
-            if (sentences.length > 0) {
-                let currentLength = 0;
-                const selectedSentences = [];
-                for (const sentence of sentences) {
-                    if (currentLength + sentence.length <= maxLength && selectedSentences.length < 3) {
-                        selectedSentences.push(sentence.trim());
-                        currentLength += sentence.length;
-                    }
-                    else {
-                        break;
-                    }
-                }
-                summary = selectedSentences.join('. ') + '.';
-                quality = 'medium';
+        const hasMacedonian = /[а-яё]/i.test(text);
+        if (hasMacedonian) {
+            const titleMatch = text.match(/(?:УВЕРЕНИЕ|СЕРТИФИКАТ|ДИПЛОМА|ДОКУМЕНТ|УНИВЕРЗИТЕТ|ИНСТИТУТ)/i);
+            const dateMatch = text.match(/(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+            const nameMatch = text.match(/([А-ЯЁ]+ [А-ЯЁ]+), родена на (\d{1,2})\.(\d{1,2})\.(\d{4})/);
+            if (titleMatch && dateMatch) {
+                summary = `${titleMatch[0]} документ од ${dateMatch[3]} година.`;
+                quality = 'high';
+                confidence = 0.9;
+            }
+            else if (nameMatch) {
+                summary = `Документ за ${nameMatch[1]}, родена на ${nameMatch[2]}.${nameMatch[3]}.${nameMatch[4]}.`;
+                quality = 'high';
+                confidence = 0.9;
             }
             else {
-                summary = text.substring(0, maxLength - 3) + '...';
-                quality = 'low';
+                const sentences = text.split(/[.!?]+/).filter((s) => s.trim().length > 10);
+                if (sentences.length > 0) {
+                    summary = sentences[0].trim() + '.';
+                    quality = 'medium';
+                }
+            }
+        }
+        else {
+            if (text.length <= maxLength) {
+                summary = text;
+                quality = 'high';
+            }
+            else {
+                const sentences = text.split(/[.!?]+/).filter((s) => s.trim().length > 10);
+                if (sentences.length > 0) {
+                    let currentLength = 0;
+                    const selectedSentences = [];
+                    for (const sentence of sentences) {
+                        if (currentLength + sentence.length <= maxLength && selectedSentences.length < 3) {
+                            selectedSentences.push(sentence.trim());
+                            currentLength += sentence.length;
+                        }
+                        else {
+                            break;
+                        }
+                    }
+                    summary = selectedSentences.join('. ') + '.';
+                    quality = 'medium';
+                }
+                else {
+                    summary = text.substring(0, maxLength - 3) + '...';
+                    quality = 'low';
+                }
             }
         }
         return {

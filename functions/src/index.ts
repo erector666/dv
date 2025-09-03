@@ -176,7 +176,7 @@ async function extractTextInternal(
         const pdfData = await pdfParse(buffer);
         extractedText = pdfData.text;
 
-        // Clean PDF text by removing technical headers and metadata
+        // Clean PDF text by removing ONLY technical headers, preserve content
         extractedText = extractedText
           .replace(/%PDF-[^\n]*/g, '') // Remove PDF version headers
           .replace(/[0-9]+ [0-9]+ obj[^\n]*/g, '') // Remove PDF object definitions
@@ -232,6 +232,10 @@ async function extractTextInternal(
           .replace(/T\*[^\n]*/g, '') // Remove PDF text newline
           .replace(/\s+/g, ' ') // Normalize whitespace
           .trim();
+
+        // Log the extracted text for debugging
+        console.log('📄 Extracted PDF text (first 500 chars):', extractedText.substring(0, 500));
+        console.log('📄 Extracted PDF text length:', extractedText.length);
 
         // If text is too short after cleaning, it might be an image-based PDF
         if (extractedText.length < 100) {
@@ -296,13 +300,21 @@ async function classifyDocumentInternal(documentUrl: string): Promise<any> {
       // Analyze text content for better classification
       const text = extractedText.text.toLowerCase();
       
-      // Legal documents
+      // Macedonian language patterns (common in documents)
+      const hasMacedonian = /[а-яё]/i.test(text) || 
+                           text.includes('уверение') || text.includes('сертификат') ||
+                           text.includes('документ') || text.includes('универзитет') ||
+                           text.includes('институт') || text.includes('академија');
+      
+      // Legal documents (including Macedonian)
       if (text.includes('legal') || text.includes('contract') || text.includes('agreement') || 
           text.includes('terms') || text.includes('conditions') || text.includes('clause') ||
-          text.includes('party') || text.includes('signature') || text.includes('notary')) {
+          text.includes('party') || text.includes('signature') || text.includes('notary') ||
+          text.includes('уверение') || text.includes('сертификат') || text.includes('договор') ||
+          text.includes('соглашение') || text.includes('услови') || text.includes('клаузула')) {
         category = 'legal';
         confidence = Math.max(confidence, 0.9);
-        tags = ['legal', 'contract', 'agreement'];
+        tags = ['legal', 'contract', 'agreement', 'certificate'];
       }
       // Medical documents
       else if (text.includes('medical') || text.includes('doctor') || text.includes('hospital') || 
@@ -331,13 +343,16 @@ async function classifyDocumentInternal(documentUrl: string): Promise<any> {
         confidence = Math.max(confidence, 0.8);
         tags = ['insurance', 'policy', 'coverage'];
       }
-      // Educational documents
+      // Educational documents (including Macedonian)
       else if (text.includes('education') || text.includes('school') || text.includes('university') ||
                text.includes('course') || text.includes('grade') || text.includes('transcript') ||
-               text.includes('diploma') || text.includes('certificate') || text.includes('degree')) {
+               text.includes('diploma') || text.includes('certificate') || text.includes('degree') ||
+               text.includes('универзитет') || text.includes('институт') || text.includes('академија') ||
+               text.includes('школа') || text.includes('курс') || text.includes('испит') ||
+               text.includes('диплома') || text.includes('сертификат') || text.includes('степен')) {
         category = 'education';
-        confidence = Math.max(confidence, 0.8);
-        tags = ['education', 'academic', 'school'];
+        confidence = Math.max(confidence, 0.9);
+        tags = ['education', 'academic', 'school', 'university'];
       }
       // Employment documents
       else if (text.includes('employment') || text.includes('job') || text.includes('work') ||
@@ -384,6 +399,30 @@ async function classifyDocumentInternal(documentUrl: string): Promise<any> {
         }
       }
       
+      // Extract dates from the text
+      let extractedDates: string[] = [];
+      const datePatterns = [
+        // Macedonian date patterns
+        /(\d{1,2})\.(\d{1,2})\.(\d{4})/g,  // DD.MM.YYYY
+        /(\d{1,2})\/(\d{1,2})\/(\d{4})/g,  // DD/MM/YYYY
+        /(\d{1,2})-(\d{1,2})-(\d{4})/g,    // DD-MM-YYYY
+        // English date patterns
+        /(\d{1,2})\/(\d{1,2})\/(\d{4})/g,  // MM/DD/YYYY
+        /(\d{4})-(\d{1,2})-(\d{1,2})/g,    // YYYY-MM-DD
+        // Text-based dates
+        /(\d{1,2})\s+(јануари|февруари|март|април|мај|јуни|јули|август|септември|октомври|ноември|декември)\s+(\d{4})/gi,
+        /(\d{1,2})\s+(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{4})/gi
+      ];
+      
+      datePatterns.forEach(pattern => {
+        const matches = text.match(pattern);
+        if (matches) {
+          extractedDates.push(...matches);
+        }
+      });
+      
+      console.log('📅 Extracted dates:', extractedDates);
+      
       // Detect language from the extracted text
       let detectedLanguage = 'en';
       let languageConfidence = 0.5;
@@ -392,8 +431,20 @@ async function classifyDocumentInternal(documentUrl: string): Promise<any> {
         const languageResult = await detectLanguageInternal(extractedText.text);
         detectedLanguage = languageResult.language;
         languageConfidence = languageResult.confidence;
+        
+        // If we detect Macedonian text but language detection says English, override
+        if (hasMacedonian && detectedLanguage === 'en') {
+          detectedLanguage = 'mk';
+          languageConfidence = 0.9;
+          console.log('🌐 Overriding language detection to Macedonian based on text content');
+        }
       } catch (langError) {
         console.warn('Language detection failed, using default:', langError);
+        // If language detection fails but we see Macedonian text, use Macedonian
+        if (hasMacedonian) {
+          detectedLanguage = 'mk';
+          languageConfidence = 0.8;
+        }
       }
 
       // Ensure AI classification takes priority over fallback logic
@@ -415,6 +466,7 @@ async function classifyDocumentInternal(documentUrl: string): Promise<any> {
         confidence: finalConfidence,
         tags: tags.length > 0 ? tags : ['document'],
         language: detectedLanguage,
+        extractedDates: extractedDates,
         classificationDetails: {
           categories: [finalCategory],
           entities: [] as string[],
@@ -780,35 +832,58 @@ export const summarizeDocument = onCall(async request => {
     let quality = 'medium';
     let confidence = extractedText.confidence || 0.5;
     
-    // If text is short enough, use it as is
-    if (text.length <= maxLength) {
-      summary = text;
-      quality = 'high';
-    } else {
-      // For longer texts, create a more intelligent summary
-      // Split into sentences and take the first few meaningful ones
-              const sentences = text.split(/[.!?]+/).filter((s: string) => s.trim().length > 10);
+    // Check for Macedonian text and create language-appropriate summary
+    const hasMacedonian = /[а-яё]/i.test(text);
+    
+    if (hasMacedonian) {
+      // For Macedonian documents, look for key information
+      const titleMatch = text.match(/(?:УВЕРЕНИЕ|СЕРТИФИКАТ|ДИПЛОМА|ДОКУМЕНТ|УНИВЕРЗИТЕТ|ИНСТИТУТ)/i);
+      const dateMatch = text.match(/(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+      const nameMatch = text.match(/([А-ЯЁ]+ [А-ЯЁ]+), родена на (\d{1,2})\.(\d{1,2})\.(\d{4})/);
       
-      if (sentences.length > 0) {
-        // Take first 2-3 sentences that fit within maxLength
-        let currentLength = 0;
-        const selectedSentences = [];
-        
-        for (const sentence of sentences) {
-          if (currentLength + sentence.length <= maxLength && selectedSentences.length < 3) {
-            selectedSentences.push(sentence.trim());
-            currentLength += sentence.length;
-          } else {
-            break;
-          }
-        }
-        
-        summary = selectedSentences.join('. ') + '.';
-        quality = 'medium';
+      if (titleMatch && dateMatch) {
+        summary = `${titleMatch[0]} документ од ${dateMatch[3]} година.`;
+        quality = 'high';
+        confidence = 0.9;
+      } else if (nameMatch) {
+        summary = `Документ за ${nameMatch[1]}, родена на ${nameMatch[2]}.${nameMatch[3]}.${nameMatch[4]}.`;
+        quality = 'high';
+        confidence = 0.9;
       } else {
-        // Fallback: take first portion of text
-        summary = text.substring(0, maxLength - 3) + '...';
-        quality = 'low';
+        // Fallback for Macedonian
+        const sentences = text.split(/[.!?]+/).filter((s: string) => s.trim().length > 10);
+        if (sentences.length > 0) {
+          summary = sentences[0].trim() + '.';
+          quality = 'medium';
+        }
+      }
+    } else {
+      // For English documents, use existing logic
+      if (text.length <= maxLength) {
+        summary = text;
+        quality = 'high';
+      } else {
+        const sentences = text.split(/[.!?]+/).filter((s: string) => s.trim().length > 10);
+        
+        if (sentences.length > 0) {
+          let currentLength = 0;
+          const selectedSentences = [];
+          
+          for (const sentence of sentences) {
+            if (currentLength + sentence.length <= maxLength && selectedSentences.length < 3) {
+              selectedSentences.push(sentence.trim());
+              currentLength += sentence.length;
+            } else {
+              break;
+            }
+          }
+          
+          summary = selectedSentences.join('. ') + '.';
+          quality = 'medium';
+        } else {
+          summary = text.substring(0, maxLength - 3) + '...';
+          quality = 'low';
+        }
       }
     }
     
