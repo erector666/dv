@@ -154,27 +154,45 @@ async function extractTextInternal(
   }
 
   try {
+    console.log('📥 Fetching document from:', documentUrl);
+    
     // Fetch the document
     const response = await fetch(documentUrl);
     if (!response.ok) {
-      throw new Error('Unable to fetch document');
+      throw new Error(`Unable to fetch document: ${response.status} ${response.statusText}`);
     }
 
-    const buffer = await response.buffer();
+    // Use arrayBuffer() instead of deprecated buffer() method
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
     const contentType = response.headers.get('content-type') || '';
+    
+    console.log('📄 Document fetched successfully:', {
+      size: buffer.length,
+      contentType: contentType
+    });
 
-    // Determine document type
-    const type =
-      documentType || (contentType.includes('pdf') ? 'pdf' : 'image');
+    // Determine document type - if 'auto', detect from content type
+    const type = documentType === 'auto' || !documentType
+      ? (contentType.includes('pdf') ? 'pdf' : 'image')
+      : documentType;
 
     let extractedText = '';
     let confidence = 0;
 
+    console.log('🔍 Document type detected:', type);
+
     if (type === 'pdf') {
       // PDF text extraction
       try {
+        console.log('📖 Attempting PDF text extraction...');
         const pdfData = await pdfParse(buffer);
         extractedText = pdfData.text;
+        
+        console.log('📖 Raw PDF text extracted:', {
+          length: extractedText.length,
+          preview: extractedText.substring(0, 200)
+        });
 
         // Clean PDF text by removing ONLY technical headers, preserve content
         extractedText = extractedText
@@ -237,10 +255,15 @@ async function extractTextInternal(
         console.log('📄 Extracted PDF text (first 500 chars):', extractedText.substring(0, 500));
         console.log('📄 Extracted PDF text length:', extractedText.length);
 
+        console.log('📄 Cleaned PDF text:', {
+          length: extractedText.length,
+          preview: extractedText.substring(0, 200)
+        });
+
         // If text is too short after cleaning, it might be an image-based PDF
         if (extractedText.length < 100) {
           console.log(
-            'PDF text too short after cleaning, trying Vision API...'
+            '⚠️ PDF text too short after cleaning, trying Vision API...'
           );
           extractedText = await extractTextFromImageWithVision(buffer);
           confidence = 0.8;
@@ -249,18 +272,27 @@ async function extractTextInternal(
         }
       } catch (error) {
         // If PDF parsing fails, try Vision API on PDF pages
-        console.log(
-          'PDF parsing failed, falling back to Vision API:',
-          error.message
+        console.error(
+          '❌ PDF parsing failed, falling back to Vision API:',
+          error
         );
         extractedText = await extractTextFromImageWithVision(buffer);
         confidence = 0.8;
       }
     } else {
       // Image text extraction using Vision API
+      console.log('🖼️ Processing as image with Vision API...');
       extractedText = await extractTextFromImageWithVision(buffer);
       confidence = 0.85;
     }
+    
+    // Final check - if we still have no text, log detailed info
+    console.log('📊 Final text extraction results:', {
+      type: type,
+      textLength: extractedText.length,
+      confidence: confidence,
+      hasText: extractedText.length > 0
+    });
 
     return {
       text: extractedText,
@@ -281,6 +313,8 @@ async function classifyDocumentInternal(documentUrl: string): Promise<any> {
   }
 
   try {
+    console.log('🔍 Starting document classification for:', documentUrl);
+    
     const response = await fetch(documentUrl);
     if (!response.ok) {
       throw new Error('Unable to fetch document');
@@ -289,192 +323,274 @@ async function classifyDocumentInternal(documentUrl: string): Promise<any> {
     const buffer = await response.buffer();
     const contentType = response.headers.get('content-type') || '';
 
-    // For MVP, use a simple classification based on content type and text analysis
+    // Step 1: Extract text using OCR/PDF parsing
     const extractedText = await extractTextInternal(documentUrl);
+    console.log('📄 Text extracted for classification, length:', extractedText.text.length);
 
-          // Enhanced classification logic - AI-driven categorization
-      let category = 'other';
-      let confidence = extractedText.confidence;
-      let tags: string[] = [];
-      
-      // Analyze text content for better classification
-      const text = extractedText.text.toLowerCase();
-      
-      // Macedonian language patterns (common in documents)
-      const hasMacedonian = /[а-яё]/i.test(text) || 
-                           text.includes('уверение') || text.includes('сертификат') ||
-                           text.includes('документ') || text.includes('универзитет') ||
-                           text.includes('институт') || text.includes('академија');
-      
-      // Legal documents (including Macedonian)
-      if (text.includes('legal') || text.includes('contract') || text.includes('agreement') || 
-          text.includes('terms') || text.includes('conditions') || text.includes('clause') ||
-          text.includes('party') || text.includes('signature') || text.includes('notary') ||
-          text.includes('уверение') || text.includes('сертификат') || text.includes('договор') ||
-          text.includes('соглашение') || text.includes('услови') || text.includes('клаузула')) {
-        category = 'legal';
-        confidence = Math.max(confidence, 0.9);
-        tags = ['legal', 'contract', 'agreement', 'certificate'];
-      }
-      // Medical documents
-      else if (text.includes('medical') || text.includes('doctor') || text.includes('hospital') || 
-          text.includes('prescription') || text.includes('diagnosis') || text.includes('treatment') ||
-          text.includes('patient') || text.includes('symptoms') || text.includes('medication')) {
-        category = 'medical';
-        confidence = Math.max(confidence, 0.8);
-        tags = ['medical', 'healthcare', 'health'];
-      }
-      // Financial documents
-      else if (text.includes('bill') || text.includes('invoice') || text.includes('payment') || 
-               text.includes('amount') || text.includes('total') || text.includes('due') ||
-               text.includes('$') || text.includes('dollar') || text.includes('cost') ||
-               text.includes('balance') || text.includes('account') || text.includes('statement') ||
-               text.includes('receipt') || text.includes('price') || text.includes('fee') ||
-               text.includes('charge') || text.includes('tax') || text.includes('discount')) {
-        category = 'financial';
-        confidence = Math.max(confidence, 0.8);
-        tags = ['financial', 'bills', 'invoice', 'payment', 'receipt'];
-      }
-      // Insurance documents
-      else if (text.includes('insurance') || text.includes('policy') || text.includes('coverage') ||
-               text.includes('claim') || text.includes('premium') || text.includes('deductible') ||
-               text.includes('benefits') || text.includes('enrollment')) {
-        category = 'insurance';
-        confidence = Math.max(confidence, 0.8);
-        tags = ['insurance', 'policy', 'coverage'];
-      }
-      // Educational documents (including Macedonian)
-      else if (text.includes('education') || text.includes('school') || text.includes('university') ||
-               text.includes('course') || text.includes('grade') || text.includes('transcript') ||
-               text.includes('diploma') || text.includes('certificate') || text.includes('degree') ||
-               text.includes('универзитет') || text.includes('институт') || text.includes('академија') ||
-               text.includes('школа') || text.includes('курс') || text.includes('испит') ||
-               text.includes('диплома') || text.includes('сертификат') || text.includes('степен')) {
-        category = 'education';
-        confidence = Math.max(confidence, 0.9);
-        tags = ['education', 'academic', 'school', 'university'];
-      }
-      // Employment documents
-      else if (text.includes('employment') || text.includes('job') || text.includes('work') ||
-               text.includes('resume') || text.includes('cv') || text.includes('application') ||
-               text.includes('offer') || text.includes('salary') || text.includes('position')) {
-        category = 'employment';
-        confidence = Math.max(confidence, 0.8);
-        tags = ['employment', 'career', 'job'];
-      }
-      // Government documents
-      else if (text.includes('government') || text.includes('official') || text.includes('certificate') ||
-               text.includes('license') || text.includes('permit') || text.includes('id') ||
-               text.includes('passport') || text.includes('drivers') || text.includes('social security')) {
-        category = 'government';
-        confidence = Math.max(confidence, 0.8);
-        tags = ['government', 'official', 'certificate'];
-      }
-      // Only use 'personal' as fallback for truly unclassifiable documents
-      // Remove the automatic PDF fallback that was overriding AI classification
-      else if (text.length < 50) {
-        // Very short text - might be image-based or unreadable
-        category = 'personal';
-        confidence = Math.max(confidence, 0.6);
-        tags = ['personal', 'unclassified'];
-      }
-      // For all other cases, let the AI classification stand
-      // Don't override with generic categories
-      
-      // IMPORTANT: If we still have 'other' category, try to infer from file type
-      if (category === 'other' && contentType.includes('pdf')) {
-        // Try to infer category from text content patterns
-        if (text.includes('invoice') || text.includes('bill') || text.includes('payment')) {
-          category = 'financial';
-          confidence = Math.max(confidence, 0.7);
-          tags = ['financial', 'invoice'];
-        } else if (text.includes('contract') || text.includes('agreement')) {
-          category = 'legal';
-          confidence = Math.max(confidence, 0.7);
-          tags = ['legal', 'contract'];
-        } else if (text.includes('receipt')) {
-          category = 'financial';
-          confidence = Math.max(confidence, 0.7);
-          tags = ['financial', 'receipt'];
-        }
-      }
-      
-      // Extract dates from the text
-      let extractedDates: string[] = [];
-      const datePatterns = [
-        // Macedonian date patterns
-        /(\d{1,2})\.(\d{1,2})\.(\d{4})/g,  // DD.MM.YYYY
-        /(\d{1,2})\/(\d{1,2})\/(\d{4})/g,  // DD/MM/YYYY
-        /(\d{1,2})-(\d{1,2})-(\d{4})/g,    // DD-MM-YYYY
-        // English date patterns
-        /(\d{1,2})\/(\d{1,2})\/(\d{4})/g,  // MM/DD/YYYY
-        /(\d{4})-(\d{1,2})-(\d{1,2})/g,    // YYYY-MM-DD
-        // Text-based dates
-        /(\d{1,2})\s+(јануари|февруари|март|април|мај|јуни|јули|август|септември|октомври|ноември|декември)\s+(\d{4})/gi,
-        /(\d{1,2})\s+(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{4})/gi
-      ];
-      
-      datePatterns.forEach(pattern => {
-        const matches = text.match(pattern);
-        if (matches) {
-          extractedDates.push(...matches);
-        }
-      });
-      
-      console.log('📅 Extracted dates:', extractedDates);
-      
-      // Detect language from the extracted text
-      let detectedLanguage = 'en';
-      let languageConfidence = 0.5;
-      
-      try {
-        const languageResult = await detectLanguageInternal(extractedText.text);
-        detectedLanguage = languageResult.language;
-        languageConfidence = languageResult.confidence;
-        
-        // If we detect Macedonian text but language detection says English, override
-        if (hasMacedonian && detectedLanguage === 'en') {
-          detectedLanguage = 'mk';
-          languageConfidence = 0.9;
-          console.log('🌐 Overriding language detection to Macedonian based on text content');
-        }
-      } catch (langError) {
-        console.warn('Language detection failed, using default:', langError);
-        // If language detection fails but we see Macedonian text, use Macedonian
-        if (hasMacedonian) {
-          detectedLanguage = 'mk';
-          languageConfidence = 0.8;
-        }
-      }
-
-      // Ensure AI classification takes priority over fallback logic
-      const finalCategory = category !== 'other' ? category : 'personal';
-      const finalConfidence = category !== 'other' ? confidence : Math.max(confidence, 0.6);
-      
-      // Debug logging for category assignment
-      console.log('🔍 Category Assignment Debug:', {
-        originalCategory: category,
-        finalCategory: finalCategory,
-        confidence: finalConfidence,
-        tags: tags,
-        textLength: extractedText.text.length,
-        textPreview: extractedText.text.substring(0, 200) + '...'
-      });
-      
-      const classification = {
-        category: finalCategory,
-        confidence: finalConfidence,
-        tags: tags.length > 0 ? tags : ['document'],
-        language: detectedLanguage,
-        extractedDates: extractedDates,
+    if (!extractedText.text || extractedText.text.trim().length < 20) {
+      console.log('⚠️ Insufficient text for classification');
+      return {
+        category: 'other',
+        confidence: 0.1,
+        tags: ['unreadable'],
+        language: 'en',
+        extractedDates: [],
         classificationDetails: {
-          categories: [finalCategory],
-          entities: [] as string[],
-          sentiment: null as any,
+          categories: ['other'],
+          entities: [],
+          sentiment: null,
         },
       };
+    }
 
-      return classification;
+    // Step 2: Use Google Cloud Natural Language API for real AI classification
+    let category = 'other';
+    let confidence = extractedText.confidence || 0.5;
+    let tags: string[] = [];
+    let entities: string[] = [];
+    
+    try {
+      const languageClient = await getLanguageClient();
+      
+      // Truncate text for API limits (1MB max)
+      const maxTextSize = 1000000;
+      const textForAnalysis = extractedText.text.length > maxTextSize 
+        ? extractedText.text.substring(0, maxTextSize) 
+        : extractedText.text;
+
+      console.log('🤖 Analyzing document with Natural Language API...');
+      
+      // Perform entity analysis to get real AI insights
+      const [entityAnalysis] = await languageClient.analyzeEntities({
+        document: {
+          content: textForAnalysis,
+          type: 'PLAIN_TEXT',
+        },
+      });
+
+      // Extract entities for better classification
+      if (entityAnalysis.entities && entityAnalysis.entities.length > 0) {
+        entities = entityAnalysis.entities
+          .filter((entity: any) => entity.salience && entity.salience > 0.1)
+          .map((entity: any) => entity.name || '')
+          .filter((name: string) => name.length > 0)
+          .slice(0, 10); // Limit to top 10 entities
+        
+        console.log('🏷️ Extracted entities:', entities);
+      }
+
+      // Perform sentiment analysis for additional context
+      const [sentimentAnalysis] = await languageClient.analyzeSentiment({
+        document: {
+          content: textForAnalysis,
+          type: 'PLAIN_TEXT',
+        },
+      });
+
+      const sentiment = sentimentAnalysis.documentSentiment;
+      console.log('😊 Sentiment analysis:', sentiment?.score, sentiment?.magnitude);
+
+      // AI-powered classification based on entities and content
+      const text = extractedText.text.toLowerCase();
+      
+      // Use entity analysis results for better classification
+      const entityTypes = entityAnalysis.entities?.map((e: any) => e.type) || [];
+      const entityNames = entities.map(e => e.toLowerCase());
+      
+      // Enhanced classification logic using AI insights
+      if (entityTypes.includes('ORGANIZATION') && 
+          (entityNames.some(e => e.includes('university') || e.includes('school') || e.includes('college')) ||
+           text.includes('degree') || text.includes('diploma') || text.includes('certificate') || 
+           text.includes('education') || text.includes('academic'))) {
+        category = 'education';
+        confidence = 0.9;
+        tags = ['education', 'academic', 'certificate'];
+      } else if (entityTypes.includes('PERSON') && entityTypes.includes('DATE') &&
+                 (text.includes('medical') || text.includes('doctor') || text.includes('hospital') ||
+                  text.includes('patient') || text.includes('diagnosis') || text.includes('treatment'))) {
+        category = 'medical';
+        confidence = 0.9;
+        tags = ['medical', 'healthcare', 'patient'];
+      } else if (entityTypes.includes('ORGANIZATION') && 
+                 (text.includes('contract') || text.includes('agreement') || text.includes('legal') ||
+                  text.includes('terms') || text.includes('conditions') || text.includes('clause'))) {
+        category = 'legal';
+        confidence = 0.9;
+        tags = ['legal', 'contract', 'agreement'];
+      } else if ((entityTypes.includes('PRICE') || text.includes('$') || text.includes('amount') ||
+                  text.includes('total') || text.includes('payment') || text.includes('invoice') ||
+                  text.includes('bill') || text.includes('receipt') || text.includes('cost'))) {
+        category = 'financial';
+        confidence = 0.85;
+        tags = ['financial', 'payment', 'invoice'];
+      } else if (text.includes('insurance') || text.includes('policy') || text.includes('coverage') ||
+                 text.includes('claim') || text.includes('premium')) {
+        category = 'insurance';
+        confidence = 0.8;
+        tags = ['insurance', 'policy', 'coverage'];
+      } else if (text.includes('employment') || text.includes('job') || text.includes('work') ||
+                 text.includes('resume') || text.includes('cv') || text.includes('salary')) {
+        category = 'employment';
+        confidence = 0.8;
+        tags = ['employment', 'career', 'job'];
+      } else if (text.includes('government') || text.includes('official') || text.includes('license') ||
+                 text.includes('permit') || text.includes('passport') || text.includes('id')) {
+        category = 'government';
+        confidence = 0.8;
+        tags = ['government', 'official', 'document'];
+      } else if (entities.length > 0) {
+        // If we have entities but no clear category, use personal
+        category = 'personal';
+        confidence = 0.7;
+        tags = ['personal', 'document'];
+      }
+
+    } catch (aiError) {
+      console.warn('🤖 AI classification failed, falling back to keyword matching:', aiError);
+      
+      // Fallback to enhanced keyword matching if AI fails
+      const text = extractedText.text.toLowerCase();
+      
+        // Macedonian language patterns (common in documents)
+        const hasMacedonian = /[а-яё]/i.test(text) || 
+                             text.includes('уверение') || text.includes('сертификат') ||
+                             text.includes('документ') || text.includes('универзитет') ||
+                             text.includes('институт') || text.includes('академија');
+        
+        // Enhanced fallback classification with better logic
+        if (text.includes('legal') || text.includes('contract') || text.includes('agreement') || 
+            text.includes('уверение') || text.includes('сертификат') || text.includes('договор')) {
+          category = 'legal';
+          confidence = 0.75;
+          tags = ['legal', 'contract', 'agreement', 'certificate'];
+        } else if (text.includes('education') || text.includes('university') || text.includes('diploma') ||
+                   text.includes('универзитет') || text.includes('диплома') || text.includes('академија')) {
+          category = 'education';
+          confidence = 0.8;
+          tags = ['education', 'academic', 'school', 'university'];
+        } else if (text.includes('medical') || text.includes('doctor') || text.includes('hospital')) {
+          category = 'medical';
+          confidence = 0.75;
+          tags = ['medical', 'healthcare', 'health'];
+        } else if (text.includes('invoice') || text.includes('payment') || text.includes('bill') || 
+                   text.includes('$') || text.includes('amount') || text.includes('total')) {
+          category = 'financial';
+          confidence = 0.75;
+          tags = ['financial', 'payment', 'invoice'];
+        } else if (text.includes('insurance') || text.includes('policy') || text.includes('coverage')) {
+          category = 'insurance';
+          confidence = 0.7;
+          tags = ['insurance', 'policy', 'coverage'];
+        } else if (text.includes('employment') || text.includes('job') || text.includes('resume')) {
+          category = 'employment';
+          confidence = 0.7;
+          tags = ['employment', 'career', 'job'];
+        } else if (text.includes('government') || text.includes('official') || text.includes('license')) {
+          category = 'government';
+          confidence = 0.7;
+          tags = ['government', 'official', 'document'];
+        } else if (text.length > 50) {
+          // If we have substantial text but no clear category
+          category = 'personal';
+          confidence = 0.6;
+          tags = ['personal', 'document'];
+        }
+      }
+      
+    // Step 3: Enhanced date extraction with better patterns and validation
+    console.log('📅 Extracting dates from document...');
+    let extractedDates: string[] = [];
+    const text = extractedText.text;
+    
+    const datePatterns = [
+      // ISO format
+      /(\d{4})-(\d{1,2})-(\d{1,2})/g,    // YYYY-MM-DD
+      // European format
+      /(\d{1,2})\.(\d{1,2})\.(\d{4})/g,  // DD.MM.YYYY
+      /(\d{1,2})\/(\d{1,2})\/(\d{4})/g,  // DD/MM/YYYY or MM/DD/YYYY
+      /(\d{1,2})-(\d{1,2})-(\d{4})/g,    // DD-MM-YYYY
+      // Long format dates
+      /(\d{1,2})\s+(јануари|февруари|март|април|мај|јуни|јули|август|септември|октомври|ноември|декември)\s+(\d{4})/gi,
+      /(\d{1,2})\s+(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{4})/gi,
+      // Short format
+      /(\d{1,2})\.(\d{1,2})\.(\d{2})/g,  // DD.MM.YY
+    ];
+    
+    datePatterns.forEach(pattern => {
+      let match;
+      while ((match = pattern.exec(text)) !== null) {
+        const dateStr = match[0];
+        // Validate the date makes sense (basic validation)
+        if (dateStr.length >= 8 && dateStr.length <= 20) {
+          extractedDates.push(dateStr);
+        }
+      }
+    });
+    
+    // Remove duplicates and limit to reasonable number
+    extractedDates = [...new Set(extractedDates)].slice(0, 10);
+    console.log('📅 Extracted dates:', extractedDates);
+    
+    // Step 4: Detect language from the extracted text
+    let detectedLanguage = 'en';
+    let languageConfidence = 0.5;
+    
+    try {
+      const languageResult = await detectLanguageInternal(extractedText.text);
+      detectedLanguage = languageResult.language || 'en';
+      languageConfidence = languageResult.confidence || 0.5;
+      
+      // Check for Macedonian text patterns
+      const hasMacedonian = /[а-яё]/i.test(text) || 
+                           text.includes('уверение') || text.includes('сертификат') ||
+                           text.includes('документ') || text.includes('универзитет');
+      
+      // If we detect Macedonian text but language detection says English, override
+      if (hasMacedonian && detectedLanguage === 'en') {
+        detectedLanguage = 'mk';
+        languageConfidence = 0.9;
+        console.log('🌐 Overriding language detection to Macedonian based on text content');
+      }
+    } catch (langError) {
+      console.warn('⚠️ Language detection failed, using default:', langError);
+      // If language detection fails but we see Macedonian text, use Macedonian
+      const hasMacedonian = /[а-яё]/i.test(text);
+      if (hasMacedonian) {
+        detectedLanguage = 'mk';
+        languageConfidence = 0.8;
+      }
+    }
+
+    // Step 5: Finalize classification results
+    const finalCategory = category !== 'other' ? category : 'personal';
+    const finalConfidence = Math.max(confidence, 0.5); // Ensure minimum confidence
+    
+    // Debug logging for category assignment
+    console.log('🔍 Final Classification Results:', {
+      category: finalCategory,
+      confidence: finalConfidence,
+      tags: tags,
+      language: detectedLanguage,
+      languageConfidence: languageConfidence,
+      entities: entities.length,
+      dates: extractedDates.length,
+      textLength: extractedText.text.length
+    });
+    
+    const classification = {
+      category: finalCategory,
+      confidence: finalConfidence,
+      tags: tags.length > 0 ? tags : ['document'],
+      language: detectedLanguage,
+      extractedDates: extractedDates,
+      classificationDetails: {
+        categories: [finalCategory],
+        entities: entities,
+        sentiment: null as any,
+      },
+    };
+
+    return classification;
   } catch (error) {
     console.error('Document classification error:', error);
     throw new Error('Failed to classify document');
@@ -486,9 +602,20 @@ async function translateDocumentInternal(
   targetLanguage: string,
   sourceLanguage?: string
 ): Promise<any> {
-  const apiKey = process.env.GOOGLE_TRANSLATE_API_KEY;
+  let apiKey = process.env.GOOGLE_TRANSLATE_API_KEY;
+  
+  // Fallback to Firebase config if env var not set
   if (!apiKey) {
-    throw new Error('Missing GOOGLE_TRANSLATE_API_KEY');
+    try {
+      const config = functions.config();
+      apiKey = config.google?.translate_api_key;
+    } catch (error) {
+      console.error('Failed to get API key from config:', error);
+    }
+  }
+  
+  if (!apiKey) {
+    throw new Error('Missing GOOGLE_TRANSLATE_API_KEY in environment or Firebase config');
   }
 
   const cacheKey = `${documentUrl}::${sourceLanguage || 'auto'}::${targetLanguage}`;
@@ -543,34 +670,60 @@ async function translateDocumentInternal(
 async function extractTextFromImageWithVision(
   imageBuffer: Buffer
 ): Promise<string> {
-  const visionClient = await getVisionClient();
-
   try {
+    console.log('👁️ Starting Vision API text extraction...', {
+      bufferSize: imageBuffer.length
+    });
+    
+    const visionClient = await getVisionClient();
+
     const [result] = await visionClient.textDetection({
       image: { content: imageBuffer },
+    });
+
+    console.log('👁️ Vision API response received:', {
+      hasTextAnnotations: !!(result.textAnnotations && result.textAnnotations.length > 0),
+      annotationsCount: result.textAnnotations?.length || 0
     });
 
     const detections = result.textAnnotations;
     if (detections && detections.length > 0) {
       // First annotation contains the full text
-      return detections[0].description || '';
+      const extractedText = detections[0].description || '';
+      console.log('✅ Vision API text extracted:', {
+        length: extractedText.length,
+        preview: extractedText.substring(0, 200)
+      });
+      return extractedText;
     }
 
+    console.log('⚠️ No text detected by Vision API');
     return '';
   } catch (error) {
-    console.error('Vision API error:', error);
-    throw new Error('Vision API text extraction failed');
+    console.error('❌ Vision API error:', error);
+    throw new Error(`Vision API text extraction failed: ${error.message}`);
   }
 }
 
 // Translation - basic implementation using Google Translation API via REST
-// Requires: process.env.GOOGLE_TRANSLATE_API_KEY
+// Requires: process.env.GOOGLE_TRANSLATE_API_KEY or Firebase config
 export const getSupportedLanguages = onCall(async () => {
-  const apiKey = process.env.GOOGLE_TRANSLATE_API_KEY;
+  let apiKey = process.env.GOOGLE_TRANSLATE_API_KEY;
+  
+  // Fallback to Firebase config if env var not set
+  if (!apiKey) {
+    try {
+      const config = functions.config();
+      apiKey = config.google?.translate_api_key;
+    } catch (error) {
+      console.error('Failed to get API key from config:', error);
+    }
+  }
+  
   if (!apiKey) {
     throw new functions.https.HttpsError(
       'failed-precondition',
-      'Missing GOOGLE_TRANSLATE_API_KEY'
+      'Missing GOOGLE_TRANSLATE_API_KEY in environment or Firebase config'
     );
   }
   // Serve from cache if fresh
@@ -694,20 +847,31 @@ export const extractTextHttp = onRequest(async (req, res) => {
 
 export const detectLanguage = onCall(async request => {
   const { documentUrl } = request.data as { documentUrl: string };
-  const client = await getLanguageClient();
-  const textResp = await fetch(documentUrl);
-  if (!textResp.ok) {
+  
+  try {
+    console.log('🌐 Starting language detection for document:', documentUrl);
+    
+    // Step 1: Extract text from document using OCR first
+    const extractedText = await extractTextInternal(documentUrl, 'auto');
+    console.log('✅ Text extracted, length:', extractedText.text.length);
+
+    if (!extractedText.text || extractedText.text.trim().length < 10) {
+      console.log('⚠️ No meaningful text extracted, using default language');
+      return { language: 'en', confidence: 0.0 };
+    }
+
+    // Step 2: Use the proper language detection API
+    const languageResult = await detectLanguageInternal(extractedText.text);
+    console.log('✅ Language detection successful:', languageResult);
+    
+    return languageResult;
+  } catch (error) {
+    console.error('❌ Language detection failed:', error);
     throw new functions.https.HttpsError(
-      'not-found',
-      'Unable to fetch document content'
+      'internal',
+      error instanceof Error ? error.message : 'Language detection failed'
     );
   }
-  const text = await textResp.text();
-  const [syntax] = await client.analyzeSyntax({
-    document: { content: text, type: 'PLAIN_TEXT' },
-  });
-  const language = (syntax as any)?.language || 'en';
-  return { language };
 });
 
 // HTTP version of detectLanguage for direct API calls
@@ -778,13 +942,11 @@ export const detectLanguageHttp = onRequest(async (req, res) => {
       `Text size: ${extractedText.text.length} bytes, truncated to: ${truncatedText.length} bytes`
     );
 
-    const [syntax] = await client.analyzeSyntax({
-      document: { content: truncatedText, type: 'PLAIN_TEXT' },
-    });
-    const language = (syntax as any)?.language || 'en';
-
-    console.log('✅ Language detection successful:', language);
-    res.json({ language });
+    // Step 3: Use the proper language detection API instead of syntax analysis
+    const languageResult = await detectLanguageInternal(truncatedText);
+    
+    console.log('✅ Language detection successful:', languageResult);
+    res.json(languageResult);
   } catch (error) {
     console.error('DetectLanguage error:', error);
     res.status(500).json({
