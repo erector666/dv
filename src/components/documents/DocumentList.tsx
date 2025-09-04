@@ -95,6 +95,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
     console.log('🔍 Delete modal state:', {
       isDeleteModalOpen,
       selectedDocument: selectedDocument?.id,
+      selectedDocumentFirestoreId: selectedDocument?.firestoreId,
       selectedDocumentName: selectedDocument?.name,
       selectedDocumentObject: selectedDocument
     });
@@ -115,6 +116,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
   const handleDeleteClick = (e: React.MouseEvent, document: Document) => {
     console.log('🗑️ Delete button clicked for document:', document);
     console.log('Document ID:', document.id);
+    console.log('Firestore ID:', document.firestoreId);
     console.log('Document name:', document.name);
     e.stopPropagation();
     setSelectedDocument(document);
@@ -127,13 +129,14 @@ const DocumentList: React.FC<DocumentListProps> = ({
     console.log('🗑️ Confirm delete called');
     console.log('Selected document:', selectedDocument);
     console.log('Selected document ID:', selectedDocument?.id);
+    console.log('Selected document Firestore ID:', selectedDocument?.firestoreId);
     console.log('Selected document name:', selectedDocument?.name);
     
     if (selectedDocument?.id) {
       try {
         setIsDeleting(true);
-        console.log('🗑️ Starting deletion of document:', selectedDocument.id);
-        await deleteDocument(selectedDocument.id);
+        console.log('🗑️ Starting deletion of document:', selectedDocument.id, 'with Firestore ID:', selectedDocument.firestoreId);
+        await deleteDocument(selectedDocument.id, selectedDocument.firestoreId);
         console.log('✅ Document deleted successfully');
         refetch();
         setIsDeleteModalOpen(false);
@@ -370,7 +373,12 @@ const DocumentList: React.FC<DocumentListProps> = ({
         {filteredDocuments.map((document, index) => {
           // Ensure we have a valid key for React
           const documentKey = document.id || `doc-${index}-${document.name || 'unnamed'}`;
-          console.log(`Rendering document ${index}:`, { id: document.id, name: document.name, key: documentKey });
+          console.log(`Rendering document ${index}:`, { 
+            id: document.id, 
+            firestoreId: document.firestoreId, 
+            name: document.name, 
+            key: documentKey 
+          });
           
           return (
             <div

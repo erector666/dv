@@ -72,11 +72,16 @@ const Dashboard: React.FC = () => {
                 })
                 .slice(0, 4)
                 .map((doc, index) => {
-                  // Ensure we have a valid key for React
-                  const docKey = doc.id || `recent-doc-${index}-${doc.name || 'unnamed'}`;
-                  console.log(`Rendering recent document ${index}:`, { id: doc.id, name: doc.name, key: docKey });
-                  
-                  return (
+                                     // Ensure we have a valid key for React
+                   const docKey = doc.id || `recent-doc-${index}-${doc.name || 'unnamed'}`;
+                   console.log(`Rendering recent document ${index}:`, { 
+                     id: doc.id, 
+                     firestoreId: doc.firestoreId, 
+                     name: doc.name, 
+                     key: docKey 
+                   });
+                   
+                   return (
                     <div
                       key={docKey}
                       className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600 hover:border-primary-300 dark:hover:border-primary-600 transition-colors cursor-pointer"

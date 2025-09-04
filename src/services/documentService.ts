@@ -198,7 +198,8 @@ function omitUndefinedDeep<T>(obj: T): T {
 }
 
 export interface Document {
-  id?: string;
+  id?: string; // Display ID (can be derived from path if Firestore ID is missing)
+  firestoreId?: string; // Actual Firestore document ID for operations
   name: string;
   type: string;
   size: number;
@@ -628,8 +629,13 @@ export const getUserDocuments = async (
     querySnapshot.forEach(doc => {
       const data = doc.data();
       console.log('Document data:', { id: doc.id, ...data });
+      
+      // Ensure we have a valid ID - use Firestore doc.id as primary, fallback to path if needed
+      const documentId = doc.id || data.path?.split('/').pop()?.replace(/\.pdf$/, '') || `doc_${Date.now()}_${Math.random()}`;
+      
       documents.push({
-        id: doc.id,
+        id: documentId,
+        firestoreId: doc.id, // Store the actual Firestore document ID
         ...data,
       } as Document);
     });
@@ -681,12 +687,14 @@ export const updateDocument = async (
 /**
  * Delete a document from Firestore and Storage
  */
-export const deleteDocument = async (documentId: string): Promise<void> => {
+export const deleteDocument = async (documentId: string, firestoreId?: string): Promise<void> => {
   try {
-    console.log('🗑️ Starting document deletion for ID:', documentId);
+    // Use firestoreId if available, otherwise use documentId
+    const actualDocumentId = firestoreId || documentId;
+    console.log('🗑️ Starting document deletion for ID:', documentId, 'Firestore ID:', firestoreId, 'Actual ID:', actualDocumentId);
 
     // Get document data to get the storage path
-    const docRef = doc(db, `documents/${documentId}`);
+    const docRef = doc(db, `documents/${actualDocumentId}`);
     const docSnap = await getDoc(docRef);
 
     if (!docSnap.exists()) {
