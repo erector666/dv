@@ -391,10 +391,10 @@ export const uploadDocumentWithAI = async (
     
     const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
     
-    // Create document object but don't save to database yet
-    const document = {
-      id: '', // Will be assigned when saved
-      name: pdfFile.name,
+         // Create document object but don't save to database yet
+     const document = {
+       // Don't set id yet - it will be assigned when saved to Firestore
+       name: pdfFile.name,
       type: pdfFile.type,
       size: pdfFile.size,
       url: downloadURL,
@@ -433,14 +433,14 @@ export const uploadDocumentWithAI = async (
       confidence: languageDetection.confidence,
     });
 
-    // Step 5: Classify document and assign category
-    onAIProgress?.('classifying_document', 80);
-    console.log('🏷️ Classifying document and assigning category...');
-    const classification = await classifyDocument(
-      document.id || '',
-      document.url,
-      'pdf'
-    );
+         // Step 5: Classify document and assign category
+     onAIProgress?.('classifying_document', 80);
+     console.log('🏷️ Classifying document and assigning category...');
+     const classification = await classifyDocument(
+       '', // We don't have an ID yet, pass empty string
+       document.url,
+       'pdf'
+     );
     console.log('✅ Document classification completed:', {
       category: classification.category,
       tags: classification.tags,
@@ -508,17 +508,20 @@ export const uploadDocumentWithAI = async (
       summary: cleanedDocument.metadata?.summary,
     });
 
-    // Save the document to Firestore with AI results (first time save)
-    const docRef = await addDoc(
-      collection(db, 'documents'),
-      cleanedDocument
-    );
-    
-    // Assign the ID from Firestore
-    const finalDocument = {
-      ...cleanedDocument,
-      id: docRef.id,
-    };
+         // Save the document to Firestore with AI results (first time save)
+     const docRef = await addDoc(
+       collection(db, 'documents'),
+       cleanedDocument
+     );
+     
+     // Assign the ID from Firestore
+     const finalDocument = {
+       ...cleanedDocument,
+       id: docRef.id,
+     };
+     
+     // Update the document in Firestore with the correct ID
+     await updateDoc(docRef, { id: docRef.id });
     
     // Clear storage cache to refresh storage widget
     clearStorageCache(userId);
@@ -630,11 +633,16 @@ export const getUserDocuments = async (
       const data = doc.data();
       console.log('Document data:', { id: doc.id, ...data });
       
-      // Ensure we have a valid ID - use Firestore doc.id as primary, fallback to path if needed
-      const documentId = doc.id || data.path?.split('/').pop()?.replace(/\.pdf$/, '') || `doc_${Date.now()}_${Math.random()}`;
+      // Check if this document has a proper Firestore ID
+      if (!doc.id) {
+        console.warn('⚠️ Document missing Firestore ID:', data);
+        // Skip documents without proper IDs for now
+        return;
+      }
       
+      // Use the Firestore document ID as the primary ID
       documents.push({
-        id: documentId,
+        id: doc.id, // Use Firestore ID as the primary ID
         firestoreId: doc.id, // Store the actual Firestore document ID
         ...data,
       } as Document);
@@ -689,12 +697,16 @@ export const updateDocument = async (
  */
 export const deleteDocument = async (documentId: string, firestoreId?: string): Promise<void> => {
   try {
-    // Use firestoreId if available, otherwise use documentId
-    const actualDocumentId = firestoreId || documentId;
-    console.log('🗑️ Starting document deletion for ID:', documentId, 'Firestore ID:', firestoreId, 'Actual ID:', actualDocumentId);
+    // Validate that we have a proper Firestore document ID
+    if (!firestoreId || firestoreId === '') {
+      console.error('❌ Cannot delete document: Missing or empty Firestore ID');
+      throw new Error('Cannot delete document: Missing document ID in database');
+    }
+    
+    console.log('🗑️ Starting document deletion for ID:', documentId, 'Firestore ID:', firestoreId);
 
     // Get document data to get the storage path
-    const docRef = doc(db, `documents/${actualDocumentId}`);
+    const docRef = doc(db, `documents/${firestoreId}`);
     const docSnap = await getDoc(docRef);
 
     if (!docSnap.exists()) {
@@ -790,6 +802,7 @@ export const getDocuments = async (userId: string): Promise<Document[]> => {
       const data = doc.data();
       documents.push({
         id: doc.id,
+        firestoreId: doc.id, // Store the actual Firestore document ID
         ...data,
       } as Document);
     });

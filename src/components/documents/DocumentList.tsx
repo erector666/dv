@@ -118,6 +118,14 @@ const DocumentList: React.FC<DocumentListProps> = ({
     console.log('Document ID:', document.id);
     console.log('Firestore ID:', document.firestoreId);
     console.log('Document name:', document.name);
+    
+    // Check if document has a valid Firestore ID for deletion
+    if (!document.firestoreId || document.firestoreId === '') {
+      console.error('❌ Cannot delete document: Missing Firestore ID');
+      alert('Cannot delete this document: Document ID is missing in database. This document may be corrupted.');
+      return;
+    }
+    
     e.stopPropagation();
     setSelectedDocument(document);
     setIsDeleteModalOpen(true);
@@ -132,11 +140,11 @@ const DocumentList: React.FC<DocumentListProps> = ({
     console.log('Selected document Firestore ID:', selectedDocument?.firestoreId);
     console.log('Selected document name:', selectedDocument?.name);
     
-    if (selectedDocument?.id) {
+    if (selectedDocument?.firestoreId) {
       try {
         setIsDeleting(true);
-        console.log('🗑️ Starting deletion of document:', selectedDocument.id, 'with Firestore ID:', selectedDocument.firestoreId);
-        await deleteDocument(selectedDocument.id, selectedDocument.firestoreId);
+        console.log('🗑️ Starting deletion of document:', selectedDocument.name, 'with Firestore ID:', selectedDocument.firestoreId);
+        await deleteDocument(selectedDocument.id || selectedDocument.name, selectedDocument.firestoreId);
         console.log('✅ Document deleted successfully');
         refetch();
         setIsDeleteModalOpen(false);
@@ -149,9 +157,9 @@ const DocumentList: React.FC<DocumentListProps> = ({
         setIsDeleting(false);
       }
     } else {
-      console.error('❌ No document ID for deletion');
+      console.error('❌ No Firestore ID for deletion');
       console.error('Selected document object:', selectedDocument);
-      alert('Cannot delete document: No document ID found');
+      alert('Cannot delete document: No Firestore ID found');
     }
   };
 
@@ -509,10 +517,12 @@ const DocumentList: React.FC<DocumentListProps> = ({
                 )}
               </div>
               <div className="flex-shrink-0">
-                <button
-                  onClick={e => handleDeleteClick(e, document)}
-                  className="text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 focus:outline-none"
-                >
+                {document.firestoreId && document.firestoreId !== '' ? (
+                  <button
+                    onClick={e => handleDeleteClick(e, document)}
+                    className="text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 focus:outline-none"
+                    title="Delete document"
+                  >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     className="h-5 w-5"
@@ -528,6 +538,27 @@ const DocumentList: React.FC<DocumentListProps> = ({
                     />
                   </svg>
                 </button>
+                ) : (
+                  <div 
+                    className="text-gray-300 dark:text-gray-600 cursor-not-allowed"
+                    title="Cannot delete: Document ID missing in database"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-5 w-5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1 1v3M4 7h16"
+                      />
+                    </svg>
+                  </div>
+                )}
               </div>
             </div>
           </div>
