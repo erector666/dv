@@ -119,9 +119,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile = false, onClose }) => {
               <span className="ml-3">{translate('personal')}</span>
             </NavLink>
 
-            {/* Bills */}
+            {/* Financial */}
             <NavLink
-              to="/category/bills"
+              to="/category/financial"
               onClick={handleLinkClick}
               className={({ isActive }) =>
                 `flex items-center p-2 rounded-lg transition-colors ${
@@ -132,7 +132,55 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile = false, onClose }) => {
               }
             >
               <span className="text-3xl">💰</span>
-              <span className="ml-3">{translate('bills')}</span>
+              <span className="ml-3">Financial</span>
+            </NavLink>
+
+            {/* Education */}
+            <NavLink
+              to="/category/education"
+              onClick={handleLinkClick}
+              className={({ isActive }) =>
+                `flex items-center p-2 rounded-lg transition-colors ${
+                  isActive
+                    ? 'bg-primary-100 dark:bg-primary-900 text-primary-600 dark:text-primary-300'
+                    : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`
+              }
+            >
+              <span className="text-3xl">🎓</span>
+              <span className="ml-3">Education</span>
+            </NavLink>
+
+            {/* Legal */}
+            <NavLink
+              to="/category/legal"
+              onClick={handleLinkClick}
+              className={({ isActive }) =>
+                `flex items-center p-2 rounded-lg transition-colors ${
+                  isActive
+                    ? 'bg-primary-100 dark:bg-primary-900 text-primary-600 dark:text-primary-300'
+                    : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`
+              }
+            >
+              <span className="text-3xl">⚖️</span>
+              <span className="ml-3">Legal</span>
+            </NavLink>
+
+            {/* Government */}
+            <NavLink
+              to="/category/government"
+              onClick={handleLinkClick}
+              className={({ isActive }) =>
+                `flex items-center p-2 rounded-lg transition-colors ${
+                  isActive
+                    ? 'bg-primary-100 dark:bg-primary-900 text-primary-600 dark:text-primary-300'
+                    : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`
+              }
+            >
+              <span className="text-3xl">🏛️</span>
+              <span className="ml-3">Government</span>
             </NavLink>
 
             {/* Medical */}

@@ -36,6 +36,7 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
   const [sortBy, setSortBy] = useState<'name' | 'size' | 'type'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [fileTypeFilter, setFileTypeFilter] = useState<string>('all');
+  const [totalFilesToUpload, setTotalFilesToUpload] = useState(0);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -225,6 +226,8 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
 
     setIsUploading(true);
     setUploadError(null);
+    setTotalFilesToUpload(filesToUpload.length);
+    setCompletedFiles([]); // Reset completed files counter
 
     try {
       for (const file of filesToUpload) {
@@ -282,15 +285,15 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
           onAIProgress
         );
 
-        if (onUploadComplete) {
-          onUploadComplete(document.id || '');
-        }
-
         // Add to completed files
         setCompletedFiles(prev => [...prev, file.name]);
 
-        // If this is the last file, show completion dialog
+        // If this is the last file, trigger upload completion
         if (file === filesToUpload[filesToUpload.length - 1]) {
+          // Only call onUploadComplete for the LAST file (closes modal)
+          if (onUploadComplete) {
+            onUploadComplete(document.id || '');
+          }
           setShowCompletionDialog(true);
           // Reset after a delay to show the completion dialog
           setTimeout(() => {
@@ -725,6 +728,35 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
           className="mt-4 p-3 bg-red-100 text-red-700 rounded-md"
         >
           {uploadError}
+        </motion.div>
+      )}
+
+      {/* Batch Upload Progress */}
+      {isUploading && totalFilesToUpload > 1 && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg"
+        >
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="text-sm font-medium text-blue-800 dark:text-blue-200">
+              📤 Batch Upload Progress
+            </h4>
+            <span className="text-sm text-blue-600 dark:text-blue-400">
+              {completedFiles.length} of {totalFilesToUpload} completed
+            </span>
+          </div>
+          <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-2">
+            <motion.div
+              className="h-2 bg-blue-600 dark:bg-blue-400 rounded-full"
+              initial={{ width: 0 }}
+              animate={{ width: `${(completedFiles.length / totalFilesToUpload) * 100}%` }}
+              transition={{ duration: 0.5, ease: 'easeOut' }}
+            />
+          </div>
+          <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+            {Math.round((completedFiles.length / totalFilesToUpload) * 100)}% complete
+          </p>
         </motion.div>
       )}
 

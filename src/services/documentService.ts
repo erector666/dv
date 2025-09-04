@@ -20,10 +20,7 @@ import {
 import { db, storage } from './firebase';
 import { clearStorageCache } from './storageService';
 import {
-  extractTextFromDocument,
-  detectLanguage,
-  classifyDocument,
-  generateDocumentSummary,
+  processDocument,
 } from './classificationService';
 import jsPDF from 'jspdf';
 
@@ -304,7 +301,7 @@ export const uploadDocument = async (
 
 /**
  * Upload a document with full AI processing pipeline
- * This function uploads the document and then processes it through all AI services
+ * NEW IMPROVED FLOW: Original file → Temp storage → AI processing → PDF conversion → Final storage
  */
 export const uploadDocumentWithAI = async (
   file: File,
@@ -318,19 +315,77 @@ export const uploadDocumentWithAI = async (
   try {
     console.log('🚀 Starting AI-enhanced document upload for:', file.name);
 
-    // Step 1: Convert file to PDF (if not already PDF)
-    onAIProgress?.('converting_to_pdf', 20);
-    console.log('📄 Converting file to PDF...');
+    // Step 1: Upload ORIGINAL file to temp folder for AI processing
+    onAIProgress?.('uploading_for_ai', 10);
+    console.log('📤 Uploading original file to temp folder for AI processing...');
+
+    const tempStorageRef = ref(
+      storage,
+      `temp/${userId}/${Date.now()}_${file.name}`
+    );
+    
+    const tempUploadTask = uploadBytesResumable(tempStorageRef, file);
+    
+    // Wait for temp upload to complete
+    const tempUploadURL = await new Promise<string>((resolve, reject) => {
+      tempUploadTask.on(
+        'state_changed',
+        snapshot => {
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          if (onProgress) {
+            onProgress({ progress: progress * 0.2, snapshot }); // 20% of total progress
+          }
+        },
+        error => reject(error),
+        async () => {
+          try {
+            const downloadURL = await getDownloadURL(tempUploadTask.snapshot.ref);
+            resolve(downloadURL);
+          } catch (error) {
+            reject(error);
+          }
+        }
+      );
+    });
+    
+    console.log('✅ Original file uploaded to temp storage:', tempUploadURL);
+
+    let originalType = file.type;
+    let tempFilePath = tempStorageRef.fullPath;
+
+    // Step 2: AI Processing on ORIGINAL file (not converted PDF!)
+    onAIProgress?.('processing_ai', 30);
+    console.log('🤖 Starting AI processing on original file...');
+    
+    // Create temporary document object for AI processing
+    const tempDocument: Document = {
+      name: file.name,
+      type: originalType, // Use original file type for AI processing
+      size: file.size,
+      url: tempUploadURL, // Use temp URL for AI processing
+      path: tempFilePath,
+      userId,
+      category,
+      tags,
+      uploadedAt: new Date(),
+      metadata: initialMetadata,
+    };
+
+    // Process document with AI using the ORIGINAL file
+    const processedDocument = await processDocument(tempDocument);
+    console.log('✅ AI processing completed successfully');
+
+    // Step 3: Convert to PDF AFTER AI processing
+    onAIProgress?.('converting_to_pdf', 60);
+    console.log('🔄 Converting to PDF after AI processing...');
 
     let pdfFile: File;
-    let originalType = file.type;
 
     if (file.type === 'application/pdf') {
       pdfFile = file;
       console.log('✅ File is already PDF, skipping conversion');
     } else {
       // Convert non-PDF files to PDF using a conversion service
-      console.log('🔄 Converting file to PDF...');
       try {
         // For images, we'll create a simple PDF conversion
         if (file.type.startsWith('image/')) {
@@ -354,33 +409,31 @@ export const uploadDocumentWithAI = async (
       }
     }
 
-    // Step 2: Upload PDF to Firebase Storage
-    onAIProgress?.('uploading_pdf', 40);
-    console.log('☁️ Uploading PDF to Firebase Storage...');
+    // Step 4: Upload final PDF to permanent storage
+    onAIProgress?.('uploading_final', 80);
+    console.log('☁️ Uploading final PDF to permanent storage...');
 
-    // Don't save to database yet - wait for AI processing to complete
-    // Just upload to storage and get the URL
-    const storageRef = ref(
+    const finalStorageRef = ref(
       storage,
       `documents/${userId}/${Date.now()}_${pdfFile.name}`
     );
     
-    const uploadTask = uploadBytesResumable(storageRef, pdfFile);
+    const finalUploadTask = uploadBytesResumable(finalStorageRef, pdfFile);
     
-    // Wait for upload to complete
-    await new Promise((resolve, reject) => {
-      uploadTask.on(
+    // Wait for final upload to complete
+    const finalDownloadURL = await new Promise<string>((resolve, reject) => {
+      finalUploadTask.on(
         'state_changed',
         snapshot => {
           const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
           if (onProgress) {
-            onProgress({ progress: progress * 0.4, snapshot });
+            onProgress({ progress: 60 + (progress * 0.3), snapshot }); // 60-90% of total progress
           }
         },
         error => reject(error),
         async () => {
           try {
-            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+            const downloadURL = await getDownloadURL(finalUploadTask.snapshot.ref);
             resolve(downloadURL);
           } catch (error) {
             reject(error);
@@ -389,154 +442,66 @@ export const uploadDocumentWithAI = async (
       );
     });
     
-    const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+    console.log('✅ Final PDF uploaded to permanent storage:', finalDownloadURL);
     
-         // Create document object but don't save to database yet
-     const document = {
-       // Don't set id yet - it will be assigned when saved to Firestore
-       name: pdfFile.name,
-      type: pdfFile.type,
-      size: pdfFile.size,
-      url: downloadURL,
-      path: uploadTask.snapshot.ref.fullPath,
+    // This old document creation is no longer needed - we have finalDocument from AI processing
+
+    // Step 6: Clean up temp file
+    onAIProgress?.('cleaning_up', 95);
+    console.log('🧹 Cleaning up temp file...');
+    
+    try {
+      // Delete the temp file
+      await deleteObject(tempStorageRef);
+      console.log('✅ Temp file cleaned up successfully');
+    } catch (cleanupError) {
+      console.warn('⚠️ Failed to clean up temp file:', cleanupError);
+      // Don't fail the entire process if cleanup fails
+    }
+
+    // Step 7: Create final document with AI results and PDF details
+    onAIProgress?.('saving_to_database', 98);
+    console.log('💾 Creating final document with AI results...');
+    
+    // Create final document object with AI processing results and final PDF URL
+    const finalDocument: Omit<Document, 'id'> = {
+      name: pdfFile.name, // Use PDF filename
+      type: pdfFile.type, // Use PDF type for storage
+      size: pdfFile.size, // Use PDF size
+      url: finalDownloadURL, // Use final PDF URL
+      path: finalStorageRef.fullPath, // Use final PDF path
       userId,
+      category: processedDocument.category || category, // Use AI-detected category
+      tags: processedDocument.tags || tags, // Use AI-detected tags
       uploadedAt: new Date(),
       lastModified: new Date(),
-      category: 'processing', // Temporary category while AI processes
-      tags: ['processing'],
       metadata: {
         ...initialMetadata,
-        originalType: originalType,
-        convertedToPdf: true,
+        ...processedDocument.metadata, // Include all AI processing results
+        originalFileType: originalType, // Remember original file type
+        tempProcessingUrl: tempUploadURL, // For debugging if needed
+        convertedToPdf: originalType !== 'application/pdf',
         originalFileName: file.name,
-        aiProcessing: true,
+        aiProcessingCompleted: new Date(),
       },
     };
-
-    console.log('✅ PDF uploaded successfully, starting AI processing...');
-
-    // Step 3: Extract text from PDF
-    onAIProgress?.('extracting_text', 60);
-    console.log('🔍 Extracting text from PDF...');
-    const textExtraction = await extractTextFromDocument(document.url, 'pdf');
-    console.log('✅ Text extraction completed:', {
-      wordCount: textExtraction.wordCount,
-      confidence: textExtraction.confidence,
-    });
-
-    // Step 4: Detect language
-    onAIProgress?.('detecting_language', 70);
-    console.log('🌐 Detecting document language...');
-    const languageDetection = await detectLanguage(document.url, 'pdf');
-    console.log('✅ Language detection completed:', {
-      language: languageDetection.language,
-      confidence: languageDetection.confidence,
-    });
-
-         // Step 5: Classify document and assign category
-     onAIProgress?.('classifying_document', 80);
-     console.log('🏷️ Classifying document and assigning category...');
-     const classification = await classifyDocument(
-       '', // We don't have an ID yet, pass empty string
-       document.url,
-       'pdf'
-     );
-    console.log('✅ Document classification completed:', {
-      category: classification.category,
-      tags: classification.tags,
-      confidence: classification.confidence,
-    });
-
-    // Step 6: Generate document summary
-    onAIProgress?.('generating_summary', 90);
-    console.log('📝 Generating document summary...');
-    const summary = await generateDocumentSummary(document.url, 'pdf');
-    console.log('✅ Summary generation completed:', {
-      summaryLength: summary.summary.length,
-      confidence: summary.confidence,
-    });
-
-    // Step 7: Update document with AI processing results
-    onAIProgress?.('updating_document', 95);
-    console.log('💾 Updating document with AI results...');
-
-    // Build metadata with safe defaults to avoid undefined values
-    const aiMetadata: any = {
-      ...document.metadata,
-      summary: summary.summary || '',
-      language: languageDetection.language || 'en',
-      categories: classification.classificationDetails?.categories || [],
-      classificationConfidence: classification.confidence || 0,
-      textExtraction: {
-        confidence: textExtraction.confidence || 0,
-        wordCount: textExtraction.wordCount || 0,
-        documentType: textExtraction.documentType || 'unknown',
-      },
-      languageDetection: {
-        confidence: languageDetection.confidence || 0,
-        allLanguages: languageDetection.allLanguages || [],
-      },
-      summarization: {
-        confidence: summary.confidence || 0,
-        quality: summary.quality || 'Unknown',
-        metrics: summary.metrics || {},
-      },
-      entities: classification.classificationDetails?.entities || [],
-      sentiment: classification.classificationDetails?.sentiment || null,
-      aiProcessed: true,
-      aiProcessedAt: new Date().toISOString(),
-      originalType: originalType || 'unknown',
-      convertedToPdf: true,
-      originalFileName: file.name,
-    };
-
-    const updatedDocument: Document = {
-      ...document,
-      category: classification.category || 'other', // Use AI category, never fallback to 'personal'
-      tags: classification.tags || ['document'],
-      metadata: aiMetadata,
-    };
-
-    // Clean the document metadata to remove any undefined values before sending to Firestore
-    const cleanedDocument = omitUndefinedDeep(updatedDocument);
-
-    // Log the cleaned metadata for debugging
-    console.log('🧹 Cleaned document metadata:', {
-      language: cleanedDocument.metadata?.language,
-      category: cleanedDocument.category,
-      tags: cleanedDocument.tags,
-      summary: cleanedDocument.metadata?.summary,
-    });
-
-         // Save the document to Firestore with AI results (first time save)
-     const docRef = await addDoc(
-       collection(db, 'documents'),
-       cleanedDocument
-     );
-     
-     // Assign the ID from Firestore
-     const finalDocument = {
-       ...cleanedDocument,
-       id: docRef.id,
-     };
-     
-     // Update the document in Firestore with the correct ID
-     await updateDoc(docRef, { id: docRef.id });
     
-    // Clear storage cache to refresh storage widget
-    clearStorageCache(userId);
-
+    // Save the document to Firestore with AI results
+    const finalDocRef = await addDoc(
+      collection(db, 'documents'),
+      omitUndefinedDeep(finalDocument)
+    );
+    
+    const savedDocument: Document = {
+      ...finalDocument,
+      id: finalDocRef.id,
+      firestoreId: finalDocRef.id,
+    };
+    
     onAIProgress?.('completed', 100);
-    console.log('🎉 AI processing completed successfully!');
-    console.log('📊 Final document:', {
-      name: finalDocument.name,
-      category: finalDocument.category,
-      language: finalDocument.metadata?.language,
-      tags: finalDocument.tags,
-      aiProcessed: finalDocument.metadata?.aiProcessed,
-    });
-
-    return finalDocument;
+    console.log('🎉 AI-enhanced document upload completed successfully!');
+    
+    return savedDocument;
   } catch (error) {
     console.error('❌ Error in AI-enhanced upload:', error);
 

@@ -108,18 +108,20 @@ async function detectLanguageInternal(text) {
         const maxTextSize = 1000000;
         const truncatedText = text.length > maxTextSize ? text.substring(0, maxTextSize) : text;
         console.log(`Text size: ${text.length} bytes, truncated to: ${truncatedText.length} bytes`);
-        const [detection] = await languageClient.detectLanguage({
-            content: truncatedText,
+        const [languageResult] = await languageClient.analyzeSyntax({
+            document: {
+                content: truncatedText,
+                type: 'PLAIN_TEXT',
+            },
         });
-        if (detection.languages && detection.languages.length > 0) {
-            const topLanguage = detection.languages[0];
+        if (languageResult && languageResult.language) {
             const result = {
-                language: topLanguage.language || 'en',
-                confidence: topLanguage.confidence || 0.0,
-                allLanguages: detection.languages.map((lang) => ({
-                    language: lang.language,
-                    confidence: lang.confidence,
-                })),
+                language: languageResult.language || 'en',
+                confidence: 0.9,
+                allLanguages: [{
+                        language: languageResult.language || 'en',
+                        confidence: 0.9,
+                    }],
             };
             console.log('✅ Language detection successful:', result.language, 'confidence:', result.confidence);
             return result;
@@ -402,28 +404,54 @@ async function classifyDocumentInternal(documentUrl) {
                 text.includes('уверение') || text.includes('сертификат') ||
                 text.includes('документ') || text.includes('универзитет') ||
                 text.includes('институт') || text.includes('академија');
-            if (text.includes('legal') || text.includes('contract') || text.includes('agreement') ||
-                text.includes('уверение') || text.includes('сертификат') || text.includes('договор')) {
-                category = 'legal';
-                confidence = 0.75;
-                tags = ['legal', 'contract', 'agreement', 'certificate'];
+            const educationKeywords = ['универзитет', 'факултет', 'студент', 'испит', 'оценка', 'диплома', 'академија', 'образование', 'училиште', 'курс'];
+            const legalKeywords = ['суд', 'правен', 'адвокат', 'казнен', 'кривичен', 'престап', 'закон', 'договор'];
+            const governmentKeywords = ['министерство', 'општина', 'државен', 'службен', 'регистар', 'статус'];
+            const medicalKeywords = ['здравство', 'болница', 'доктор', 'медицински', 'здравје', 'лекар'];
+            const financialKeywords = ['UBS', 'bank', 'banking', 'банка', 'кредит', 'заем', 'плаќање', 'сметка', 'invoice', 'payment', 'financial', 'money', 'CHF', 'USD', 'EUR', 'account', 'transaction'];
+            const hasEducationContext = educationKeywords.some(keyword => text.toLowerCase().includes(keyword.toLowerCase()));
+            const hasLegalContext = legalKeywords.some(keyword => text.toLowerCase().includes(keyword.toLowerCase()));
+            const hasGovernmentContext = governmentKeywords.some(keyword => text.toLowerCase().includes(keyword.toLowerCase()));
+            const hasMedicalContext = medicalKeywords.some(keyword => text.toLowerCase().includes(keyword.toLowerCase()));
+            const hasFinancialContext = financialKeywords.some(keyword => text.toLowerCase().includes(keyword.toLowerCase()));
+            console.log('🔍 Context detection results:', {
+                education: hasEducationContext,
+                legal: hasLegalContext,
+                government: hasGovernmentContext,
+                medical: hasMedicalContext,
+                financial: hasFinancialContext,
+                hasGenericCertificate: text.includes('уверение') || text.includes('сертификат')
+            });
+            if (hasFinancialContext || text.includes('invoice') || text.includes('payment') || text.includes('bill') ||
+                text.includes('$') || text.includes('amount') || text.includes('total') || text.includes('bank')) {
+                category = 'financial';
+                confidence = 0.95;
+                tags = ['financial', 'banking', 'payment', 'money'];
             }
-            else if (text.includes('education') || text.includes('university') || text.includes('diploma') ||
-                text.includes('универзитет') || text.includes('диплома') || text.includes('академија')) {
+            else if (text.includes('education') || text.includes('university') || text.includes('diploma') || hasEducationContext) {
                 category = 'education';
+                confidence = 0.9;
+                tags = ['education', 'academic', 'school', 'university', 'certificate'];
+            }
+            else if (text.includes('legal') || text.includes('contract') || text.includes('agreement') || hasLegalContext) {
+                category = 'legal';
+                confidence = 0.85;
+                tags = ['legal', 'contract', 'agreement'];
+            }
+            else if (hasGovernmentContext) {
+                category = 'government';
                 confidence = 0.8;
-                tags = ['education', 'academic', 'school', 'university'];
+                tags = ['government', 'official', 'document'];
+            }
+            else if (hasMedicalContext) {
+                category = 'medical';
+                confidence = 0.8;
+                tags = ['medical', 'healthcare', 'health'];
             }
             else if (text.includes('medical') || text.includes('doctor') || text.includes('hospital')) {
                 category = 'medical';
                 confidence = 0.75;
                 tags = ['medical', 'healthcare', 'health'];
-            }
-            else if (text.includes('invoice') || text.includes('payment') || text.includes('bill') ||
-                text.includes('$') || text.includes('amount') || text.includes('total')) {
-                category = 'financial';
-                confidence = 0.75;
-                tags = ['financial', 'payment', 'invoice'];
             }
             else if (text.includes('insurance') || text.includes('policy') || text.includes('coverage')) {
                 category = 'insurance';
@@ -462,8 +490,24 @@ async function classifyDocumentInternal(documentUrl) {
             let match;
             while ((match = pattern.exec(text)) !== null) {
                 const dateStr = match[0];
+                console.log('📅 Found potential date:', dateStr);
                 if (dateStr.length >= 8 && dateStr.length <= 20) {
-                    extractedDates.push(dateStr);
+                    if (dateStr.includes('.') || dateStr.includes('/') || dateStr.includes('-')) {
+                        const parts = dateStr.split(/[.\/-]/);
+                        if (parts.length >= 3) {
+                            const year = parseInt(parts[2]) || parseInt(parts[0]);
+                            if (year >= 1900 && year <= 2030) {
+                                extractedDates.push(dateStr);
+                                console.log('✅ Valid date added:', dateStr);
+                            }
+                            else {
+                                console.log('❌ Invalid year in date:', dateStr, 'year:', year);
+                            }
+                        }
+                    }
+                    else {
+                        extractedDates.push(dateStr);
+                    }
                 }
             }
         });
