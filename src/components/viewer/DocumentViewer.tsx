@@ -654,35 +654,56 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
       </div>
     );
 
-    if (!metadataResult) {
-      return (
-        <div className="text-center py-8">
-          <div className="text-gray-500">No metadata available</div>
-        </div>
-      );
-    }
+    // Use document data directly if metadataResult is not available
+    const metadata = metadataResult || {
+      documentName: document.name,
+      documentType: document.type,
+      fileSize: document.size ? `${(document.size / 1024 / 1024).toFixed(2)} MB` : 'Unknown',
+      category: document.category || 'Uncategorized',
+      tags: document.tags || [],
+      uploadedAt: document.uploadedAt,
+      lastModified: document.lastModified || document.uploadedAt,
+      // From document.metadata if available
+      detectedLanguage: document.metadata?.language || 'Unknown',
+      confidence: document.metadata?.confidence ? Math.round(document.metadata.confidence * 100) : null,
+      summary: document.metadata?.summary,
+      wordCount: document.metadata?.wordCount || document.metadata?.textExtraction?.wordCount,
+      extractedText: document.metadata?.extractedText || document.metadata?.textExtraction?.extractedText || document.metadata?.text,
+      suggestedName: document.metadata?.suggestedName,
+      aiProcessed: document.metadata?.aiProcessed,
+      processingMethod: document.metadata?.processingMethod,
+      qualityScore: document.metadata?.qualityScore,
+      hasTables: document.metadata?.hasTables,
+      hasImages: document.metadata?.hasImages,
+      keywords: document.metadata?.keywords,
+      entities: document.metadata?.entities,
+      extractedDates: document.metadata?.extractedDates,
+      originalFileType: document.metadata?.originalFileType || document.type,
+      convertedToPdf: document.metadata?.convertedToPdf,
+      aiProcessingCompleted: document.metadata?.aiProcessingCompleted || (document.metadata?.aiProcessed ? 'Yes' : 'No'),
+    };
 
     // Extract basic document info
     const documentInfo = {
-      name: metadataResult.documentName || 'N/A',
-      type: metadataResult.documentType || 'N/A',
-      size: metadataResult.fileSize || 'N/A',
-      pages: metadataResult.pages || 'N/A',
-      uploadedAt: toDateString(metadataResult.uploadedAt),
-      lastModified: toDateString(metadataResult.lastModified),
+      name: metadata.documentName || 'N/A',
+      type: metadata.documentType || 'N/A',
+      size: metadata.fileSize || 'N/A',
+      pages: metadata.pages || 'N/A',
+      uploadedAt: toDateString(metadata.uploadedAt),
+      lastModified: toDateString(metadata.lastModified),
     };
 
     // Extract content analysis info
     const contentAnalysis = {
-      language: metadataResult.detectedLanguage || 'Unknown',
-      confidence: metadataResult.confidence
-        ? `${metadataResult.confidence}%`
+      language: metadata.detectedLanguage || 'Unknown',
+      confidence: metadata.confidence
+        ? `${metadata.confidence}%`
         : 'N/A',
-      hasTables: metadataResult.hasTables ? 'Yes' : 'No',
-      hasImages: metadataResult.hasImages ? 'Yes' : 'No',
-      wordCount: metadataResult.wordCount || 'N/A',
-      qualityScore: metadataResult.qualityScore
-        ? `${metadataResult.qualityScore}/100`
+      hasTables: metadata.hasTables ? 'Yes' : 'No',
+      hasImages: metadata.hasImages ? 'Yes' : 'No',
+      wordCount: metadata.wordCount || 'N/A',
+      qualityScore: metadata.qualityScore
+        ? `${metadata.qualityScore}/100`
         : 'N/A',
     };
 
@@ -722,19 +743,19 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
             </div>
 
             {/* AI Summary */}
-            {metadataResult.summary && (
+            {metadata.summary && (
               <div className="bg-yellow-50 p-4 rounded-lg">
                 <h4 className="font-medium text-yellow-900 mb-2">
                   Document Summary
                 </h4>
                 <p className="text-sm text-yellow-800">
-                  {renderMetadataValue(metadataResult.summary)}
+                  {renderMetadataValue(metadata.summary)}
                 </p>
               </div>
             )}
 
             {/* Extracted Text */}
-            {metadataResult.extractedText && (
+            {metadata.extractedText && (
               <div className="bg-gray-50 p-4 rounded-lg">
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="font-medium text-gray-900">Extracted Text</h4>
@@ -748,18 +769,18 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
                 </div>
                 <div className="max-h-40 overflow-y-auto">
                   <p className="text-sm text-gray-700 whitespace-pre-wrap">
-                    {renderMetadataValue(metadataResult.extractedText)}
+                    {renderMetadataValue(metadata.extractedText)}
                   </p>
                 </div>
               </div>
             )}
 
             {/* Keywords */}
-            {metadataResult.keywords && (
+            {metadata.keywords && (
               <div className="bg-purple-50 p-4 rounded-lg">
                 <h4 className="font-medium text-purple-900 mb-2">Key Topics</h4>
                 <div className="flex flex-wrap gap-2">
-                  {metadataResult.keywords.map(
+                  {metadata.keywords.map(
                     (keyword: any, index: number) => (
                       <span
                         key={index}
@@ -781,35 +802,35 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <strong>Method:</strong>{' '}
-                  {renderMetadataValue(metadataResult.processingMethod)}
+                  {renderMetadataValue(metadata.processingMethod)}
                 </div>
                 <div>
                   <strong>Quality Score:</strong>{' '}
-                  {renderMetadataValue(metadataResult.qualityScore)} /100
+                  {renderMetadataValue(metadata.qualityScore)} /100
                 </div>
                 <div>
                   <strong>Word Count:</strong>{' '}
-                  {renderMetadataValue(metadataResult.wordCount)}
+                  {renderMetadataValue(metadata.wordCount)}
                 </div>
                 <div>
                   <strong>Uploaded:</strong>{' '}
-                  {toDateString(metadataResult.uploadedAt)}
+                  {toDateString(metadata.uploadedAt)}
                 </div>
                 <div>
                   <strong>AI Processing:</strong>{' '}
-                  {renderMetadataValue(metadataResult.aiProcessingCompleted)}
+                  {renderMetadataValue(metadata.aiProcessingCompleted)}
                 </div>
                 <div>
                   <strong>Original Type:</strong>{' '}
-                  {renderMetadataValue(metadataResult.originalFileType)}
+                  {renderMetadataValue(metadata.originalFileType)}
                 </div>
                 <div>
                   <strong>Converted to PDF:</strong>{' '}
-                  {metadataResult.convertedToPdf ? 'Yes' : 'No'}
+                  {metadata.convertedToPdf ? 'Yes' : 'No'}
                 </div>
                 <div>
                   <strong>Category:</strong>{' '}
-                  {renderMetadataValue(metadataResult.category)}
+                  {renderMetadataValue(metadata.category)}
                 </div>
               </div>
             </div>
