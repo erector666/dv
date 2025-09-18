@@ -1338,7 +1338,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
                       <button
                         onClick={e => {
                           e.stopPropagation();
-                          const link = document.createElement('a');
+                          const link = window.document.createElement('a');
                           link.href = document.url;
                           link.download = document.name;
                           link.click();
