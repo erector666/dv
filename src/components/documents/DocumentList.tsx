@@ -1335,17 +1335,6 @@ const DocumentList: React.FC<DocumentListProps> = ({
 
                   <div className="flex items-center space-x-2">
                     {/* Quick Action Buttons */}
-                    <button
-                      onClick={e => {
-                        e.stopPropagation();
-                        handleDocumentClick(document);
-                      }}
-                      className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-200 dark:hover:bg-blue-800 transition-colors"
-                      title="View document"
-                    >
-                      View
-                    </button>
-                    
                     {document.url && (
                       <button
                         onClick={e => {
