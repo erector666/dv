@@ -48,7 +48,6 @@ const CameraScanner: React.FC<CameraScannerProps> = ({ onClose, onCapture }) => 
 				loadOpenCv().then(() => {
 					if (!mounted) return;
 					setIsOpenCvReady(true);
-					startEdgeDetection();
 				}).catch(err => {
 					console.error('OpenCV loading failed:', err);
 					// Continue without edge detection
@@ -76,8 +75,21 @@ const CameraScanner: React.FC<CameraScannerProps> = ({ onClose, onCapture }) => 
 		};
 	}, []);
 
+	// Start edge detection when OpenCV becomes ready
+	useEffect(() => {
+		if (isOpenCvReady && videoRef.current) {
+			startEdgeDetection();
+		}
+		return () => {
+			if (isOpenCvReady) {
+				stopEdgeDetection();
+			}
+		};
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [isOpenCvReady]);
+
 	const startEdgeDetection = () => {
-		if (!(window as any).cv || !videoRef.current || !overlayRef.current || !isOpenCvReady) return;
+		if (!(window as any).cv || !videoRef.current || !overlayRef.current) return;
 		const cv = (window as any).cv as any;
 		const overlay = overlayRef.current;
 		const ctx = overlay.getContext('2d');
