@@ -50,13 +50,34 @@ export const formatDate = (
     // Handle regular Date objects and strings
     else if (date instanceof Date) {
       dateObj = date;
-    } else {
+    } else if (typeof date === 'string') {
+      // Handle various string formats
+      if (date === '' || date === 'null' || date === 'undefined') {
+        return 'Unknown date';
+      }
       dateObj = new Date(date);
+    } else if (typeof date === 'number') {
+      // Handle timestamp numbers
+      dateObj = new Date(date);
+    } else {
+      // Try to convert to string first, then to Date
+      const dateString = String(date);
+      if (dateString === '' || dateString === 'null' || dateString === 'undefined') {
+        return 'Unknown date';
+      }
+      dateObj = new Date(dateString);
     }
 
     // Check if the date is valid
     if (isNaN(dateObj.getTime())) {
-      return 'Unknown date'; // Don't log warning for empty objects
+      console.warn('Invalid date format:', date);
+      return 'Unknown date';
+    }
+
+    // Check if the date is very old (before 1970) or very new (after 2100)
+    const year = dateObj.getFullYear();
+    if (year < 1970 || year > 2100) {
+      return 'Unknown date';
     }
 
     return new Intl.DateTimeFormat('en-US', {
@@ -67,7 +88,8 @@ export const formatDate = (
       minute: '2-digit',
     }).format(dateObj);
   } catch (error) {
-    return 'Unknown date'; // Don't log errors for empty objects
+    console.warn('Error formatting date:', date, error);
+    return 'Unknown date';
   }
 };
 
@@ -119,6 +141,23 @@ export const formatRelativeTime = (timestamp: number): string => {
   const years = Math.floor(months / 12);
 
   return `${years} ${years === 1 ? 'year' : 'years'} ago`;
+};
+
+/**
+ * Format date with fallback for unknown dates
+ * @param date Date object or string
+ * @param fallbackText Fallback text when date is unknown
+ * @returns Formatted date string or fallback text
+ */
+export const formatDateWithFallback = (
+  date: Date | string | any | null | undefined,
+  fallbackText: string = 'Recently uploaded'
+): string => {
+  const formatted = formatDate(date);
+  if (formatted === 'Unknown date') {
+    return fallbackText;
+  }
+  return formatted;
 };
 
 /**

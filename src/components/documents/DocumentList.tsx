@@ -10,7 +10,7 @@ import {
   updateDocument,
 } from '../../services/documentService';
 import { DocumentViewer } from '../viewer';
-import { formatFileSize, formatDate } from '../../utils/formatters';
+import { formatFileSize, formatDate, formatDateWithFallback } from '../../utils/formatters';
 import { ReprocessModal } from '../ai';
 import { reprocessDocumentsEnhanced } from '../../services/dualAIService';
 
@@ -608,7 +608,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
                       `Name: ${document.name}`,
                       `Type: ${document.type}`,
                       `Size: ${formatFileSize(document.size)}`,
-                      `Uploaded: ${formatDate(document.uploadedAt)}`,
+                      `Uploaded: ${formatDateWithFallback(document.uploadedAt, 'Recently uploaded')}`,
                       document.metadata?.language && `Language: ${document.metadata.language}`,
                       document.metadata?.category && `Category: ${document.metadata.category}`,
                       document.metadata?.wordCount && `Words: ${document.metadata.wordCount.toLocaleString()}`,
@@ -705,7 +705,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
                   <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{document.name}</div>
                   <div className="mt-1 flex flex-col space-y-1 text-sm text-gray-500 dark:text-gray-400">
                     <p>{formatFileSize(document.size)}</p>
-                    <p>{formatDate(document.uploadedAt)}</p>
+                    <p>{formatDateWithFallback(document.uploadedAt, 'Recently uploaded')}</p>
 
                     {/* Enhanced Processing state */}
                     {document.status === 'processing' && (
