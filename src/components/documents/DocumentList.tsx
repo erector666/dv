@@ -745,7 +745,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
                         )}
 
                         {/* Error Information */}
-                        {document.status === 'failed' && document.metadata?.error && (
+                        {document.status === 'error' && document.metadata?.error && (
                           <div className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-2 rounded">
                             <strong>Error:</strong> {document.metadata.error}
                           </div>
