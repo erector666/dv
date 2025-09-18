@@ -88,7 +88,31 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile = false, onClose }) => {
       return documents.filter(doc => doc.category === 'financial' || doc.category === 'bills').length;
     }
     
+    // For predefined categories, count exact matches
+    if (['personal', 'medical', 'insurance', 'other'].includes(category)) {
+      return documents.filter(doc => doc.category === category).length;
+    }
+    
+    // For 'bills' category, also count documents with financial-related categories
+    if (category === 'bills') {
+      return documents.filter(doc => 
+        doc.category === 'bills' || 
+        doc.category === 'financial' ||
+        (doc.category && doc.category.toLowerCase().includes('bill')) ||
+        (doc.category && doc.category.toLowerCase().includes('financial'))
+      ).length;
+    }
+    
     return documents.filter(doc => doc.category === category).length;
+  };
+
+  // Get count of documents with custom categories (not in predefined list)
+  const getCustomCategoriesCount = () => {
+    if (!documents) return 0;
+    const predefinedCategories = ['personal', 'bills', 'financial', 'medical', 'insurance', 'other'];
+    return documents.filter(doc => 
+      doc.category && !predefinedCategories.includes(doc.category)
+    ).length;
   };
 
   const totalStorage = 10 * 1024 * 1024 * 1024; // 10 GB in bytes
@@ -332,6 +356,31 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile = false, onClose }) => {
                 </span>
               )}
             </NavLink>
+
+            {/* Custom Categories */}
+            {documents && getCustomCategoriesCount() > 0 && (
+              <NavLink
+                to="/category/custom"
+                onClick={handleLinkClick}
+                className={({ isActive }) =>
+                  `flex items-center justify-between p-2 rounded-lg transition-colors ${
+                    isActive
+                      ? 'bg-primary-100 dark:bg-primary-900 text-primary-600 dark:text-primary-300'
+                      : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                  }`
+                }
+              >
+                <div className="flex items-center">
+                  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                  </svg>
+                  <span className="ml-3">Custom</span>
+                </div>
+                <span className="bg-primary-100 dark:bg-primary-900 text-primary-600 dark:text-primary-300 text-xs font-medium px-2 py-1 rounded-full">
+                  {getCustomCategoriesCount()}
+                </span>
+              </NavLink>
+            )}
           </li>
         </ul>
       </nav>

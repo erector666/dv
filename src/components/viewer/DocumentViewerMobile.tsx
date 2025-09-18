@@ -6,6 +6,7 @@ import {
   translateText,
   TranslationResult,
 } from '../../services/translationService';
+import { formatDateWithFallback } from '../../utils/formatters';
 
 interface DocumentViewerProps {
   document: {
@@ -235,6 +236,10 @@ const DocumentViewerMobile: React.FC<DocumentViewerProps> = ({
                     <span className="text-gray-500">Category:</span>
                     <span className="text-gray-900">{document.category || 'Uncategorized'}</span>
                   </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Uploaded:</span>
+                    <span className="text-gray-900">{formatDateWithFallback(document.uploadedAt, 'Recently uploaded')}</span>
+                  </div>
                 </div>
               </div>
 
@@ -280,6 +285,18 @@ const DocumentViewerMobile: React.FC<DocumentViewerProps> = ({
                            new Date(document.metadata.aiProcessingCompleted).toLocaleDateString() : 
                            'Yes'}
                         </span>
+                      </div>
+                    )}
+                    {document.metadata.suggestedName && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Suggested Name:</span>
+                        <span className="text-gray-900 text-right">{document.metadata.suggestedName}</span>
+                      </div>
+                    )}
+                    {document.metadata.entities && document.metadata.entities.length > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Entities Found:</span>
+                        <span className="text-gray-900">{document.metadata.entities.length}</span>
                       </div>
                     )}
                   </div>
