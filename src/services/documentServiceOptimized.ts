@@ -13,12 +13,7 @@ import {
 import { db, storage } from './firebase';
 import { processDocumentFast } from './classificationServiceFast';
 import jsPDF from 'jspdf';
-import { Document } from './documentService';
-
-export interface DocumentUploadProgress {
-  progress: number;
-  snapshot?: any;
-}
+import { Document, DocumentUploadProgress } from './documentService';
 
 /**
  * Optimized document upload with faster AI processing
@@ -65,7 +60,9 @@ export const uploadDocumentOptimized = async (
         'state_changed',
         snapshot => {
           const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          onProgress?.({ progress: progress * 0.5, snapshot }); // 0-50% for upload
+          if (onProgress) {
+            onProgress({ progress: progress * 0.5, snapshot }); // 0-50% for upload
+          }
         },
         error => reject(error),
         async () => {
