@@ -718,16 +718,16 @@ const DocumentList: React.FC<DocumentListProps> = ({
                         {/* Status Badge */}
                         <div className="flex items-center space-x-2">
                           <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                            document.status === 'completed' 
+                            document.status === 'ready' 
                               ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                              : document.status === 'failed'
+                              : document.status === 'error'
                               ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
                               : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
                           }`}>
-                            {document.status === 'completed' && '✅ Processed'}
-                            {document.status === 'failed' && '❌ Failed'}
-                            {document.status === 'pending' && '⏳ Pending'}
-                            {!['completed', 'failed', 'pending', 'processing'].includes(document.status) && '📄 Ready'}
+                            {document.status === 'ready' && '✅ Processed'}
+                            {document.status === 'error' && '❌ Failed'}
+                            {document.status === 'processing' && '⏳ Processing'}
+                            {!document.status && '📄 Ready'}
                           </div>
                           
                           {/* Quality Score */}
@@ -1299,7 +1299,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
                       <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                         <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                       </svg>
-                      <span>{document.status === 'completed' ? 'Processed' : document.status}</span>
+                      <span>{document.status === 'ready' ? 'Processed' : document.status || 'Ready'}</span>
                     </div>
                     
                     {document.metadata?.viewCount && (
