@@ -594,7 +594,19 @@ const DocumentList: React.FC<DocumentListProps> = ({
                   e.stopPropagation();
                   toggleDocumentSelection(docId);
                 } else if (!isBatchMode) {
-                  handleDocumentClick(document);
+                  // Show document info popup instead of opening viewer
+                  const info = [
+                    `Name: ${document.name}`,
+                    `Type: ${document.type}`,
+                    `Size: ${formatFileSize(document.size)}`,
+                    `Uploaded: ${formatDate(document.uploadedAt)}`,
+                    document.metadata?.language && `Language: ${document.metadata.language}`,
+                    document.metadata?.category && `Category: ${document.metadata.category}`,
+                    document.metadata?.wordCount && `Words: ${document.metadata.wordCount.toLocaleString()}`,
+                    document.metadata?.aiModel && `AI Model: ${document.metadata.aiModel}`,
+                    document.metadata?.version && `Version: ${document.metadata.version}`,
+                  ].filter(Boolean).join('\n');
+                  alert(info);
                 }
               }}
             >
