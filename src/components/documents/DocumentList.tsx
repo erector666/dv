@@ -627,7 +627,10 @@ const DocumentList: React.FC<DocumentListProps> = ({
                         onError={(e) => {
                           // Fallback to icon if thumbnail fails to load
                           e.currentTarget.style.display = 'none';
-                          e.currentTarget.nextElementSibling!.style.display = 'block';
+                          const nextElement = e.currentTarget.nextElementSibling as HTMLElement;
+                          if (nextElement) {
+                            nextElement.style.display = 'block';
+                          }
                         }}
                       />
                       <div className="hidden w-full h-full flex items-center justify-center">
