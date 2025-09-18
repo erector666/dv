@@ -4,6 +4,7 @@ import { useQuery } from 'react-query';
 import { useLanguage } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
 import { getStorageUsage } from '../../services/storageService';
+import { getDocuments } from '../../services/documentService';
 import {
   LayoutDashboard,
   FileText,
@@ -66,6 +67,29 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile = false, onClose }) => {
       console.warn('Storage usage query failed:', error);
     },
   });
+
+  // Fetch documents for category counts
+  const { data: documents } = useQuery(
+    ['documents', currentUser?.uid],
+    () => getDocuments(currentUser?.uid || ''),
+    {
+      enabled: !!currentUser?.uid,
+      staleTime: 30000, // Consider data stale after 30 seconds
+      refetchInterval: 60000, // Refetch every 60 seconds
+    }
+  );
+
+  // Get document counts by category
+  const getCategoryCount = (category: string) => {
+    if (!documents) return 0;
+    
+    // Handle the bills/financial mapping
+    if (category === 'financial') {
+      return documents.filter(doc => doc.category === 'financial' || doc.category === 'bills').length;
+    }
+    
+    return documents.filter(doc => doc.category === category).length;
+  };
 
   const totalStorage = 10 * 1024 * 1024 * 1024; // 10 GB in bytes
   const usedStorage = storageData?.totalSize ?? 0;
@@ -130,15 +154,22 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile = false, onClose }) => {
               to="/category/personal"
               onClick={handleLinkClick}
               className={({ isActive }) =>
-                `flex items-center p-2 rounded-lg transition-colors ${
+                `flex items-center justify-between p-2 rounded-lg transition-colors ${
                   isActive
                     ? 'bg-primary-100 dark:bg-primary-900 text-primary-600 dark:text-primary-300'
                     : 'hover:bg-gray-100 dark:hover:bg-gray-700'
                 }`
               }
             >
-              <FileText className="h-6 w-6" />
-              <span className="ml-3">{translate('personal')}</span>
+              <div className="flex items-center">
+                <FileText className="h-6 w-6" />
+                <span className="ml-3">{translate('personal')}</span>
+              </div>
+              {getCategoryCount('personal') > 0 && (
+                <span className="bg-primary-100 dark:bg-primary-900 text-primary-600 dark:text-primary-300 text-xs font-medium px-2 py-1 rounded-full">
+                  {getCategoryCount('personal')}
+                </span>
+              )}
             </NavLink>
 
             {/* Financial */}
@@ -146,15 +177,22 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile = false, onClose }) => {
               to="/category/financial"
               onClick={handleLinkClick}
               className={({ isActive }) =>
-                `flex items-center p-2 rounded-lg transition-colors ${
+                `flex items-center justify-between p-2 rounded-lg transition-colors ${
                   isActive
                     ? 'bg-primary-100 dark:bg-primary-900 text-primary-600 dark:text-primary-300'
                     : 'hover:bg-gray-100 dark:hover:bg-gray-700'
                 }`
               }
             >
-              <DollarSign className="h-6 w-6" />
-              <span className="ml-3">Financial</span>
+              <div className="flex items-center">
+                <DollarSign className="h-6 w-6" />
+                <span className="ml-3">Financial</span>
+              </div>
+              {getCategoryCount('financial') > 0 && (
+                <span className="bg-primary-100 dark:bg-primary-900 text-primary-600 dark:text-primary-300 text-xs font-medium px-2 py-1 rounded-full">
+                  {getCategoryCount('financial')}
+                </span>
+              )}
             </NavLink>
 
             {/* Education */}
@@ -162,15 +200,22 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile = false, onClose }) => {
               to="/category/education"
               onClick={handleLinkClick}
               className={({ isActive }) =>
-                `flex items-center p-2 rounded-lg transition-colors ${
+                `flex items-center justify-between p-2 rounded-lg transition-colors ${
                   isActive
                     ? 'bg-primary-100 dark:bg-primary-900 text-primary-600 dark:text-primary-300'
                     : 'hover:bg-gray-100 dark:hover:bg-gray-700'
                 }`
               }
             >
-              <GraduationCap className="h-6 w-6" />
-              <span className="ml-3">Education</span>
+              <div className="flex items-center">
+                <GraduationCap className="h-6 w-6" />
+                <span className="ml-3">Education</span>
+              </div>
+              {getCategoryCount('education') > 0 && (
+                <span className="bg-primary-100 dark:bg-primary-900 text-primary-600 dark:text-primary-300 text-xs font-medium px-2 py-1 rounded-full">
+                  {getCategoryCount('education')}
+                </span>
+              )}
             </NavLink>
 
             {/* Legal */}
@@ -178,15 +223,22 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile = false, onClose }) => {
               to="/category/legal"
               onClick={handleLinkClick}
               className={({ isActive }) =>
-                `flex items-center p-2 rounded-lg transition-colors ${
+                `flex items-center justify-between p-2 rounded-lg transition-colors ${
                   isActive
                     ? 'bg-primary-100 dark:bg-primary-900 text-primary-600 dark:text-primary-300'
                     : 'hover:bg-gray-100 dark:hover:bg-gray-700'
                 }`
               }
             >
-              <Scale className="h-6 w-6" />
-              <span className="ml-3">Legal</span>
+              <div className="flex items-center">
+                <Scale className="h-6 w-6" />
+                <span className="ml-3">Legal</span>
+              </div>
+              {getCategoryCount('legal') > 0 && (
+                <span className="bg-primary-100 dark:bg-primary-900 text-primary-600 dark:text-primary-300 text-xs font-medium px-2 py-1 rounded-full">
+                  {getCategoryCount('legal')}
+                </span>
+              )}
             </NavLink>
 
             {/* Government */}
@@ -194,15 +246,22 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile = false, onClose }) => {
               to="/category/government"
               onClick={handleLinkClick}
               className={({ isActive }) =>
-                `flex items-center p-2 rounded-lg transition-colors ${
+                `flex items-center justify-between p-2 rounded-lg transition-colors ${
                   isActive
                     ? 'bg-primary-100 dark:bg-primary-900 text-primary-600 dark:text-primary-300'
                     : 'hover:bg-gray-100 dark:hover:bg-gray-700'
                 }`
               }
             >
-              <Building2 className="h-6 w-6" />
-              <span className="ml-3">Government</span>
+              <div className="flex items-center">
+                <Building2 className="h-6 w-6" />
+                <span className="ml-3">Government</span>
+              </div>
+              {getCategoryCount('government') > 0 && (
+                <span className="bg-primary-100 dark:bg-primary-900 text-primary-600 dark:text-primary-300 text-xs font-medium px-2 py-1 rounded-full">
+                  {getCategoryCount('government')}
+                </span>
+              )}
             </NavLink>
 
             {/* Medical */}
@@ -210,15 +269,22 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile = false, onClose }) => {
               to="/category/medical"
               onClick={handleLinkClick}
               className={({ isActive }) =>
-                `flex items-center p-2 rounded-lg transition-colors ${
+                `flex items-center justify-between p-2 rounded-lg transition-colors ${
                   isActive
                     ? 'bg-primary-100 dark:bg-primary-900 text-primary-600 dark:text-primary-300'
                     : 'hover:bg-gray-100 dark:hover:bg-gray-700'
                 }`
               }
             >
-              <Heart className="h-6 w-6" />
-              <span className="ml-3">{translate('medical')}</span>
+              <div className="flex items-center">
+                <Heart className="h-6 w-6" />
+                <span className="ml-3">{translate('medical')}</span>
+              </div>
+              {getCategoryCount('medical') > 0 && (
+                <span className="bg-primary-100 dark:bg-primary-900 text-primary-600 dark:text-primary-300 text-xs font-medium px-2 py-1 rounded-full">
+                  {getCategoryCount('medical')}
+                </span>
+              )}
             </NavLink>
 
             {/* Insurance */}
@@ -226,15 +292,22 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile = false, onClose }) => {
               to="/category/insurance"
               onClick={handleLinkClick}
               className={({ isActive }) =>
-                `flex items-center p-2 rounded-lg transition-colors ${
+                `flex items-center justify-between p-2 rounded-lg transition-colors ${
                   isActive
                     ? 'bg-primary-100 dark:bg-primary-900 text-primary-600 dark:text-primary-300'
                     : 'hover:bg-gray-100 dark:hover:bg-gray-700'
                 }`
               }
             >
-              <Shield className="h-6 w-6" />
-              <span className="ml-3">{translate('insurance')}</span>
+              <div className="flex items-center">
+                <Shield className="h-6 w-6" />
+                <span className="ml-3">{translate('insurance')}</span>
+              </div>
+              {getCategoryCount('insurance') > 0 && (
+                <span className="bg-primary-100 dark:bg-primary-900 text-primary-600 dark:text-primary-300 text-xs font-medium px-2 py-1 rounded-full">
+                  {getCategoryCount('insurance')}
+                </span>
+              )}
             </NavLink>
 
             {/* Other */}
@@ -242,15 +315,22 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile = false, onClose }) => {
               to="/category/other"
               onClick={handleLinkClick}
               className={({ isActive }) =>
-                `flex items-center p-2 rounded-lg transition-colors ${
+                `flex items-center justify-between p-2 rounded-lg transition-colors ${
                   isActive
                     ? 'bg-primary-100 dark:bg-primary-900 text-primary-600 dark:text-primary-300'
                     : 'hover:bg-gray-100 dark:hover:bg-gray-700'
                 }`
               }
             >
-              <FolderOpen className="h-6 w-6" />
-              <span className="ml-3">{translate('other')}</span>
+              <div className="flex items-center">
+                <FolderOpen className="h-6 w-6" />
+                <span className="ml-3">{translate('other')}</span>
+              </div>
+              {getCategoryCount('other') > 0 && (
+                <span className="bg-primary-100 dark:bg-primary-900 text-primary-600 dark:text-primary-300 text-xs font-medium px-2 py-1 rounded-full">
+                  {getCategoryCount('other')}
+                </span>
+              )}
             </NavLink>
           </li>
         </ul>
