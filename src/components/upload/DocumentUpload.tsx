@@ -6,6 +6,7 @@ import {
   uploadDocumentWithAI,
   DocumentUploadProgress,
 } from '../../services/documentService';
+import { uploadDocumentOptimized } from '../../services/documentServiceOptimized';
 import CameraScanner from './CameraScanner';
 
 interface DocumentUploadProps {
@@ -308,7 +309,8 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
           }
         };
 
-        const document = await uploadDocumentWithAI(
+        // Use optimized upload for faster processing
+        const document = await uploadDocumentOptimized(
           file,
           currentUser.uid,
           undefined, // category
