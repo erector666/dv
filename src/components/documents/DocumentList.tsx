@@ -594,8 +594,27 @@ const DocumentList: React.FC<DocumentListProps> = ({
                   e.stopPropagation();
                   toggleDocumentSelection(docId);
                 } else if (!isBatchMode) {
-                  // Open document viewer when card is clicked
-                  handleDocumentClick(document);
+                  // Show document summary/preview when card is clicked
+                  const summary = document.metadata?.summary;
+                  if (summary && summary.length > 50) {
+                    // Show a preview of the document content
+                    const preview = summary.length > 200 
+                      ? summary.substring(0, 200) + '...' 
+                      : summary;
+                    alert(`Document Preview:\n\n${preview}`);
+                  } else {
+                    // Show basic document info if no summary available
+                    const info = [
+                      `Name: ${document.name}`,
+                      `Type: ${document.type}`,
+                      `Size: ${formatFileSize(document.size)}`,
+                      `Uploaded: ${formatDate(document.uploadedAt)}`,
+                      document.metadata?.language && `Language: ${document.metadata.language}`,
+                      document.metadata?.category && `Category: ${document.metadata.category}`,
+                      document.metadata?.wordCount && `Words: ${document.metadata.wordCount.toLocaleString()}`,
+                    ].filter(Boolean).join('\n');
+                    alert(`Document Information:\n\n${info}`);
+                  }
                 }
               }}
             >
