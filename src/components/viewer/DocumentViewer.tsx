@@ -15,6 +15,7 @@ interface DocumentViewerProps {
     url: string;
     type: string;
     uploadedAt: any;
+    lastModified?: any;
     size?: number;
     category?: string;
     tags?: string[];
