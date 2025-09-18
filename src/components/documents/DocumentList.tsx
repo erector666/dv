@@ -584,7 +584,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
           return (
             <div
               key={documentKey}
-              className={`bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden cursor-pointer hover:shadow-lg transition-all duration-200 ${
+              className={`bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden cursor-pointer hover:shadow-lg transition-all duration-200 border border-gray-200 dark:border-gray-700 ${
                 isBatchMode && isSelected
                   ? 'ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20'
                   : ''
@@ -616,8 +616,50 @@ const DocumentList: React.FC<DocumentListProps> = ({
                   </div>
                 )}
 
-                <div className="flex-shrink-0">
-                  {getDocumentIcon(document.type)}
+                {/* Document Preview Thumbnail */}
+                <div className="flex-shrink-0 relative">
+                  {document.metadata?.thumbnailUrl ? (
+                    <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+                      <img
+                        src={document.metadata.thumbnailUrl}
+                        alt={`${document.name} preview`}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          // Fallback to icon if thumbnail fails to load
+                          e.currentTarget.style.display = 'none';
+                          e.currentTarget.nextElementSibling!.style.display = 'block';
+                        }}
+                      />
+                      <div className="hidden w-full h-full flex items-center justify-center">
+                        {getDocumentIcon(document.type)}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="w-16 h-16 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+                      {getDocumentIcon(document.type)}
+                    </div>
+                  )}
+                  
+                  {/* Document Type Badge */}
+                  <div className="absolute -bottom-1 -right-1 bg-white dark:bg-gray-800 rounded-full p-1 shadow-sm border border-gray-200 dark:border-gray-600">
+                    <div className="w-4 h-4 text-gray-500 dark:text-gray-400">
+                      {document.type.startsWith('image/') && (
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>
+                        </svg>
+                      )}
+                      {document.type === 'application/pdf' && (
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                        </svg>
+                      )}
+                      {document.type.includes('word') && (
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                        </svg>
+                      )}
+                    </div>
+                  </div>
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="text-lg font-medium text-gray-900 dark:text-white truncate flex items-center gap-2">
@@ -642,7 +684,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
                     <p>{formatFileSize(document.size)}</p>
                     <p>{formatDate(document.uploadedAt)}</p>
 
-                    {/* Processing state */}
+                    {/* Enhanced Processing state */}
                     {document.status === 'processing' && (
                       <div className="mt-2 space-y-1">
                         <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
@@ -652,6 +694,60 @@ const DocumentList: React.FC<DocumentListProps> = ({
                           </svg>
                           Processing…
                         </div>
+                        {document.metadata?.processingSteps && (
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                            <div className="flex items-center space-x-1">
+                              <span>Steps:</span>
+                              {document.metadata.processingSteps.map((step: string, index: number) => (
+                                <span key={index} className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-gray-100 dark:bg-gray-700">
+                                  {step}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Document Status Indicators */}
+                    {document.status !== 'processing' && (
+                      <div className="mt-2 space-y-1">
+                        {/* Status Badge */}
+                        <div className="flex items-center space-x-2">
+                          <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                            document.status === 'completed' 
+                              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                              : document.status === 'failed'
+                              ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                              : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
+                          }`}>
+                            {document.status === 'completed' && '✅ Processed'}
+                            {document.status === 'failed' && '❌ Failed'}
+                            {document.status === 'pending' && '⏳ Pending'}
+                            {!['completed', 'failed', 'pending', 'processing'].includes(document.status) && '📄 Ready'}
+                          </div>
+                          
+                          {/* Quality Score */}
+                          {document.metadata?.qualityScore && (
+                            <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                              📊 Quality: {Math.round(document.metadata.qualityScore * 100)}%
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Processing Time */}
+                        {document.metadata?.processingTime && (
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                            ⏱️ Processed in {document.metadata.processingTime}ms
+                          </div>
+                        )}
+
+                        {/* Error Information */}
+                        {document.status === 'failed' && document.metadata?.error && (
+                          <div className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-2 rounded">
+                            <strong>Error:</strong> {document.metadata.error}
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -781,6 +877,264 @@ const DocumentList: React.FC<DocumentListProps> = ({
                               {document.metadata.textExtraction.wordCount.toLocaleString()}
                             </p>
                           )}
+
+                        {/* Document Analytics */}
+                        <div className="mt-2 space-y-1">
+                          {/* View Count */}
+                          {document.metadata?.viewCount && document.metadata.viewCount > 0 && (
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              👁️ Viewed {document.metadata.viewCount} time{document.metadata.viewCount !== 1 ? 's' : ''}
+                            </div>
+                          )}
+
+                          {/* Last Accessed */}
+                          {document.metadata?.lastAccessed && (
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              🕒 Last viewed: {formatDate(document.metadata.lastAccessed)}
+                            </div>
+                          )}
+
+                          {/* Document Age */}
+                          {document.uploadedAt && (
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              📅 Age: {(() => {
+                                const now = new Date();
+                                const uploaded = new Date(document.uploadedAt);
+                                const diffTime = Math.abs(now.getTime() - uploaded.getTime());
+                                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                                if (diffDays === 1) return '1 day';
+                                if (diffDays < 7) return `${diffDays} days`;
+                                if (diffDays < 30) return `${Math.ceil(diffDays / 7)} weeks`;
+                                if (diffDays < 365) return `${Math.ceil(diffDays / 30)} months`;
+                                return `${Math.ceil(diffDays / 365)} years`;
+                              })()}
+                            </div>
+                          )}
+
+                          {/* Security Indicators */}
+                          <div className="flex items-center space-x-2">
+                            {/* Encryption Status */}
+                            {document.metadata?.encrypted && (
+                              <div className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                                🔒 Encrypted
+                              </div>
+                            )}
+
+                            {/* Privacy Level */}
+                            {document.metadata?.privacyLevel && (
+                              <div className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs ${
+                                document.metadata.privacyLevel === 'public' 
+                                  ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                  : document.metadata.privacyLevel === 'private'
+                                  ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                                  : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                              }`}>
+                                {document.metadata.privacyLevel === 'public' && '🌐 Public'}
+                                {document.metadata.privacyLevel === 'private' && '🔐 Private'}
+                                {document.metadata.privacyLevel === 'restricted' && '⚠️ Restricted'}
+                              </div>
+                            )}
+
+                            {/* Sharing Status */}
+                            {document.metadata?.sharedWith && document.metadata.sharedWith.length > 0 && (
+                              <div className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                                👥 Shared ({document.metadata.sharedWith.length})
+                              </div>
+                            )}
+
+                            {/* Collaboration Status */}
+                            {document.metadata?.collaborators && document.metadata.collaborators.length > 0 && (
+                              <div className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+                                🤝 {document.metadata.collaborators.length} collaborator{document.metadata.collaborators.length !== 1 ? 's' : ''}
+                              </div>
+                            )}
+
+                            {/* Document Lock Status */}
+                            {document.metadata?.locked && (
+                              <div className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200">
+                                🔒 Locked
+                              </div>
+                            )}
+
+                            {/* Document Archive Status */}
+                            {document.metadata?.archived && (
+                              <div className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">
+                                📦 Archived
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Document Health */}
+                          {document.metadata?.healthScore && (
+                            <div className="text-xs">
+                              <div className="flex items-center space-x-1">
+                                <span>🏥 Health:</span>
+                                <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
+                                  <div 
+                                    className={`h-1.5 rounded-full ${
+                                      document.metadata.healthScore > 0.8 
+                                        ? 'bg-green-500' 
+                                        : document.metadata.healthScore > 0.6 
+                                        ? 'bg-yellow-500' 
+                                        : 'bg-red-500'
+                                    }`}
+                                    style={{ width: `${document.metadata.healthScore * 100}%` }}
+                                  ></div>
+                                </div>
+                                <span className="text-gray-500 dark:text-gray-400">
+                                  {Math.round(document.metadata.healthScore * 100)}%
+                                </span>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Document Version */}
+                          {document.metadata?.version && (
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              📋 Version: {document.metadata.version}
+                            </div>
+                          )}
+
+                          {/* Version History */}
+                          {document.metadata?.versionHistory && document.metadata.versionHistory.length > 0 && (
+                            <div className="text-xs">
+                              <div className="flex items-center space-x-1">
+                                <span className="text-gray-500 dark:text-gray-400">📚 Versions:</span>
+                                <div className="flex space-x-1">
+                                  {document.metadata.versionHistory.slice(0, 3).map((version: any, index: number) => (
+                                    <span
+                                      key={index}
+                                      className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs ${
+                                        index === 0 
+                                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                          : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
+                                      }`}
+                                      title={`Version ${version.number} - ${version.date}`}
+                                    >
+                                      v{version.number}
+                                    </span>
+                                  ))}
+                                  {document.metadata.versionHistory.length > 3 && (
+                                    <span className="text-gray-400">
+                                      +{document.metadata.versionHistory.length - 3}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Change Tracking */}
+                          {document.metadata?.lastModified && document.metadata.lastModified !== document.uploadedAt && (
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              🔄 Modified: {formatDate(document.metadata.lastModified)}
+                            </div>
+                          )}
+
+                          {/* Document Changes */}
+                          {document.metadata?.changes && document.metadata.changes.length > 0 && (
+                            <div className="text-xs">
+                              <div className="flex items-center space-x-1">
+                                <span className="text-gray-500 dark:text-gray-400">📝 Changes:</span>
+                                <span className="text-blue-600 dark:text-blue-400">
+                                  {document.metadata.changes.length} edit{document.metadata.changes.length !== 1 ? 's' : ''}
+                                </span>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* AI Model Used */}
+                          {document.metadata?.aiModel && (
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              🤖 AI Model: {document.metadata.aiModel}
+                            </div>
+                          )}
+
+                          {/* Processing Confidence */}
+                          {document.metadata?.overallConfidence && (
+                            <div className="text-xs">
+                              <div className="flex items-center space-x-1">
+                                <span>🎯 Confidence:</span>
+                                <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
+                                  <div 
+                                    className={`h-1.5 rounded-full ${
+                                      document.metadata.overallConfidence > 0.8 
+                                        ? 'bg-green-500' 
+                                        : document.metadata.overallConfidence > 0.6 
+                                        ? 'bg-yellow-500' 
+                                        : 'bg-red-500'
+                                    }`}
+                                    style={{ width: `${document.metadata.overallConfidence * 100}%` }}
+                                  ></div>
+                                </div>
+                                <span className="text-gray-500 dark:text-gray-400">
+                                  {Math.round(document.metadata.overallConfidence * 100)}%
+                                </span>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Document Analytics */}
+                          {document.metadata?.analytics && (
+                            <div className="mt-2 space-y-1">
+                              <div className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                                📊 Analytics
+                              </div>
+                              
+                              {/* Download Count */}
+                              {document.metadata.analytics.downloadCount && (
+                                <div className="text-xs text-gray-500 dark:text-gray-400">
+                                  ⬇️ Downloads: {document.metadata.analytics.downloadCount}
+                                </div>
+                              )}
+
+                              {/* Share Count */}
+                              {document.metadata.analytics.shareCount && (
+                                <div className="text-xs text-gray-500 dark:text-gray-400">
+                                  🔗 Shares: {document.metadata.analytics.shareCount}
+                                </div>
+                              )}
+
+                              {/* Edit Count */}
+                              {document.metadata.analytics.editCount && (
+                                <div className="text-xs text-gray-500 dark:text-gray-400">
+                                  ✏️ Edits: {document.metadata.analytics.editCount}
+                                </div>
+                              )}
+
+                              {/* Comment Count */}
+                              {document.metadata.analytics.commentCount && (
+                                <div className="text-xs text-gray-500 dark:text-gray-400">
+                                  💬 Comments: {document.metadata.analytics.commentCount}
+                                </div>
+                              )}
+
+                              {/* Popularity Score */}
+                              {document.metadata.analytics.popularityScore && (
+                                <div className="text-xs">
+                                  <div className="flex items-center space-x-1">
+                                    <span className="text-gray-500 dark:text-gray-400">🔥 Popularity:</span>
+                                    <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
+                                      <div 
+                                        className={`h-1.5 rounded-full ${
+                                          document.metadata.analytics.popularityScore > 0.8 
+                                            ? 'bg-red-500' 
+                                            : document.metadata.analytics.popularityScore > 0.6 
+                                            ? 'bg-orange-500' 
+                                            : 'bg-yellow-500'
+                                        }`}
+                                        style={{ width: `${document.metadata.analytics.popularityScore * 100}%` }}
+                                      ></div>
+                                    </div>
+                                    <span className="text-gray-500 dark:text-gray-400">
+                                      {Math.round(document.metadata.analytics.popularityScore * 100)}%
+                                    </span>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
 
                         {/* Summary Preview */}
                         {document.metadata?.summary ? (
@@ -930,6 +1284,80 @@ const DocumentList: React.FC<DocumentListProps> = ({
                       </svg>
                     </div>
                   )}
+                </div>
+              </div>
+
+              {/* Document Quick Actions Toolbar */}
+              <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 px-4 py-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-4 text-xs text-gray-500 dark:text-gray-400">
+                    {/* Quick Stats */}
+                    <div className="flex items-center space-x-1">
+                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                      </svg>
+                      <span>{document.status === 'completed' ? 'Processed' : document.status}</span>
+                    </div>
+                    
+                    {document.metadata?.viewCount && (
+                      <div className="flex items-center space-x-1">
+                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
+                          <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd"/>
+                        </svg>
+                        <span>{document.metadata.viewCount} views</span>
+                      </div>
+                    )}
+
+                    {document.metadata?.lastAccessed && (
+                      <div className="flex items-center space-x-1">
+                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd"/>
+                        </svg>
+                        <span>Last: {formatDate(document.metadata.lastAccessed)}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    {/* Quick Action Buttons */}
+                    <button
+                      onClick={e => {
+                        e.stopPropagation();
+                        handleDocumentClick(document);
+                      }}
+                      className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-200 dark:hover:bg-blue-800 transition-colors"
+                      title="View document"
+                    >
+                      View
+                    </button>
+                    
+                    {document.url && (
+                      <button
+                        onClick={e => {
+                          e.stopPropagation();
+                          const link = document.createElement('a');
+                          link.href = document.url;
+                          link.download = document.name;
+                          link.click();
+                        }}
+                        className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 dark:bg-green-900 dark:text-green-200 dark:hover:bg-green-800 transition-colors"
+                        title="Download document"
+                      >
+                        Download
+                      </button>
+                    )}
+
+                    {document.firestoreId && document.firestoreId !== '' && (
+                      <button
+                        onClick={e => handleDeleteClick(e, document)}
+                        className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 dark:bg-red-900 dark:text-red-200 dark:hover:bg-red-800 transition-colors"
+                        title="Delete document"
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
