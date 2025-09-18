@@ -54,11 +54,6 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Use mobile viewer for small screens (after all hooks are initialized)
-  if (isMobile) {
-    return <DocumentViewerMobile document={document} onClose={onClose} />;
-  }
-
   // Close full text overlay with Escape (hook must run unconditionally)
   useEffect(() => {
     if (!isFullTextOpen) return;
@@ -70,6 +65,11 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [isFullTextOpen]);
+
+  // Use mobile viewer for small screens (after all hooks are initialized)
+  if (isMobile) {
+    return <DocumentViewerMobile document={document} onClose={onClose} />;
+  }
 
   // Early fallback rendering if document is missing
   if (!document) {
