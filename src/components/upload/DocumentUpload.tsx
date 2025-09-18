@@ -40,8 +40,53 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
   const [fileTypeFilter, setFileTypeFilter] = useState<string>('all');
   const [totalFilesToUpload, setTotalFilesToUpload] = useState(0);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string>('other');
+  const [aiSuggestedCategory, setAiSuggestedCategory] = useState<string | null>(null);
+  const [showAiSuggestion, setShowAiSuggestion] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Available categories
+  const categories = [
+    { key: 'personal', label: 'Personal', icon: '📄' },
+    { key: 'bills', label: 'Bills & Financial', icon: '💰' },
+    { key: 'medical', label: 'Medical', icon: '🏥' },
+    { key: 'insurance', label: 'Insurance', icon: '🛡️' },
+    { key: 'other', label: 'Other', icon: '📁' },
+  ];
+
+  // Function to suggest category based on file name and type
+  const suggestCategoryFromFileName = (fileName: string, fileType: string): string | null => {
+    const name = fileName.toLowerCase();
+    
+    // Medical keywords
+    if (name.includes('medical') || name.includes('health') || name.includes('doctor') || 
+        name.includes('prescription') || name.includes('lab') || name.includes('test') ||
+        name.includes('insurance') && (name.includes('health') || name.includes('medical'))) {
+      return 'medical';
+    }
+    
+    // Financial/Bills keywords
+    if (name.includes('bill') || name.includes('invoice') || name.includes('receipt') ||
+        name.includes('payment') || name.includes('bank') || name.includes('statement') ||
+        name.includes('tax') || name.includes('financial') || name.includes('expense')) {
+      return 'bills';
+    }
+    
+    // Insurance keywords
+    if (name.includes('insurance') || name.includes('policy') || name.includes('claim') ||
+        name.includes('coverage') || name.includes('premium')) {
+      return 'insurance';
+    }
+    
+    // Personal keywords
+    if (name.includes('personal') || name.includes('private') || name.includes('id') ||
+        name.includes('passport') || name.includes('license') || name.includes('certificate')) {
+      return 'personal';
+    }
+    
+    return null;
+  };
 
   const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -93,6 +138,15 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
       const droppedFiles = Array.from(e.dataTransfer.files);
       const validFiles = droppedFiles.filter(validateFile);
       setFiles(prevFiles => [...prevFiles, ...validFiles]);
+      
+      // Suggest category based on first file
+      if (validFiles.length > 0) {
+        const suggestion = suggestCategoryFromFileName(validFiles[0].name, validFiles[0].type);
+        if (suggestion && suggestion !== selectedCategory) {
+          setAiSuggestedCategory(suggestion);
+          setShowAiSuggestion(true);
+        }
+      }
     }
   };
 
@@ -102,6 +156,15 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
       const selectedFiles = Array.from(e.target.files);
       const validFiles = selectedFiles.filter(validateFile);
       setFiles(prevFiles => [...prevFiles, ...validFiles]);
+      
+      // Suggest category based on first file
+      if (validFiles.length > 0) {
+        const suggestion = suggestCategoryFromFileName(validFiles[0].name, validFiles[0].type);
+        if (suggestion && suggestion !== selectedCategory) {
+          setAiSuggestedCategory(suggestion);
+          setShowAiSuggestion(true);
+        }
+      }
     }
   };
 
@@ -149,6 +212,13 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
 
   const handleCameraCapture = (file: File) => {
     setFiles(prev => [file, ...prev]);
+    
+    // Suggest category based on captured file
+    const suggestion = suggestCategoryFromFileName(file.name, file.type);
+    if (suggestion && suggestion !== selectedCategory) {
+      setAiSuggestedCategory(suggestion);
+      setShowAiSuggestion(true);
+    }
   };
 
   const handleSortFiles = (newSortBy: 'name' | 'size' | 'type') => {
@@ -315,7 +385,7 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
           document = await uploadDocumentOptimized(
             file,
             currentUser.uid,
-            undefined, // category
+            selectedCategory, // Use selected category
             undefined, // tags
             undefined, // metadata
             onProgress,
@@ -327,7 +397,7 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
           document = await uploadDocumentWithAI(
             file,
             currentUser.uid,
-            undefined, // category
+            selectedCategory, // Use selected category
             undefined, // tags
             undefined, // metadata
             onProgress,
@@ -466,6 +536,76 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
           </div>
         </div>
       </motion.div>
+
+      {/* Category Selection */}
+      <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+        <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-3">
+          📁 Select Category
+        </h4>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+          Choose the category for your documents. This helps organize your files.
+        </p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          {categories.map((category) => (
+            <button
+              key={category.key}
+              onClick={() => setSelectedCategory(category.key)}
+              className={`p-3 rounded-lg border-2 transition-all duration-200 ${
+                selectedCategory === category.key
+                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
+                  : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 text-gray-700 dark:text-gray-300'
+              }`}
+            >
+              <div className="text-center">
+                <div className="text-2xl mb-1">{category.icon}</div>
+                <div className="text-xs font-medium">{category.label}</div>
+              </div>
+            </button>
+          ))}
+        </div>
+        {showAiSuggestion && aiSuggestedCategory && (
+          <div className="mt-3 p-3 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <span className="text-lg">🤖</span>
+                <div>
+                  <p className="text-sm font-medium text-purple-800 dark:text-purple-200">
+                    AI Suggestion
+                  </p>
+                  <p className="text-xs text-purple-600 dark:text-purple-400">
+                    Based on your file name, we suggest: {categories.find(c => c.key === aiSuggestedCategory)?.icon} {categories.find(c => c.key === aiSuggestedCategory)?.label}
+                  </p>
+                </div>
+              </div>
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => {
+                    setSelectedCategory(aiSuggestedCategory);
+                    setShowAiSuggestion(false);
+                  }}
+                  className="px-3 py-1 text-xs bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
+                >
+                  Use Suggestion
+                </button>
+                <button
+                  onClick={() => setShowAiSuggestion(false)}
+                  className="px-3 py-1 text-xs text-purple-600 hover:text-purple-800 transition-colors"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {selectedCategory && (
+          <div className="mt-3 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-md">
+            <p className="text-sm text-blue-700 dark:text-blue-300">
+              <span className="font-medium">Selected:</span> {categories.find(c => c.key === selectedCategory)?.icon} {categories.find(c => c.key === selectedCategory)?.label}
+            </p>
+          </div>
+        )}
+      </div>
 
       {/* Batch Upload Progress */}
       {isUploading && totalFilesToUpload > 1 && (
