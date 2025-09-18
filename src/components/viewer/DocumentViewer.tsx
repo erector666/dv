@@ -27,24 +27,8 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
   document,
   onClose,
 }) => {
-  // Check if mobile view
+  // Initialize all hooks before any conditional logic
   const [isMobile, setIsMobile] = useState(false);
-  
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768); // md breakpoint
-    };
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
-  // Use mobile viewer for small screens
-  if (isMobile) {
-    return <DocumentViewerMobile document={document} onClose={onClose} />;
-  }
-
-  // Initialize state with proper types
   const [translationResult, setTranslationResult] =
     useState<TranslationResult | null>(null);
   const { translate } = useLanguage();
@@ -54,12 +38,26 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
   const [isTranslating, setIsTranslating] = useState(false);
   const [isGeneratingMetadata, setIsGeneratingMetadata] = useState(false);
   const [isConvertingToPDF, setIsConvertingToPDF] = useState(false);
-  // State for translation result with proper null checks
   const [metadataResult, setMetadataResult] = useState<any>(null);
   const [selectedLanguage, setSelectedLanguage] = useState<string>('');
   const [showTextPanel, setShowTextPanel] = useState(false);
   const [textSearch, setTextSearch] = useState('');
   const [isFullTextOpen, setIsFullTextOpen] = useState(false);
+  
+  // Check if mobile view
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768); // md breakpoint
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Use mobile viewer for small screens (after all hooks are initialized)
+  if (isMobile) {
+    return <DocumentViewerMobile document={document} onClose={onClose} />;
+  }
 
   // Close full text overlay with Escape (hook must run unconditionally)
   useEffect(() => {
