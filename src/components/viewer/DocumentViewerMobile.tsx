@@ -472,7 +472,7 @@ const DocumentViewerMobile: React.FC<DocumentViewerProps> = ({
         </div>
       )}
 
-      <style jsx>{`
+      <style>{`
         .safe-top {
           padding-top: env(safe-area-inset-top, 12px);
         }
