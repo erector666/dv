@@ -726,7 +726,6 @@ const DocumentList: React.FC<DocumentListProps> = ({
                           }`}>
                             {document.status === 'ready' && '✅ Processed'}
                             {document.status === 'error' && '❌ Failed'}
-                            {document.status === 'processing' && '⏳ Processing'}
                             {!document.status && '📄 Ready'}
                           </div>
                           
