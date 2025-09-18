@@ -1310,7 +1310,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
                       <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                         <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                       </svg>
-                      <span>{document.status === 'ready' ? 'Processed' : document.status || 'Ready'}</span>
+                      <span>{document.status === 'ready' ? 'Processed' : document.status === 'error' ? 'Failed' : document.status === 'processing' ? 'Processing' : 'Ready'}</span>
                     </div>
                     
                     {document.metadata?.viewCount && (
