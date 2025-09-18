@@ -548,11 +548,13 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
         </motion.div>
       )}
 
-      {/* Batch Actions Toolbar */}
+      {/* Batch Actions Toolbar - Mobile Optimized */}
       {files.length > 0 && (
         <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-4">
+          {/* Mobile Layout */}
+          <div className="lg:hidden space-y-3">
+            {/* Selection Controls */}
+            <div className="flex items-center justify-between">
               <label className="flex items-center space-x-2">
                 <input
                   type="checkbox"
@@ -566,78 +568,151 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
                     : 'Select All'}
                 </span>
               </label>
-              <span className="text-sm text-gray-500">
-                {selectedFiles.size} of {files.length} files selected
-              </span>
-              <span className="text-xs text-gray-400 bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded">
-                {getFilteredAndSortedFiles().length} files shown
+              <span className="text-xs text-gray-500">
+                {selectedFiles.size}/{files.length} selected
               </span>
             </div>
 
-            <div className="flex items-center space-x-4">
-              {/* File Type Filter */}
-              <div className="flex items-center space-x-2">
-                <span className="text-xs text-gray-500">Filter:</span>
-                <select
-                  value={fileTypeFilter}
-                  onChange={e => setFileTypeFilter(e.target.value)}
-                  className="px-2 py-1 text-xs border border-gray-300 rounded-md bg-white dark:bg-gray-700 dark:border-gray-600 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="all">All Files</option>
-                  <option value="images">Images</option>
-                  <option value="documents">Documents</option>
-                  <option value="pdf">PDF Only</option>
-                </select>
-              </div>
+            {/* Filter and Sort Row */}
+            <div className="flex items-center gap-2">
+              <select
+                value={fileTypeFilter}
+                onChange={e => setFileTypeFilter(e.target.value)}
+                className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded-md bg-white dark:bg-gray-700 dark:border-gray-600"
+              >
+                <option value="all">All Files</option>
+                <option value="images">Images</option>
+                <option value="documents">Documents</option>
+                <option value="pdf">PDF Only</option>
+              </select>
+              
+              <select
+                value={`${sortBy}-${sortOrder}`}
+                onChange={e => {
+                  const [newSortBy, newSortOrder] = e.target.value.split('-') as ['name' | 'size' | 'type', 'asc' | 'desc'];
+                  setSortBy(newSortBy);
+                  setSortOrder(newSortOrder);
+                }}
+                className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded-md bg-white dark:bg-gray-700 dark:border-gray-600"
+              >
+                <option value="name-asc">Name ↑</option>
+                <option value="name-desc">Name ↓</option>
+                <option value="size-asc">Size ↑</option>
+                <option value="size-desc">Size ↓</option>
+                <option value="type-asc">Type ↑</option>
+                <option value="type-desc">Type ↓</option>
+              </select>
+            </div>
 
-              {/* Sorting Controls */}
-              <div className="flex items-center space-x-2">
-                <span className="text-xs text-gray-500">Sort by:</span>
-                {(['name', 'size', 'type'] as const).map(sortOption => (
-                  <button
-                    key={sortOption}
-                    onClick={() => handleSortFiles(sortOption)}
-                    className={`px-2 py-1 text-xs rounded-md transition-colors ${
-                      sortBy === sortOption
-                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
-                        : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-300 dark:hover:bg-gray-700'
-                    }`}
-                  >
-                    {sortOption.charAt(0).toUpperCase() + sortOption.slice(1)}
-                    {sortBy === sortOption && (
-                      <span className="ml-1">
-                        {sortOrder === 'asc' ? '↑' : '↓'}
-                      </span>
-                    )}
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex items-center space-x-2">
-                {selectedFiles.size > 0 && (
-                  <>
-                    <button
-                      onClick={handleRemoveSelectedFiles}
-                      className="px-3 py-1 text-sm text-red-600 hover:text-red-800 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/20 rounded-md transition-colors"
-                    >
-                      Remove Selected ({selectedFiles.size})
-                    </button>
-                    <span className="text-gray-300">|</span>
-                  </>
-                )}
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2">
+              {selectedFiles.size > 0 && (
                 <button
-                  onClick={handleClearAllFiles}
-                  className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-50 dark:text-gray-400 dark:hover:text-gray-300 dark:hover:bg-gray-700 rounded-md transition-colors"
+                  onClick={handleRemoveSelectedFiles}
+                  className="flex-1 px-3 py-1.5 text-xs text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400 rounded-md"
                 >
-                  Clear All
+                  Remove ({selectedFiles.size})
                 </button>
+              )}
+              <button
+                onClick={handleClearAllFiles}
+                className="flex-1 px-3 py-1.5 text-xs text-gray-600 bg-gray-100 dark:bg-gray-700 dark:text-gray-300 rounded-md"
+              >
+                Clear All
+              </button>
+            </div>
+          </div>
+
+          {/* Desktop Layout */}
+          <div className="hidden lg:block">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-4">
+                <label className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    checked={selectedFiles.size === files.length}
+                    onChange={handleSelectAllFiles}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-sm font-medium">
+                    {selectedFiles.size === files.length
+                      ? 'Deselect All'
+                      : 'Select All'}
+                  </span>
+                </label>
+                <span className="text-sm text-gray-500">
+                  {selectedFiles.size} of {files.length} files selected
+                </span>
+                <span className="text-xs text-gray-400 bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded">
+                  {getFilteredAndSortedFiles().length} files shown
+                </span>
+              </div>
+
+              <div className="flex items-center space-x-4">
+                {/* File Type Filter */}
+                <div className="flex items-center space-x-2">
+                  <span className="text-xs text-gray-500">Filter:</span>
+                  <select
+                    value={fileTypeFilter}
+                    onChange={e => setFileTypeFilter(e.target.value)}
+                    className="px-2 py-1 text-xs border border-gray-300 rounded-md bg-white dark:bg-gray-700 dark:border-gray-600 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="all">All Files</option>
+                    <option value="images">Images</option>
+                    <option value="documents">Documents</option>
+                    <option value="pdf">PDF Only</option>
+                  </select>
+                </div>
+
+                {/* Sorting Controls */}
+                <div className="flex items-center space-x-2">
+                  <span className="text-xs text-gray-500">Sort by:</span>
+                  {(['name', 'size', 'type'] as const).map(sortOption => (
+                    <button
+                      key={sortOption}
+                      onClick={() => handleSortFiles(sortOption)}
+                      className={`px-2 py-1 text-xs rounded-md transition-colors ${
+                        sortBy === sortOption
+                          ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
+                          : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-300 dark:hover:bg-gray-700'
+                      }`}
+                    >
+                      {sortOption.charAt(0).toUpperCase() + sortOption.slice(1)}
+                      {sortBy === sortOption && (
+                        <span className="ml-1">
+                          {sortOrder === 'asc' ? '↑' : '↓'}
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  {selectedFiles.size > 0 && (
+                    <>
+                      <button
+                        onClick={handleRemoveSelectedFiles}
+                        className="px-3 py-1 text-sm text-red-600 hover:text-red-800 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/20 rounded-md transition-colors"
+                      >
+                        Remove Selected ({selectedFiles.size})
+                      </button>
+                      <span className="text-gray-300">|</span>
+                    </>
+                  )}
+                  <button
+                    onClick={handleClearAllFiles}
+                    className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-50 dark:text-gray-400 dark:hover:text-gray-300 dark:hover:bg-gray-700 rounded-md transition-colors"
+                  >
+                    Clear All
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* File List */}
+      {/* File List - Mobile Optimized */}
       {files.length > 0 && (
         <div className="mt-4">
           <h4 className="text-lg font-medium mb-4">
@@ -651,9 +726,9 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
                 whileHover={{ scale: 1.02, y: -2 }}
-                className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-md shadow-sm hover:shadow-md transition-all duration-200"
+                className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-md shadow-sm hover:shadow-md transition-all duration-200"
               >
-                <div className="flex items-center space-x-3">
+                <div className="flex items-start sm:items-center space-x-2 sm:space-x-3 flex-1">
                   {/* File Selection Checkbox */}
                   <input
                     type="checkbox"
@@ -661,11 +736,11 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
                     onChange={e =>
                       handleSelectFile(file.name, e.target.checked)
                     }
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    className="mt-1 sm:mt-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     disabled={isUploading}
                   />
 
-                  <div className="text-gray-500 dark:text-gray-400">
+                  <div className="text-gray-500 dark:text-gray-400 flex-shrink-0">
                     {file.type.startsWith('image/') ? (
                       <svg
                         className="h-5 w-5 text-blue-500"
@@ -705,12 +780,12 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center space-x-2">
-                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-2">
+                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate max-w-[200px] sm:max-w-none">
                         {file.name}
                       </p>
                       {file.type !== 'application/pdf' && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 mt-1 sm:mt-0 w-fit">
                           Will convert to PDF
                         </span>
                       )}
@@ -720,15 +795,15 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
                         {(file.size / 1024 / 1024).toFixed(2)} MB
                       </p>
                       <span className="text-xs text-gray-400">•</span>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        {file.type}
+                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[150px] sm:max-w-none">
+                        {file.type || 'Unknown type'}
                       </p>
                     </div>
                   </div>
                 </div>
 
                 {isUploading && uploadProgress[file.name] !== undefined ? (
-                  <div className="w-32">
+                  <div className="w-full sm:w-32 mt-3 sm:mt-0">
                     <div className="flex items-center space-x-2 mb-2">
                       <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
                       <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">
@@ -792,7 +867,7 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
                       e.stopPropagation();
                       handleRemoveFile(index);
                     }}
-                    className="text-red-500 hover:text-red-700 focus:outline-none"
+                    className="text-red-500 hover:text-red-700 focus:outline-none mt-3 sm:mt-0 self-end sm:self-auto"
                     aria-label={translate('upload.removeFile')}
                   >
                     <svg
@@ -828,22 +903,21 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
         </motion.div>
       )}
 
-      {/* Upload Buttons */}
+      {/* Upload Buttons - Mobile Optimized */}
       {files.length > 0 && (
-        <div className="mt-6 flex justify-between items-center">
-          <div className="flex items-center space-x-2">
-            {selectedFiles.size > 0 && (
-              <motion.button
-                onClick={() => handleUpload(true)} // true = upload only selected
-                disabled={isUploading}
-                whileHover={!isUploading ? { scale: 1.05, y: -2 } : {}}
-                whileTap={!isUploading ? { scale: 0.95 } : {}}
-                className={`px-4 py-2 rounded-md text-white text-sm font-medium shadow-lg transition-all duration-200 ${
-                  isUploading
-                    ? 'bg-gradient-to-r from-gray-400 to-gray-500 cursor-not-allowed shadow-md'
-                    : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 hover:shadow-xl'
-                }`}
-              >
+        <div className="mt-6 flex flex-col sm:flex-row gap-3 sm:justify-between sm:items-center">
+          {selectedFiles.size > 0 && (
+            <motion.button
+              onClick={() => handleUpload(true)} // true = upload only selected
+              disabled={isUploading}
+              whileHover={!isUploading ? { scale: 1.05, y: -2 } : {}}
+              whileTap={!isUploading ? { scale: 0.95 } : {}}
+              className={`w-full sm:w-auto px-4 py-2 rounded-md text-white text-sm font-medium shadow-lg transition-all duration-200 ${
+                isUploading
+                  ? 'bg-gradient-to-r from-gray-400 to-gray-500 cursor-not-allowed shadow-md'
+                  : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 hover:shadow-xl'
+              }`}
+            >
                 {isUploading ? (
                   <div className="inline-flex items-center space-x-3">
                     <div className="flex space-x-1">
@@ -907,22 +981,20 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
                 ) : (
                   `Upload Selected (${selectedFiles.size})`
                 )}
-              </motion.button>
-            )}
-          </div>
+            </motion.button>
+          )}
 
-          <div className="flex items-center space-x-2">
-            <motion.button
-              onClick={() => handleUpload(false)} // false = upload all
-              disabled={isUploading}
-              whileHover={!isUploading ? { scale: 1.05, y: -2 } : {}}
-              whileTap={!isUploading ? { scale: 0.95 } : {}}
-              className={`px-6 py-2 rounded-md text-white font-medium shadow-lg transition-all duration-200 ${
-                isUploading
-                  ? 'bg-gradient-to-r from-gray-400 to-gray-500 cursor-not-allowed shadow-md'
-                  : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 hover:shadow-xl'
-              }`}
-            >
+          <motion.button
+            onClick={() => handleUpload(false)} // false = upload all
+            disabled={isUploading}
+            whileHover={!isUploading ? { scale: 1.05, y: -2 } : {}}
+            whileTap={!isUploading ? { scale: 0.95 } : {}}
+            className={`w-full sm:w-auto px-6 py-2 rounded-md text-white font-medium shadow-lg transition-all duration-200 ${
+              isUploading
+                ? 'bg-gradient-to-r from-gray-400 to-gray-500 cursor-not-allowed shadow-md'
+                : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 hover:shadow-xl'
+            }`}
+          >
               {isUploading ? (
                 <div className="inline-flex items-center space-x-3">
                   <div className="flex space-x-1">
@@ -986,8 +1058,7 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
               ) : (
                 `Upload All (${files.length})`
               )}
-            </motion.button>
-          </div>
+          </motion.button>
         </div>
       )}
 
