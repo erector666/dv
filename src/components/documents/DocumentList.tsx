@@ -457,87 +457,95 @@ const DocumentList: React.FC<DocumentListProps> = ({
       {/* Batch Operations Toolbar */}
       <div className="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
         <div className="p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={toggleBatchMode}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  isBatchMode
-                    ? 'bg-blue-600 text-white hover:bg-blue-700'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
-                }`}
-              >
-                {isBatchMode ? '✅ Exit Batch Mode' : '📋 Batch Mode'}
-              </button>
+          {/* Mobile-responsive batch mode header */}
+          <div className="space-y-4">
+            {/* Top row: Batch mode toggle and selection count */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                <button
+                  onClick={toggleBatchMode}
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                    isBatchMode
+                      ? 'bg-blue-600 text-white hover:bg-blue-700'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                  }`}
+                >
+                  {isBatchMode ? '✅ Exit Batch Mode' : '📋 Batch Mode'}
+                </button>
 
-              {isBatchMode && (
-                <>
+                {isBatchMode && (
                   <div className="text-sm text-gray-600 dark:text-gray-400">
                     {selectedDocuments.size} of {filteredDocuments?.length || 0}{' '}
                     selected
                   </div>
+                )}
+              </div>
 
-                  <div className="flex items-center space-x-2">
-                    <button
-                      onClick={selectAllDocuments}
-                      className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+              {/* Batch action buttons - responsive layout */}
+              {isBatchMode && selectedDocuments.size > 0 && (
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <button
+                    onClick={handleReprocessSelectedDocuments}
+                    disabled={selectedDocuments.size === 0 || isReprocessing}
+                    className="px-3 sm:px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center space-x-2 text-sm sm:text-base"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="w-4 h-4 flex-shrink-0"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
                     >
-                      Select All
-                    </button>
-                    <button
-                      onClick={deselectAllDocuments}
-                      className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+                      <polyline points="23 4 23 10 17 10"></polyline>
+                      <polyline points="1 20 1 14 7 14"></polyline>
+                      <path d="M3.51 9a9 9 0 0114.13-3.36L23 10"></path>
+                      <path d="M20.49 15a9 9 0 01-14.13 3.36L1 14"></path>
+                    </svg>
+                    <span className="hidden sm:inline">Reprocess Selected ({selectedDocuments.size})</span>
+                    <span className="sm:hidden">Reprocess ({selectedDocuments.size})</span>
+                  </button>
+                  <button
+                    onClick={handleBatchDelete}
+                    disabled={selectedDocuments.size === 0}
+                    className="px-3 sm:px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center space-x-2 text-sm sm:text-base"
+                  >
+                    <svg
+                      className="w-4 h-4 flex-shrink-0"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
                     >
-                      Deselect All
-                    </button>
-                  </div>
-                </>
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1 1h-4a1 1 0 00-1 1v3M4 7h16"
+                      />
+                    </svg>
+                    <span className="hidden sm:inline">Delete Selected ({selectedDocuments.size})</span>
+                    <span className="sm:hidden">Delete ({selectedDocuments.size})</span>
+                  </button>
+                </div>
               )}
             </div>
 
-            {isBatchMode && selectedDocuments.size > 0 && (
-              <div className="flex items-center space-x-2">
+            {/* Bottom row: Select All / Deselect All buttons - only show when in batch mode */}
+            {isBatchMode && (
+              <div className="flex flex-col sm:flex-row gap-2">
                 <button
-                  onClick={handleReprocessSelectedDocuments}
-                  disabled={selectedDocuments.size === 0 || isReprocessing}
-                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center space-x-2"
+                  onClick={selectAllDocuments}
+                  className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
                 >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="w-4 h-4"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <polyline points="23 4 23 10 17 10"></polyline>
-                    <polyline points="1 20 1 14 7 14"></polyline>
-                    <path d="M3.51 9a9 9 0 0114.13-3.36L23 10"></path>
-                    <path d="M20.49 15a9 9 0 01-14.13 3.36L1 14"></path>
-                  </svg>
-                  <span>Reprocess Selected ({selectedDocuments.size})</span>
+                  Select All
                 </button>
                 <button
-                  onClick={handleBatchDelete}
-                  disabled={selectedDocuments.size === 0}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center space-x-2"
+                  onClick={deselectAllDocuments}
+                  className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
                 >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1 1h-4a1 1 0 00-1 1v3M4 7h16"
-                    />
-                  </svg>
-                  <span>Delete Selected ({selectedDocuments.size})</span>
+                  Deselect All
                 </button>
               </div>
             )}
