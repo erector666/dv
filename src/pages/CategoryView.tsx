@@ -20,7 +20,7 @@ const CategoryView: React.FC = () => {
     const categoryNames: Record<string, string> = {
       personal: 'Personal',
       financial: 'Financial',
-      education: 'Education', 
+      education: 'Education',
       legal: 'Legal',
       government: 'Government',
       medical: 'Medical',
@@ -28,7 +28,10 @@ const CategoryView: React.FC = () => {
       other: 'Other',
       bills: 'Financial', // Legacy mapping
     };
-    return categoryNames[category] || category.charAt(0).toUpperCase() + category.slice(1);
+    return (
+      categoryNames[category] ||
+      category.charAt(0).toUpperCase() + category.slice(1)
+    );
   };
 
   const categoryDisplayName = getCategoryDisplayName(categoryId || 'other');
@@ -142,8 +145,8 @@ const CategoryView: React.FC = () => {
               No documents in this category yet
             </h2>
             <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto">
-              Upload your first document to the {categoryDisplayName}{' '}
-              category to get started
+              Upload your first document to the {categoryDisplayName} category
+              to get started
             </p>
             <button
               onClick={() => setIsUploadModalOpen(true)}

@@ -34,34 +34,71 @@ export interface TextLanguageDetectionResult {
 /**
  * Translate a document to a target language
  *
- * Enhanced with:
- * - Google Cloud Translate API integration
+ * Production features:
+ * - Real-time translation via Firebase Functions
  * - Automatic language detection
  * - Translation quality assessment
- * - Caching for improved performance
+ * - Optimized for document content
  * - Confidence scoring for translations
  */
 export const translateDocument = async (
   documentUrl: string,
   targetLanguage: string,
-  sourceLanguage?: string
+  sourceLanguage?: string,
+  documentId?: string
 ): Promise<TranslationResult> => {
   try {
-    console.log('🌐 Starting document translation to:', targetLanguage);
-
-    // Call the Firebase Cloud Function
-    const translateDocumentFunction = httpsCallable(
-      functions,
-      'translateDocument'
+    console.log(
+      '🌐 Starting document translation to:',
+      targetLanguage,
+      documentId
+        ? `(using stored text for doc: ${documentId})`
+        : '(extracting text from URL)'
     );
 
-    const result = await translateDocumentFunction({
-      documentUrl,
-      targetLanguage,
-      sourceLanguage,
-    });
+    // Call the HTTP endpoint with CORS support and timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout for translation
 
-    const translation = result.data as TranslationResult;
+    let translation: TranslationResult;
+
+    try {
+      const response = await fetch(
+        'https://us-central1-gpt1-77ce0.cloudfunctions.net/translateDocumentHttp',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            documentUrl,
+            targetLanguage,
+            sourceLanguage,
+            documentId, // ← PASS DOCUMENT ID FOR STORED TEXT LOOKUP!
+          }),
+          signal: controller.signal,
+        }
+      );
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.error || `HTTP ${response.status}: ${response.statusText}`
+        );
+      }
+
+      translation = (await response.json()) as TranslationResult;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if ((error as any).name === 'AbortError') {
+        throw new Error(
+          'Document translation request timed out after 30 seconds'
+        );
+      }
+      throw error;
+    }
 
     console.log('✅ Document translation completed:', {
       sourceLanguage: translation.sourceLanguage,
@@ -331,70 +368,4 @@ export const isLanguageSupported = (
   languages: SupportedLanguage[]
 ): boolean => {
   return languages.some(lang => lang.code === languageCode);
-};
-
-/**
- * Mock implementation for development/testing
- * This simulates translation without requiring the actual Cloud Functions
- */
-export const mockTranslateText = async (
-  text: string,
-  targetLanguage: string,
-  sourceLanguage: string = 'en'
-): Promise<TranslationResult> => {
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 1000));
-
-  // Mock translation (simple word replacement for demo)
-  const mockTranslations: Record<string, Record<string, string>> = {
-    es: {
-      hello: 'hola',
-      world: 'mundo',
-      document: 'documento',
-      upload: 'subir',
-      download: 'descargar',
-    },
-    fr: {
-      hello: 'bonjour',
-      world: 'monde',
-      document: 'document',
-      upload: 'télécharger',
-      download: 'télécharger',
-    },
-    de: {
-      hello: 'hallo',
-      world: 'welt',
-      document: 'dokument',
-      upload: 'hochladen',
-      download: 'herunterladen',
-    },
-  };
-
-  let translatedText = text;
-  const targetLang = mockTranslations[targetLanguage];
-
-  if (targetLang) {
-    Object.entries(targetLang).forEach(([english, translation]) => {
-      translatedText = translatedText.replace(
-        new RegExp(english, 'gi'),
-        translation
-      );
-    });
-  }
-
-  return {
-    translatedText,
-    sourceLanguage,
-    targetLanguage,
-    confidence: 0.9,
-    originalText: text,
-    wordCount: {
-      original: text.split(/\s+/).length,
-      translated: translatedText.split(/\s+/).length,
-    },
-    quality: {
-      score: 0.9,
-      assessment: 'Excellent',
-    },
-  };
 };

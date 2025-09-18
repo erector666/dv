@@ -13,13 +13,6 @@ const ForgotPassword: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const messageRef = useRef<HTMLDivElement>(null);
 
-  // Force re-render when language changes to update translations
-  const [, forceUpdate] = useState({});
-  useEffect(() => {
-    // This will trigger a re-render when component mounts
-    forceUpdate({});
-  }, []);
-
   // Scroll to and focus on message when it appears
   useEffect(() => {
     if (message && messageRef.current) {

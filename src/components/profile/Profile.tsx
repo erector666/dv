@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { storage } from '../../services/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -6,19 +6,16 @@ import { updateProfile } from 'firebase/auth';
 
 const Profile: React.FC = () => {
   const { currentUser } = useAuth();
-  const [displayName, setDisplayName] = useState('');
-  const [photoURL, setPhotoURL] = useState('');
   const [newAvatar, setNewAvatar] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (currentUser) {
-      setDisplayName(currentUser.displayName || '');
-      setPhotoURL(currentUser.photoURL || '');
-    }
-  }, [currentUser]);
+  // State for editable fields
+  const [displayName, setDisplayName] = useState(
+    currentUser?.displayName || ''
+  );
+  const [photoURL, setPhotoURL] = useState(currentUser?.photoURL || '');
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {

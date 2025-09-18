@@ -4,6 +4,7 @@ import { useUploadModal } from '../../context/UploadModalContext';
 import { useAuth } from '../../context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
 import ThemeToggle from '../ui/ThemeToggle';
+import { Upload } from 'lucide-react';
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -16,6 +17,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
   const navigate = useNavigate();
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isLanguageMenuOpen, setIsLanguageMenuOpen] = useState(false);
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
 
   const toggleProfileMenu = () => {
     setIsProfileMenuOpen(!isProfileMenuOpen);
@@ -92,27 +94,37 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
           </div>
         </div>
 
+        {/* Mobile search toggle */}
+        <button
+          onClick={() => setIsMobileSearchOpen(!isMobileSearchOpen)}
+          className="md:hidden p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+          aria-label="Search"
+        >
+          <svg
+            className="w-6 h-6"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+            ></path>
+          </svg>
+        </button>
+
         {/* Right side actions */}
         <div className="flex items-center space-x-4">
           {/* Upload Button */}
           <button
             onClick={openModal}
             className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded-md flex items-center transition-colors"
+            aria-label={translate('upload')}
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5 mr-2"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
-              />
-            </svg>
+            <Upload className="h-5 w-5 mr-2" />
             {translate('upload')}
           </button>
           {/* Theme toggle */}
@@ -237,6 +249,36 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
           </div>
         </div>
       </div>
+
+      {/* Mobile search sheet */}
+      {isMobileSearchOpen && (
+        <div className="md:hidden mt-2">
+          <div className="relative w-full">
+            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+              <svg
+                className="w-5 h-5 text-gray-500 dark:text-gray-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                ></path>
+              </svg>
+            </div>
+            <input
+              type="search"
+              className="block w-full p-3 pl-10 text-base border border-gray-300 rounded-lg bg-gray-50 focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
+              placeholder={`${translate('search')}...`}
+              aria-label="Search"
+            />
+          </div>
+        </div>
+      )}
     </header>
   );
 };

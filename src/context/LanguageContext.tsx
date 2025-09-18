@@ -433,7 +433,53 @@ const defaultTranslations: Translations = {
   'viewer.downloadInstead': {
     en: 'This file type is not supported for viewing. Please download it instead.',
     mk: 'Овој тип на датотека не е поддржан за преглед. Ве молиме преземете ја.',
-    fr: 'Ce type de fichier n\'est pas pris en charge pour la visualisation. Veuillez le télécharger à la place.',
+    fr: "Ce type de fichier n'est pas pris en charge pour la visualisation. Veuillez le télécharger à la place.",
+  },
+  // Dorian Chatbot translations
+  'chatbot.title': {
+    en: 'Dorian - Your AI Assistant',
+    mk: 'Дориан - Вашиот AI Асистент',
+    fr: 'Dorian - Votre Assistant IA',
+  },
+  'chatbot.online': {
+    en: 'Online',
+    mk: 'Онлајн',
+    fr: 'En ligne',
+  },
+  'chatbot.typing': {
+    en: 'Typing...',
+    mk: 'Пишува...',
+    fr: "En train d'écrire...",
+  },
+  'chatbot.thinking': {
+    en: 'Dorian is thinking...',
+    mk: 'Дориан размислува...',
+    fr: 'Dorian réfléchit...',
+  },
+  'chatbot.placeholder': {
+    en: 'Ask Dorian anything about your documents...',
+    mk: 'Прашајте го Дориан што било за документите...',
+    fr: 'Demandez à Dorian tout sur vos documents...',
+  },
+  'chatbot.clear': {
+    en: 'Clear Chat',
+    mk: 'Исчисти разговор',
+    fr: 'Effacer la discussion',
+  },
+  'chatbot.close': {
+    en: 'Close Chat',
+    mk: 'Затвори разговор',
+    fr: 'Fermer la discussion',
+  },
+  'dorian.welcome': {
+    en: 'Hi I am Dorian, how can I help? 😊',
+    mk: 'Здраво, јас сум Дориан, како можам да помогнам? 😊',
+    fr: 'Salut, je suis Dorian, comment puis-je aider? 😊',
+  },
+  'dorian.introduction': {
+    en: "I'm Dorian, and I'm here to make managing your documents effortless!",
+    mk: 'Јас сум Дориан и тука сум да го направам управувањето со документи лесно!',
+    fr: 'Je suis Dorian, et je suis là pour rendre la gestion de vos documents sans effort!',
   },
   'viewer.error.title': {
     en: 'Error',

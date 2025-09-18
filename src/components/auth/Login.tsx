@@ -17,13 +17,6 @@ const Login: React.FC = () => {
   const errorRef = useRef<HTMLDivElement>(null);
   const messageRef = useRef<HTMLDivElement>(null);
 
-  // Force re-render when language changes to update translations
-  const [, forceUpdate] = useState({});
-  useEffect(() => {
-    // This will trigger a re-render when component mounts
-    forceUpdate({});
-  }, []);
-
   // Scroll to and focus on error message when it appears
   useEffect(() => {
     if (error && errorRef.current) {

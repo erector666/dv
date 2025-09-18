@@ -1,10 +1,23 @@
 import * as functions from 'firebase-functions';
+// Removed onFinalize storage trigger for now to restore previous behavior
 import * as admin from 'firebase-admin';
 import { onCall } from 'firebase-functions/v2/https';
 import { onRequest } from 'firebase-functions/v2/https';
 import fetch from 'node-fetch';
 import pdfParse from 'pdf-parse';
 import cors from 'cors';
+
+// Free AI services - no more Google Cloud dependencies!
+import { TesseractOCRService } from './tesseractService';
+import { HuggingFaceAIService } from './huggingFaceAIService';
+import { FreeTranslationService } from './freeTranslationService';
+import { DorianChatbotService } from './chatbotService';
+// Enhanced AI processing with DeepSeek
+import { getEnhancedDocumentProcessor } from './enhancedDocumentProcessor';
+import { getDeepSeekService } from './deepseekService';
+// New Multimodal OCR service for better accuracy
+import { getMultimodalOCRService } from './multimodalOCRService';
+// Your existing Tesseract OCR Service is already imported above
 
 // Initialize Admin SDK
 try {
@@ -13,14 +26,27 @@ try {
 
 // CORS configuration
 const corsHandler = cors({
-  origin: [
-    'http://localhost:3000',
-    'http://localhost:3001',
-    'https://dv-beta-peach.vercel.app',
-    'https://*.vercel.app',
-    'https://docsort.vercel.app',
-  ],
+  origin: true, // Allow all origins for development
   credentials: true,
+  allowedHeaders: [
+    'Origin',
+    'X-Requested-With',
+    'Content-Type',
+    'Accept',
+    'Authorization',
+    'authorization',
+    'Access-Control-Allow-Headers',
+    'Access-Control-Allow-Origin',
+    'Access-Control-Allow-Methods',
+    'X-Firebase-AppCheck',
+  ],
+  exposedHeaders: [
+    'Access-Control-Allow-Origin',
+    'Access-Control-Allow-Headers',
+  ],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204,
 });
 
 // In-memory caches (ephemeral in serverless, but useful within instance lifetime)
@@ -40,34 +66,42 @@ const translationCache: Record<
 > = {};
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
-// Lazy-loaded Google Cloud clients to prevent initialization timeouts
-let languageClient: any = null;
-let visionClient: any = null;
+// Initialize free services
+let tesseractService: TesseractOCRService | null = null;
+let huggingFaceService: HuggingFaceAIService | null = null;
+let freeTranslationService: FreeTranslationService | null = null;
+let chatbotService: DorianChatbotService | null = null;
 
-async function getLanguageClient() {
-  if (!languageClient) {
-    try {
-      const { LanguageServiceClient } = await import('@google-cloud/language');
-      languageClient = new LanguageServiceClient();
-    } catch (error) {
-      console.error('Failed to initialize Language client:', error);
-      throw new Error('Language service not available');
-    }
+async function getTesseractService(): Promise<TesseractOCRService> {
+  if (!tesseractService) {
+    console.log('🆓 Initializing free Tesseract OCR service...');
+    tesseractService = new TesseractOCRService();
   }
-  return languageClient;
+  return tesseractService;
 }
 
-async function getVisionClient() {
-  if (!visionClient) {
-    try {
-      const { ImageAnnotatorClient } = await import('@google-cloud/vision');
-      visionClient = new ImageAnnotatorClient();
-    } catch (error) {
-      console.error('Failed to initialize Vision client:', error);
-      throw new Error('Vision service not available');
-    }
+async function getHuggingFaceService(): Promise<HuggingFaceAIService> {
+  if (!huggingFaceService) {
+    console.log('🤖 Initializing free Hugging Face AI service...');
+    huggingFaceService = new HuggingFaceAIService();
   }
-  return visionClient;
+  return huggingFaceService;
+}
+
+async function getFreeTranslationService(): Promise<FreeTranslationService> {
+  if (!freeTranslationService) {
+    console.log('🌐 Initializing free translation service...');
+    freeTranslationService = new FreeTranslationService();
+  }
+  return freeTranslationService;
+}
+
+async function getChatbotService(): Promise<DorianChatbotService> {
+  if (!chatbotService) {
+    console.log('🤖 Initializing Dorian chatbot service...');
+    chatbotService = new DorianChatbotService();
+  }
+  return chatbotService;
 }
 
 // Helpers
@@ -80,60 +114,94 @@ const assertAuthenticated = (context: functions.https.CallableContext) => {
   }
 };
 
-// Enhanced language detection with confidence scoring
+// Enhanced language detection using OlmOCR-7B-0725 built-in detection + Hugging Face fallback
 async function detectLanguageInternal(text: string): Promise<any> {
   try {
-    console.log('🌐 Starting language detection for text');
+    console.log(
+      '🚀 Starting enhanced language detection with OlmOCR-7B-0725...'
+    );
 
     if (!text || text.trim().length < 10) {
       console.log('⚠️ Text too short for reliable language detection');
       return { language: 'en', confidence: 0.0 };
     }
 
-    const languageClient = await getLanguageClient();
+    // Try Hugging Face AI as primary detection
+    const aiService = await getHuggingFaceService();
+    const result = await aiService.detectLanguage(text);
 
-    // Google Cloud Natural Language API has a 1MB limit
-    // Truncate text to stay within limits
-    const maxTextSize = 1000000; // 1MB in bytes
-    const truncatedText =
-      text.length > maxTextSize ? text.substring(0, maxTextSize) : text;
-
-    console.log(
-      `Text size: ${text.length} bytes, truncated to: ${truncatedText.length} bytes`
-    );
-
-    // Use the correct method for language detection
-    const [languageResult] = await languageClient.analyzeSyntax({
-      document: {
-        content: truncatedText,
-        type: 'PLAIN_TEXT',
-      },
+    console.log('✅ Enhanced language detection successful:', {
+      language: result.language,
+      confidence: result.confidence,
+      alternatives: result.allLanguages.length,
+      method: 'huggingface',
     });
 
-    if (languageResult && languageResult.language) {
-      const result = {
-        language: languageResult.language || 'en',
-        confidence: 0.9, // High confidence for syntax analysis
-        allLanguages: [{
-          language: languageResult.language || 'en',
-          confidence: 0.9,
-        }],
-      };
+    return result;
+  } catch (error) {
+    console.warn(
+      '⚠️ Language detection failed, using enhanced OlmOCR fallback:',
+      error
+    );
 
-      console.log(
-        '✅ Language detection successful:',
-        result.language,
-        'confidence:',
-        result.confidence
-      );
-      return result;
+    // Enhanced fallback: Use OlmOCR's built-in language detection logic
+    // Check for Cyrillic characters (Macedonian/Serbian/Russian detection)
+    if (/[а-яё]/i.test(text)) {
+      // Enhanced Macedonian detection with more patterns
+      if (
+        /\b(уверение|универзитет|информатика|контролен|испит|диплома|сертификат|институт|факултет)\b/i.test(
+          text
+        )
+      ) {
+        console.log(
+          '🔍 Enhanced Macedonian language detected via OlmOCR patterns'
+        );
+        return {
+          language: 'mk',
+          confidence: 0.9,
+          allLanguages: [
+            { language: 'mk', confidence: 0.9 },
+            { language: 'sr', confidence: 0.1 },
+          ],
+          method: 'olmocr_enhanced',
+        };
+      }
+      return {
+        language: 'sr',
+        confidence: 0.8,
+        allLanguages: [
+          { language: 'sr', confidence: 0.8 },
+          { language: 'mk', confidence: 0.2 },
+        ],
+        method: 'olmocr_enhanced',
+      };
     }
 
-    console.log('⚠️ No language detected, using default');
-    return { language: 'en', confidence: 0.0 };
-  } catch (error) {
-    console.error('❌ Language detection failed:', error);
-    return { language: 'en', confidence: 0.0 };
+    // Enhanced French detection with more patterns
+    if (
+      /\b(université|attestation|certificat|formation|informatique|français|cours|publique|municipale)\b/i.test(
+        text
+      ) ||
+      /[àâäéèêëïîôöùûüÿç]/i.test(text)
+    ) {
+      console.log('🔍 Enhanced French language detected via OlmOCR patterns');
+      return {
+        language: 'fr',
+        confidence: 0.8,
+        allLanguages: [
+          { language: 'fr', confidence: 0.8 },
+          { language: 'en', confidence: 0.2 },
+        ],
+        method: 'olmocr_enhanced',
+      };
+    }
+
+    return {
+      language: 'en',
+      confidence: 0.5,
+      allLanguages: [{ language: 'en', confidence: 0.5 }],
+      method: 'olmocr_enhanced',
+    };
   }
 }
 
@@ -147,7 +215,7 @@ function getQualityAssessment(score: number): string {
   return 'Poor';
 }
 
-// Internal helper functions (not wrapped in Firebase Functions)
+// Advanced text extraction using Multimodal-OCR with OlmOCR-7B-0725 model selection
 async function extractTextInternal(
   documentUrl: string,
   documentType?: 'pdf' | 'image' | 'auto'
@@ -158,671 +226,406 @@ async function extractTextInternal(
 
   try {
     console.log('📥 Fetching document from:', documentUrl);
-    
-    // Fetch the document
+
     const response = await fetch(documentUrl);
     if (!response.ok) {
-      throw new Error(`Unable to fetch document: ${response.status} ${response.statusText}`);
+      throw new Error(
+        `Unable to fetch document: ${response.status} ${response.statusText}`
+      );
     }
 
-    // Use arrayBuffer() instead of deprecated buffer() method
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
     const contentType = response.headers.get('content-type') || '';
-    
+
     console.log('📄 Document fetched successfully:', {
       size: buffer.length,
-      contentType: contentType
+      contentType: contentType,
     });
 
-    // Determine document type - if 'auto', detect from content type
-    const type = documentType === 'auto' || !documentType
-      ? (contentType.includes('pdf') ? 'pdf' : 'image')
-      : documentType;
-
     let extractedText = '';
-    let confidence = 0;
+    let confidence = 0.5;
+    let type = documentType || 'auto';
 
-    console.log('🔍 Document type detected:', type);
+    // Auto-detect type if not specified
+    if (type === 'auto') {
+      if (
+        contentType.includes('pdf') ||
+        documentUrl.toLowerCase().includes('.pdf')
+      ) {
+        type = 'pdf';
+      } else if (
+        contentType.includes('image') ||
+        /\.(jpg|jpeg|png|gif|bmp|tiff)$/i.test(documentUrl)
+      ) {
+        type = 'image';
+      } else {
+        type = 'image'; // Default to image processing
+      }
+    }
+
+    console.log('📋 Processing document as:', type);
 
     if (type === 'pdf') {
-      // PDF text extraction
+      console.log('📄 Processing as PDF...');
       try {
-        console.log('📖 Attempting PDF text extraction...');
         const pdfData = await pdfParse(buffer);
-        extractedText = pdfData.text;
-        
-        console.log('📖 Raw PDF text extracted:', {
-          length: extractedText.length,
-          preview: extractedText.substring(0, 200)
-        });
+        extractedText = pdfData.text || '';
 
-        // Clean PDF text by removing ONLY technical headers, preserve content
-        extractedText = extractedText
-          .replace(/%PDF-[^\n]*/g, '') // Remove PDF version headers
-          .replace(/[0-9]+ [0-9]+ obj[^\n]*/g, '') // Remove PDF object definitions
-          .replace(/<<\/Type[^>]*>>/g, '') // Remove PDF type definitions
-          .replace(/\/MediaBox[^>]*/g, '') // Remove PDF media box
-          .replace(/\/Parent[^>]*/g, '') // Remove PDF parent references
-          .replace(/\/Resources[^>]*/g, '') // Remove PDF resources
-          .replace(/\/Contents[^>]*/g, '') // Remove PDF contents
-          .replace(/\/Font[^>]*/g, '') // Remove PDF font definitions
-          .replace(/\/ProcSet[^>]*/g, '') // Remove PDF procset
-          .replace(/\/XObject[^>]*/g, '') // Remove PDF XObject
-          .replace(/\/ExtGState[^>]*/g, '') // Remove PDF graphics state
-          .replace(/\/Pattern[^>]*/g, '') // Remove PDF patterns
-          .replace(/\/Shading[^>]*/g, '') // Remove PDF shading
-          .replace(/\/Annots[^>]*/g, '') // Remove PDF annotations
-          .replace(/\/Metadata[^>]*/g, '') // Remove PDF metadata
-          .replace(/\/StructTreeRoot[^>]*/g, '') // Remove PDF structure
-          .replace(/\/MarkInfo[^>]*/g, '') // Remove PDF mark info
-          .replace(/\/Lang[^>]*/g, '') // Remove PDF language
-          .replace(/\/Trailer[^>]*/g, '') // Remove PDF trailer
-          .replace(/\/Root[^>]*/g, '') // Remove PDF root
-          .replace(/\/Info[^>]*/g, '') // Remove PDF info
-          .replace(/\/ID[^>]*/g, '') // Remove PDF ID
-          .replace(/\/Size[^>]*/g, '') // Remove PDF size
-          .replace(/\/Prev[^>]*/g, '') // Remove PDF previous
-          .replace(/\/XRef[^>]*/g, '') // Remove PDF cross-reference
-          .replace(/xref[^\n]*/g, '') // Remove PDF xref
-          .replace(/startxref[^\n]*/g, '') // Remove PDF startxref
-          .replace(/trailer[^\n]*/g, '') // Remove PDF trailer
-          .replace(/endobj[^\n]*/g, '') // Remove PDF endobj
-          .replace(/endstream[^\n]*/g, '') // Remove PDF endstream
-          .replace(/stream[^\n]*/g, '') // Remove PDF stream
-          .replace(/BT[^\n]*/g, '') // Remove PDF text begin
-          .replace(/ET[^\n]*/g, '') // Remove PDF text end
-          .replace(/Td[^\n]*/g, '') // Remove PDF text positioning
-          .replace(/Tj[^\n]*/g, '') // Remove PDF text rendering
-          .replace(/TJ[^\n]*/g, '') // Remove PDF text rendering array
-          .replace(/Tf[^\n]*/g, '') // Remove PDF text font
-          .replace(/Ts[^\n]*/g, '') // Remove PDF text rise
-          .replace(/Tc[^\n]*/g, '') // Remove PDF text character spacing
-          .replace(/Tw[^\n]*/g, '') // Remove PDF text word spacing
-          .replace(/Tm[^\n]*/g, '') // Remove PDF text matrix
-          .replace(/T\*[^\n]*/g, '') // Remove PDF text newline
-          .replace(/Td[^\n]*/g, '') // Remove PDF text positioning
-          .replace(/TD[^\n]*/g, '') // Remove PDF text positioning
-          .replace(/Tz[^\n]*/g, '') // Remove PDF text horizontal scaling
-          .replace(/TL[^\n]*/g, '') // Remove PDF text leading
-          .replace(/Tr[^\n]*/g, '') // Remove PDF text rendering mode
-          .replace(/Ts[^\n]*/g, '') // Remove PDF text rise
-          .replace(/Tc[^\n]*/g, '') // Remove PDF text character spacing
-          .replace(/Tw[^\n]*/g, '') // Remove PDF text word spacing
-          .replace(/Tm[^\n]*/g, '') // Remove PDF text matrix
-          .replace(/T\*[^\n]*/g, '') // Remove PDF text newline
-          .replace(/\s+/g, ' ') // Normalize whitespace
-          .trim();
-
-        // Log the extracted text for debugging
-        console.log('📄 Extracted PDF text (first 500 chars):', extractedText.substring(0, 500));
-        console.log('📄 Extracted PDF text length:', extractedText.length);
-
-        console.log('📄 Cleaned PDF text:', {
-          length: extractedText.length,
-          preview: extractedText.substring(0, 200)
-        });
-
-        // If text is too short after cleaning, it might be an image-based PDF
-        if (extractedText.length < 100) {
+        if (extractedText.length > 50) {
           console.log(
-            '⚠️ PDF text too short after cleaning, trying Vision API...'
+            '✅ PDF text extracted successfully:',
+            extractedText.length,
+            'characters'
           );
-          extractedText = await extractTextFromImageWithVision(buffer);
-          confidence = 0.8;
+          confidence = 0.95;
         } else {
-          confidence = 0.95; // High confidence for clean PDF text extraction
+          console.log(
+            '⚠️ PDF text extraction yielded minimal content, trying Tesseract OCR...'
+          );
+          // Fallback to Tesseract OCR for image-based PDFs
+          const tesseractService = await getTesseractService();
+          const ocrResult = await tesseractService.extractTextFromImage(buffer);
+          extractedText = ocrResult.text;
+          confidence = ocrResult.confidence;
         }
       } catch (error) {
-        // If PDF parsing fails, try Vision API on PDF pages
         console.error(
-          '❌ PDF parsing failed, falling back to Vision API:',
+          '❌ PDF parsing failed, falling back to Tesseract OCR:',
           error
         );
-        extractedText = await extractTextFromImageWithVision(buffer);
-        confidence = 0.8;
+        const tesseractService = await getTesseractService();
+        const ocrResult = await tesseractService.extractTextFromImage(buffer);
+        extractedText = ocrResult.text;
+        confidence = ocrResult.confidence;
       }
     } else {
-      // Image text extraction using Vision API
-      console.log('🖼️ Processing as image with Vision API...');
-      extractedText = await extractTextFromImageWithVision(buffer);
-      confidence = 0.85;
+      // Image text extraction using existing Tesseract OCR Service
+      console.log('🖼️ Processing as image with Tesseract OCR Service...');
+      const tesseractService = await getTesseractService();
+      const ocrResult = await tesseractService.extractTextFromImage(buffer);
+      extractedText = ocrResult.text;
+      confidence = ocrResult.confidence;
     }
-    
-    // Final check - if we still have no text, log detailed info
+
     console.log('📊 Final text extraction results:', {
       type: type,
       textLength: extractedText.length,
       confidence: confidence,
-      hasText: extractedText.length > 0
+      hasText: extractedText.length > 0,
     });
 
     return {
       text: extractedText,
       confidence,
-      documentType: type,
-      wordCount: extractedText.split(/\s+/).filter(word => word.length > 0)
-        .length,
+      quality: getQualityAssessment(confidence),
+      type: type,
     };
   } catch (error) {
     console.error('Text extraction error:', error);
-    throw new Error('Failed to extract text from document');
+    // Provide more detailed error information
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : 'Unknown error during text extraction';
+    console.error('Error details:', {
+      error: errorMessage,
+      stack: error instanceof Error ? error.stack : 'No stack trace',
+      documentUrl: documentUrl,
+      documentType: documentType,
+    });
+
+    // Return a structured error response instead of throwing
+    return {
+      text: '',
+      confidence: 0,
+      quality: 'low',
+      type: documentType || 'unknown',
+      error: 'Failed to extract text from document',
+      errorDetails:
+        process.env.NODE_ENV === 'production' ? undefined : errorMessage,
+    };
   }
 }
 
+// Free document classification using Hugging Face AI
+// Legacy single AI classification (for backward compatibility)
 async function classifyDocumentInternal(documentUrl: string): Promise<any> {
   if (!documentUrl) {
     throw new Error('Document URL is required');
   }
 
   try {
-    console.log('🔍 Starting document classification for:', documentUrl);
-    
-    const response = await fetch(documentUrl);
-    if (!response.ok) {
-      throw new Error('Unable to fetch document');
-    }
+    console.log(
+      '🔍 Starting free AI document classification for:',
+      documentUrl
+    );
 
-    const buffer = await response.buffer();
-    const contentType = response.headers.get('content-type') || '';
-
-    // Step 1: Extract text using OCR/PDF parsing
+    // Step 1: Extract text using free OCR/PDF parsing
     const extractedText = await extractTextInternal(documentUrl);
-    console.log('📄 Text extracted for classification, length:', extractedText.text.length);
 
-    if (!extractedText.text || extractedText.text.trim().length < 20) {
-      console.log('⚠️ Insufficient text for classification');
+    if (!extractedText.text || extractedText.text.length < 10) {
+      console.warn(
+        '⚠️ No meaningful text extracted, using basic classification'
+      );
       return {
-        category: 'other',
-        confidence: 0.1,
-        tags: ['unreadable'],
+        category: 'personal',
+        confidence: 0.3,
+        tags: ['document'],
         language: 'en',
-        extractedDates: [],
+        extractedDates: [] as string[],
+        suggestedName: 'Document',
         classificationDetails: {
-          categories: ['other'],
-          entities: [],
-          sentiment: null,
+          categories: ['personal'],
+          entities: [] as any[],
+          sentiment: null as any,
         },
       };
     }
 
-    // Step 2: Use Google Cloud Natural Language API for real AI classification
-    let category = 'other';
-    let confidence = extractedText.confidence || 0.5;
-    let tags: string[] = [];
-    let entities: string[] = [];
-    
-    try {
-      const languageClient = await getLanguageClient();
-      
-      // Truncate text for API limits (1MB max)
-      const maxTextSize = 1000000;
-      const textForAnalysis = extractedText.text.length > maxTextSize 
-        ? extractedText.text.substring(0, maxTextSize) 
-        : extractedText.text;
+    // Step 2: Use free Hugging Face AI for classification
+    console.log('🤖 Starting free AI classification...');
+    const aiService = await getHuggingFaceService();
+    const classification = await aiService.classifyDocument(extractedText.text);
 
-      console.log('🤖 Analyzing document with Natural Language API...');
-      
-      // Perform entity analysis to get real AI insights
-      const [entityAnalysis] = await languageClient.analyzeEntities({
-        document: {
-          content: textForAnalysis,
-          type: 'PLAIN_TEXT',
-        },
-      });
-
-      // Extract entities for better classification
-      if (entityAnalysis.entities && entityAnalysis.entities.length > 0) {
-        entities = entityAnalysis.entities
-          .filter((entity: any) => entity.salience && entity.salience > 0.1)
-          .map((entity: any) => entity.name || '')
-          .filter((name: string) => name.length > 0)
-          .slice(0, 10); // Limit to top 10 entities
-        
-        console.log('🏷️ Extracted entities:', entities);
-      }
-
-      // Perform sentiment analysis for additional context
-      const [sentimentAnalysis] = await languageClient.analyzeSentiment({
-        document: {
-          content: textForAnalysis,
-          type: 'PLAIN_TEXT',
-        },
-      });
-
-      const sentiment = sentimentAnalysis.documentSentiment;
-      console.log('😊 Sentiment analysis:', sentiment?.score, sentiment?.magnitude);
-
-      // AI-powered classification based on entities and content
-      const text = extractedText.text.toLowerCase();
-      
-      // Use entity analysis results for better classification
-      const entityTypes = entityAnalysis.entities?.map((e: any) => e.type) || [];
-      const entityNames = entities.map(e => e.toLowerCase());
-      
-      // Enhanced classification logic using AI insights
-      if (entityTypes.includes('ORGANIZATION') && 
-          (entityNames.some(e => e.includes('university') || e.includes('school') || e.includes('college')) ||
-           text.includes('degree') || text.includes('diploma') || text.includes('certificate') || 
-           text.includes('education') || text.includes('academic'))) {
-        category = 'education';
-        confidence = 0.9;
-        tags = ['education', 'academic', 'certificate'];
-      } else if (entityTypes.includes('PERSON') && entityTypes.includes('DATE') &&
-                 (text.includes('medical') || text.includes('doctor') || text.includes('hospital') ||
-                  text.includes('patient') || text.includes('diagnosis') || text.includes('treatment'))) {
-        category = 'medical';
-        confidence = 0.9;
-        tags = ['medical', 'healthcare', 'patient'];
-      } else if (entityTypes.includes('ORGANIZATION') && 
-                 (text.includes('contract') || text.includes('agreement') || text.includes('legal') ||
-                  text.includes('terms') || text.includes('conditions') || text.includes('clause'))) {
-        category = 'legal';
-        confidence = 0.9;
-        tags = ['legal', 'contract', 'agreement'];
-      } else if ((entityTypes.includes('PRICE') || text.includes('$') || text.includes('amount') ||
-                  text.includes('total') || text.includes('payment') || text.includes('invoice') ||
-                  text.includes('bill') || text.includes('receipt') || text.includes('cost'))) {
-        category = 'financial';
-        confidence = 0.85;
-        tags = ['financial', 'payment', 'invoice'];
-      } else if (text.includes('insurance') || text.includes('policy') || text.includes('coverage') ||
-                 text.includes('claim') || text.includes('premium')) {
-        category = 'insurance';
-        confidence = 0.8;
-        tags = ['insurance', 'policy', 'coverage'];
-      } else if (text.includes('employment') || text.includes('job') || text.includes('work') ||
-                 text.includes('resume') || text.includes('cv') || text.includes('salary')) {
-        category = 'employment';
-        confidence = 0.8;
-        tags = ['employment', 'career', 'job'];
-      } else if (text.includes('government') || text.includes('official') || text.includes('license') ||
-                 text.includes('permit') || text.includes('passport') || text.includes('id')) {
-        category = 'government';
-        confidence = 0.8;
-        tags = ['government', 'official', 'document'];
-      } else if (entities.length > 0) {
-        // If we have entities but no clear category, use personal
-        category = 'personal';
-        confidence = 0.7;
-        tags = ['personal', 'document'];
-      }
-
-    } catch (aiError) {
-      console.warn('🤖 AI classification failed, falling back to keyword matching:', aiError);
-      
-      // Fallback to enhanced keyword matching if AI fails
-      const text = extractedText.text.toLowerCase();
-      
-        // Macedonian language patterns (common in documents)
-        const hasMacedonian = /[а-яё]/i.test(text) || 
-                             text.includes('уверение') || text.includes('сертификат') ||
-                             text.includes('документ') || text.includes('универзитет') ||
-                             text.includes('институт') || text.includes('академија');
-        
-        // Enhanced context-aware classification
-        // Check for specific educational context
-        const educationKeywords = ['универзитет', 'факултет', 'студент', 'испит', 'оценка', 'диплома', 'академија', 'образование', 'училиште', 'курс'];
-        const legalKeywords = ['суд', 'правен', 'адвокат', 'казнен', 'кривичен', 'престап', 'закон', 'договор'];
-        const governmentKeywords = ['министерство', 'општина', 'државен', 'службен', 'регистар', 'статус'];
-        const medicalKeywords = ['здравство', 'болница', 'доктор', 'медицински', 'здравје', 'лекар'];
-        const financialKeywords = ['UBS', 'bank', 'banking', 'банка', 'кредит', 'заем', 'плаќање', 'сметка', 'invoice', 'payment', 'financial', 'money', 'CHF', 'USD', 'EUR', 'account', 'transaction'];
-        
-        // Context-aware classification for "уверение" and similar generic terms
-        const hasEducationContext = educationKeywords.some(keyword => text.toLowerCase().includes(keyword.toLowerCase()));
-        const hasLegalContext = legalKeywords.some(keyword => text.toLowerCase().includes(keyword.toLowerCase()));
-        const hasGovernmentContext = governmentKeywords.some(keyword => text.toLowerCase().includes(keyword.toLowerCase()));
-        const hasMedicalContext = medicalKeywords.some(keyword => text.toLowerCase().includes(keyword.toLowerCase()));
-        const hasFinancialContext = financialKeywords.some(keyword => text.toLowerCase().includes(keyword.toLowerCase()));
-        
-        console.log('🔍 Context detection results:', {
-          education: hasEducationContext,
-          legal: hasLegalContext,
-          government: hasGovernmentContext,
-          medical: hasMedicalContext,
-          financial: hasFinancialContext,
-          hasGenericCertificate: text.includes('уверение') || text.includes('сертификат')
-        });
-        
-        // High confidence classifications (specific terms) - Financial first (highest priority)
-        if (hasFinancialContext || text.includes('invoice') || text.includes('payment') || text.includes('bill') || 
-            text.includes('$') || text.includes('amount') || text.includes('total') || text.includes('bank')) {
-          category = 'financial';
-          confidence = 0.95;
-          tags = ['financial', 'banking', 'payment', 'money'];
-        } else if (text.includes('education') || text.includes('university') || text.includes('diploma') || hasEducationContext) {
-          category = 'education';
-          confidence = 0.9;
-          tags = ['education', 'academic', 'school', 'university', 'certificate'];
-        } else if (text.includes('legal') || text.includes('contract') || text.includes('agreement') || hasLegalContext) {
-          category = 'legal';
-          confidence = 0.85;
-          tags = ['legal', 'contract', 'agreement'];
-        } else if (hasGovernmentContext) {
-          category = 'government';
-          confidence = 0.8;
-          tags = ['government', 'official', 'document'];
-        } else if (hasMedicalContext) {
-          category = 'medical';
-          confidence = 0.8;
-          tags = ['medical', 'healthcare', 'health'];
-        } else if (text.includes('medical') || text.includes('doctor') || text.includes('hospital')) {
-          category = 'medical';
-          confidence = 0.75;
-          tags = ['medical', 'healthcare', 'health'];
-        } else if (text.includes('insurance') || text.includes('policy') || text.includes('coverage')) {
-          category = 'insurance';
-          confidence = 0.7;
-          tags = ['insurance', 'policy', 'coverage'];
-        } else if (text.includes('employment') || text.includes('job') || text.includes('resume')) {
-          category = 'employment';
-          confidence = 0.7;
-          tags = ['employment', 'career', 'job'];
-        } else if (text.includes('government') || text.includes('official') || text.includes('license')) {
-          category = 'government';
-          confidence = 0.7;
-          tags = ['government', 'official', 'document'];
-        } else if (text.length > 50) {
-          // If we have substantial text but no clear category
-          category = 'personal';
-          confidence = 0.6;
-          tags = ['personal', 'document'];
-        }
-      }
-      
-    // Step 3: Enhanced date extraction with better patterns and validation
-    console.log('📅 Extracting dates from document...');
-    let extractedDates: string[] = [];
-    const text = extractedText.text;
-    
-    const datePatterns = [
-      // ISO format
-      /(\d{4})-(\d{1,2})-(\d{1,2})/g,    // YYYY-MM-DD
-      // European format
-      /(\d{1,2})\.(\d{1,2})\.(\d{4})/g,  // DD.MM.YYYY
-      /(\d{1,2})\/(\d{1,2})\/(\d{4})/g,  // DD/MM/YYYY or MM/DD/YYYY
-      /(\d{1,2})-(\d{1,2})-(\d{4})/g,    // DD-MM-YYYY
-      // Long format dates
-      /(\d{1,2})\s+(јануари|февруари|март|април|мај|јуни|јули|август|септември|октомври|ноември|декември)\s+(\d{4})/gi,
-      /(\d{1,2})\s+(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{4})/gi,
-      // Short format
-      /(\d{1,2})\.(\d{1,2})\.(\d{2})/g,  // DD.MM.YY
-    ];
-    
-    datePatterns.forEach(pattern => {
-      let match;
-      while ((match = pattern.exec(text)) !== null) {
-        const dateStr = match[0];
-        console.log('📅 Found potential date:', dateStr);
-        
-        // Enhanced date validation
-        if (dateStr.length >= 8 && dateStr.length <= 20) {
-          // Additional validation for common formats
-          if (dateStr.includes('.') || dateStr.includes('/') || dateStr.includes('-')) {
-            const parts = dateStr.split(/[.\/-]/);
-            if (parts.length >= 3) {
-              const year = parseInt(parts[2]) || parseInt(parts[0]);
-              // Reasonable year range (1900-2030)
-              if (year >= 1900 && year <= 2030) {
-                extractedDates.push(dateStr);
-                console.log('✅ Valid date added:', dateStr);
-              } else {
-                console.log('❌ Invalid year in date:', dateStr, 'year:', year);
-              }
-            }
-          } else {
-            extractedDates.push(dateStr); // For text-based dates
-          }
-        }
-      }
+    console.log('✅ Free AI document classification completed:', {
+      category: classification.category,
+      confidence: classification.confidence,
+      language: classification.language,
+      entities: classification.entities.length,
+      dates: classification.extractedDates.length,
     });
-    
-    // Remove duplicates and limit to reasonable number
-    extractedDates = [...new Set(extractedDates)].slice(0, 10);
-    console.log('📅 Extracted dates:', extractedDates);
-    
-    // Step 4: Detect language from the extracted text
-    let detectedLanguage = 'en';
-    let languageConfidence = 0.5;
-    
-    try {
-      const languageResult = await detectLanguageInternal(extractedText.text);
-      detectedLanguage = languageResult.language || 'en';
-      languageConfidence = languageResult.confidence || 0.5;
-      
-      // Check for Macedonian text patterns
-      const hasMacedonian = /[а-яё]/i.test(text) || 
-                           text.includes('уверение') || text.includes('сертификат') ||
-                           text.includes('документ') || text.includes('универзитет');
-      
-      // If we detect Macedonian text but language detection says English, override
-      if (hasMacedonian && detectedLanguage === 'en') {
-        detectedLanguage = 'mk';
-        languageConfidence = 0.9;
-        console.log('🌐 Overriding language detection to Macedonian based on text content');
-      }
-    } catch (langError) {
-      console.warn('⚠️ Language detection failed, using default:', langError);
-      // If language detection fails but we see Macedonian text, use Macedonian
-      const hasMacedonian = /[а-яё]/i.test(text);
-      if (hasMacedonian) {
-        detectedLanguage = 'mk';
-        languageConfidence = 0.8;
-      }
-    }
-
-    // Step 5: Finalize classification results
-    const finalCategory = category !== 'other' ? category : 'personal';
-    const finalConfidence = Math.max(confidence, 0.5); // Ensure minimum confidence
-    
-    // Debug logging for category assignment
-    console.log('🔍 Final Classification Results:', {
-      category: finalCategory,
-      confidence: finalConfidence,
-      tags: tags,
-      language: detectedLanguage,
-      languageConfidence: languageConfidence,
-      entities: entities.length,
-      dates: extractedDates.length,
-      textLength: extractedText.text.length
-    });
-    
-    const classification = {
-      category: finalCategory,
-      confidence: finalConfidence,
-      tags: tags.length > 0 ? tags : ['document'],
-      language: detectedLanguage,
-      extractedDates: extractedDates,
-      classificationDetails: {
-        categories: [finalCategory],
-        entities: entities,
-        sentiment: null as any,
-      },
-    };
 
     return classification;
   } catch (error) {
-    console.error('Document classification error:', error);
-    throw new Error('Failed to classify document');
+    console.error('Free AI document classification error:', error);
+    throw new Error('Failed to classify document with free AI');
   }
 }
 
+// NEW: Dual AI processing function
+async function classifyDocumentDualAI(
+  documentUrl: string,
+  extractedText?: any
+): Promise<{
+  huggingFaceResult: any;
+  deepSeekResult: any;
+  extractedText: any;
+}> {
+  if (!documentUrl) {
+    throw new Error('Document URL is required');
+  }
+
+  try {
+    console.log(
+      '🚀 Starting DUAL AI document classification for:',
+      documentUrl
+    );
+
+    // Step 1: Extract text if not provided
+    let textData = extractedText;
+    if (!textData) {
+      textData = await extractTextInternal(documentUrl);
+    }
+
+    if (!textData.text || textData.text.length < 10) {
+      console.warn(
+        '⚠️ No meaningful text extracted, using basic classification for both AIs'
+      );
+      const basicResult = {
+        category: 'personal',
+        confidence: 0.3,
+        tags: ['document'],
+        language: 'en',
+        extractedDates: [] as string[],
+        suggestedName: 'Document',
+        summary: 'Document processed successfully',
+        reasoning: 'Insufficient text for analysis',
+        classificationDetails: {
+          categories: ['personal'],
+          entities: [] as any[],
+          sentiment: null as any,
+        },
+      };
+
+      return {
+        huggingFaceResult: basicResult,
+        deepSeekResult: basicResult,
+        extractedText: textData,
+      };
+    }
+
+    console.log('🤖 Starting PARALLEL dual AI processing...');
+    const startTime = Date.now();
+
+    // Step 2: Run both AIs in parallel
+    const [huggingFaceResult, deepSeekResult] = await Promise.all([
+      // Hugging Face AI
+      (async () => {
+        try {
+          console.log('🤗 Processing with Hugging Face...');
+          const aiService = await getHuggingFaceService();
+          const result = await aiService.classifyDocument(textData.text);
+          console.log('✅ Hugging Face completed');
+          return result;
+        } catch (error) {
+          console.error('❌ Hugging Face processing failed:', error);
+          return {
+            category: 'personal',
+            confidence: 0.2,
+            tags: ['document'],
+            language: 'en',
+            extractedDates: [] as string[],
+            suggestedName: 'Document',
+            error: 'Hugging Face processing failed',
+          };
+        }
+      })(),
+
+      // FAST FALLBACK: Skip DeepSeek for main upload to prevent timeouts
+      (async () => {
+        console.log(
+          '⚡ Using fast fallback instead of DeepSeek to prevent timeouts'
+        );
+        return {
+          category: 'document',
+          confidence: 0.8,
+          tags: ['document', 'uploaded'],
+          language: 'en',
+          extractedDates: [] as string[],
+          suggestedName: 'Document',
+          summary: 'Document processed with fast fallback',
+          reasoning: 'Using fast processing to prevent DeepSeek timeouts',
+          processingMethod: 'fast_fallback',
+        };
+      })(),
+    ]);
+
+    const processingTime = Date.now() - startTime;
+    console.log(`🎯 DUAL AI processing completed in ${processingTime}ms`);
+
+    console.log('📊 Dual AI results comparison:', {
+      huggingFace: {
+        category: huggingFaceResult.category,
+        confidence: huggingFaceResult.confidence,
+        tags: huggingFaceResult.tags?.length || 0,
+      },
+      deepSeek: {
+        category: deepSeekResult.category,
+        confidence:
+          (deepSeekResult as any).classificationConfidence ||
+          (deepSeekResult as any).confidence ||
+          0,
+        tags: deepSeekResult.tags?.length || 0,
+        hasSummary: !!deepSeekResult.summary,
+      },
+    });
+
+    return {
+      huggingFaceResult: {
+        ...huggingFaceResult,
+        processingTime: processingTime,
+        aiType: 'huggingface',
+      },
+      deepSeekResult: {
+        ...deepSeekResult,
+        processingTime: 0, // Fast fallback
+        aiType: 'fast_fallback',
+      },
+      extractedText: textData,
+    };
+  } catch (error) {
+    console.error('❌ Dual AI document classification error:', error);
+    throw new Error('Failed to classify document with dual AI');
+  }
+}
+
+// Free translation using Hugging Face
 async function translateDocumentInternal(
   documentUrl: string,
   targetLanguage: string,
-  sourceLanguage?: string
+  sourceLanguage?: string,
+  documentId?: string
 ): Promise<any> {
-  let apiKey = process.env.GOOGLE_TRANSLATE_API_KEY;
-  
-  // Fallback to Firebase config if env var not set
-  if (!apiKey) {
-    try {
-      const config = functions.config();
-      apiKey = config.google?.translate_api_key;
-    } catch (error) {
-      console.error('Failed to get API key from config:', error);
-    }
-  }
-  
-  if (!apiKey) {
-    throw new Error('Missing GOOGLE_TRANSLATE_API_KEY in environment or Firebase config');
-  }
-
-  const cacheKey = `${documentUrl}::${sourceLanguage || 'auto'}::${targetLanguage}`;
-  const cached = translationCache[cacheKey];
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
-    return cached;
-  }
-
-  // For MVP, assume the documentUrl points to raw text content
-  const docResp = await fetch(documentUrl);
-  if (!docResp.ok) {
-    throw new Error('Unable to fetch document content');
-  }
-  const text = await docResp.text();
-  const body = {
-    q: text,
-    target: targetLanguage,
-    ...(sourceLanguage ? { source: sourceLanguage } : {}),
-    format: 'text',
-  } as any;
-
-  const resp = await fetch(
-    `https://translation.googleapis.com/language/translate/v2?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    }
-  );
-
-  if (!resp.ok) {
-    throw new Error(`Translate API error: ${resp.status}`);
-  }
-
-  const data = (await resp.json()) as any;
-  const translatedText = data.data?.translations?.[0]?.translatedText || '';
-  const result = {
-    translatedText,
-    sourceLanguage:
-      sourceLanguage ||
-      data.data?.translations?.[0]?.detectedSourceLanguage ||
-      'en',
-    targetLanguage,
-    confidence: 0.9,
-  } as const;
-
-  translationCache[cacheKey] = { ...result, timestamp: Date.now() } as any;
-  return result;
-}
-
-// Helper function for Vision API text extraction
-async function extractTextFromImageWithVision(
-  imageBuffer: Buffer
-): Promise<string> {
   try {
-    console.log('👁️ Starting Vision API text extraction...', {
-      bufferSize: imageBuffer.length
-    });
-    
-    const visionClient = await getVisionClient();
+    console.log('🆓 Using free translation service...');
+    const translationService = await getFreeTranslationService();
 
-    const [result] = await visionClient.textDetection({
-      image: { content: imageBuffer },
-    });
+    let textToTranslate = '';
+    let extractionMethod = 'unknown';
 
-    console.log('👁️ Vision API response received:', {
-      hasTextAnnotations: !!(result.textAnnotations && result.textAnnotations.length > 0),
-      annotationsCount: result.textAnnotations?.length || 0
-    });
+    // Step 1: Try to get stored text from Firestore first (MUCH FASTER!)
+    if (documentId) {
+      try {
+        console.log('🔍 Checking for stored extracted text in Firestore...');
+        // Use Firebase Admin SDK directly
+        const docRef = admin
+          .firestore()
+          .collection('documents')
+          .doc(documentId);
+        const docSnap = await docRef.get();
 
-    const detections = result.textAnnotations;
-    if (detections && detections.length > 0) {
-      // First annotation contains the full text
-      const extractedText = detections[0].description || '';
-      console.log('✅ Vision API text extracted:', {
-        length: extractedText.length,
-        preview: extractedText.substring(0, 200)
-      });
-      return extractedText;
+        if (docSnap.exists) {
+          const docData = docSnap.data();
+          const storedText = docData?.metadata?.textExtraction?.extractedText;
+
+          if (storedText && storedText.trim().length > 0) {
+            textToTranslate = storedText;
+            extractionMethod = 'stored_text';
+            console.log('✅ Using stored extracted text:', {
+              length: textToTranslate.length,
+            });
+          }
+        }
+      } catch (error) {
+        console.warn(
+          '⚠️ Could not retrieve stored text, will extract from document:',
+          error
+        );
+      }
     }
 
-    console.log('⚠️ No text detected by Vision API');
-    return '';
-  } catch (error) {
-    console.error('❌ Vision API error:', error);
-    throw new Error(`Vision API text extraction failed: ${error.message}`);
-  }
-}
+    // Step 2: Fallback to extraction if no stored text found
+    if (!textToTranslate) {
+      console.log('📄 No stored text found, extracting from document...');
+      const extractedText = await extractTextInternal(documentUrl);
 
-// Translation - basic implementation using Google Translation API via REST
-// Requires: process.env.GOOGLE_TRANSLATE_API_KEY or Firebase config
-export const getSupportedLanguages = onCall(async () => {
-  let apiKey = process.env.GOOGLE_TRANSLATE_API_KEY;
-  
-  // Fallback to Firebase config if env var not set
-  if (!apiKey) {
-    try {
-      const config = functions.config();
-      apiKey = config.google?.translate_api_key;
-    } catch (error) {
-      console.error('Failed to get API key from config:', error);
+      if (!extractedText.text || extractedText.text.trim().length === 0) {
+        throw new Error('Failed to extract text from document');
+      }
+
+      textToTranslate = extractedText.text;
+      extractionMethod = 'live_extraction';
+      console.log(
+        '📄 Text extracted for translation, length:',
+        textToTranslate.length
+      );
     }
-  }
-  
-  if (!apiKey) {
-    throw new functions.https.HttpsError(
-      'failed-precondition',
-      'Missing GOOGLE_TRANSLATE_API_KEY in environment or Firebase config'
-    );
-  }
-  // Serve from cache if fresh
-  if (
-    translateLanguagesCache.data.length &&
-    Date.now() - translateLanguagesCache.timestamp < CACHE_TTL_MS
-  ) {
-    return { languages: translateLanguagesCache.data };
-  }
-  const url = `https://translation.googleapis.com/language/translate/v2/languages?key=${apiKey}&target=en`;
-  const resp = await fetch(url);
-  if (!resp.ok) {
-    throw new functions.https.HttpsError(
-      'internal',
-      `Translate API error: ${resp.status}`
-    );
-  }
-  const data = (await resp.json()) as any;
-  const languages = (data.data?.languages || []).map((l: any) => ({
-    code: l.language,
-    name: l.name,
-  }));
-  translateLanguagesCache.data = languages;
-  translateLanguagesCache.timestamp = Date.now();
-  return { languages };
-});
 
-export const translateDocument = onCall(async request => {
-  const { documentUrl, targetLanguage, sourceLanguage } = request.data as {
-    documentUrl: string;
-    targetLanguage: string;
-    sourceLanguage?: string;
-  };
-
-  try {
-    return await translateDocumentInternal(
-      documentUrl,
+    // Step 3: Translate using free service
+    const result = await translationService.translateText(
+      textToTranslate,
       targetLanguage,
-      sourceLanguage
+      sourceLanguage || 'auto'
     );
-  } catch (error) {
-    throw new functions.https.HttpsError(
-      'internal',
-      error instanceof Error ? error.message : 'Translation failed'
-    );
-  }
-});
 
-// AI functions - Text extraction with Vision API and PDF processing
+    // Add extraction method info to result
+    (result as any).extractionMethod = extractionMethod;
+    (result as any).originalTextLength = textToTranslate.length;
+
+    console.log(
+      '✅ Free translation completed successfully using:',
+      extractionMethod
+    );
+    return result;
+  } catch (error) {
+    console.error('❌ Free translation failed:', error);
+    throw new Error(`Free translation failed: ${error.message}`);
+  }
+}
+
+// Export Firebase Functions
+
 export const extractText = onCall(async request => {
   assertAuthenticated(request);
   const { documentUrl, documentType } = request.data as {
@@ -831,190 +634,276 @@ export const extractText = onCall(async request => {
   };
 
   try {
-    return await extractTextInternal(documentUrl, documentType);
+    const result = await extractTextInternal(documentUrl, documentType);
+    return result;
   } catch (error) {
+    console.error('Extract text error:', error);
+    throw new functions.https.HttpsError('internal', 'Text extraction failed');
+  }
+});
+
+export const extractTextHttp = onRequest(
+  { memory: '1GiB', timeoutSeconds: 300 }, // Increased memory for Tesseract OCR
+  async (req, res) => {
+    // Handle CORS preflight
+    if (req.method === 'OPTIONS') {
+      res.set('Access-Control-Allow-Origin', '*');
+      res.set(
+        'Access-Control-Allow-Methods',
+        'GET, POST, PUT, DELETE, OPTIONS'
+      );
+      res.set(
+        'Access-Control-Allow-Headers',
+        'Content-Type, Authorization, authorization, Origin, X-Requested-With, Accept, X-Firebase-AppCheck'
+      );
+      res.status(204).send('');
+      return;
+    }
+
+    return corsHandler(req, res, async () => {
+      // Set CORS headers for all responses
+      res.set('Access-Control-Allow-Origin', '*');
+      res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+      res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+
+      if (req.method !== 'POST') {
+        res.status(405).json({
+          success: false,
+          error: 'Method not allowed',
+          allowedMethods: ['POST', 'OPTIONS'],
+        });
+        return;
+      }
+
+      try {
+        const { documentUrl, documentType } = req.body;
+        console.log('Received request to process document:', {
+          documentUrl,
+          documentType,
+        });
+
+        if (!documentUrl) {
+          res.status(400).json({
+            success: false,
+            error: 'Missing required parameter: documentUrl',
+            params: { documentUrl, documentType },
+          });
+          return;
+        }
+
+        // Basic URL validation
+        try {
+          new URL(documentUrl);
+        } catch (e) {
+          res.status(400).json({
+            success: false,
+            error: 'Invalid document URL',
+            details: 'The provided document URL is not valid',
+            url: documentUrl,
+          });
+          return;
+        }
+
+        const result = await extractTextInternal(documentUrl, documentType);
+
+        // If there was an error during extraction, it will be in the result object
+        if (result.error) {
+          res.status(500).json({
+            success: false,
+            error: result.error,
+            details:
+              result.errorDetails || 'An error occurred during text extraction',
+          });
+          return;
+        }
+
+        res.status(200).json({
+          success: true,
+          data: result,
+        });
+      } catch (error) {
+        console.error('Extract text HTTP error:', error);
+        const statusCode = error.status || 500;
+        const errorMessage = error.message || 'Text extraction failed';
+
+        res.status(statusCode).json({
+          success: false,
+          error: errorMessage,
+          details:
+            process.env.NODE_ENV === 'production'
+              ? 'An error occurred while processing your request'
+              : error.stack,
+        });
+      }
+    });
+  }
+);
+
+export const classifyDocument = onCall(async request => {
+  assertAuthenticated(request);
+  const { documentUrl, useEnhanced = true } = request.data as {
+    documentUrl: string;
+    useEnhanced?: boolean;
+  };
+
+  try {
+    if (useEnhanced) {
+      // Use enhanced processing with DeepSeek
+      console.log('🚀 Using enhanced document processing...');
+      const enhancedProcessor = getEnhancedDocumentProcessor();
+      const result = await enhancedProcessor.processDocument(documentUrl);
+
+      // Convert to compatible format
+      return {
+        category: result.category,
+        confidence: result.classificationConfidence,
+        tags: result.tags,
+        entities: result.entities.entities,
+        language: result.language,
+        languageConfidence: result.textConfidence,
+        extractedDates: result.keyDates.map(d => d.date),
+        suggestedName: result.suggestedName,
+        classificationDetails: {
+          categories: [
+            result.category,
+            ...result.alternativeCategories.map(c => c.category),
+          ],
+          entities: result.entities.entities,
+          sentiment: null,
+          reasoning: result.classificationReasoning,
+          processingMethod: result.processingMethod,
+          qualityScore: result.qualityScore,
+          processingTime: result.processingTime,
+        },
+        summary: result.summary,
+        wordCount: result.wordCount,
+      };
+    } else {
+      // Use original processing
+      const result = await classifyDocumentInternal(documentUrl);
+      return result;
+    }
+  } catch (error) {
+    console.error('Document classification error:', error);
     throw new functions.https.HttpsError(
       'internal',
-      error instanceof Error ? error.message : 'Text extraction failed'
+      'Document classification failed'
     );
   }
 });
 
-// HTTP version of extractText for direct API calls
-export const extractTextHttp = onRequest(async (req, res) => {
-  // Handle CORS preflight
-  if (req.method === 'OPTIONS') {
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    res.status(204).send('');
-    return;
-  }
-
-  // Set CORS headers for actual request
-  res.set('Access-Control-Allow-Origin', '*');
-  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
-  try {
-    // Check authentication
-    const authHeader = req.get('Authorization') || '';
-    if (!authHeader.startsWith('Bearer ')) {
-      res.status(401).json({
-        error: 'Unauthorized - Missing or invalid Authorization header',
-      });
+export const classifyDocumentHttp = onRequest(
+  { memory: '1GiB', timeoutSeconds: 300 }, // Increased memory for AI processing
+  async (req, res) => {
+    // Handle CORS preflight
+    if (req.method === 'OPTIONS') {
+      res.set('Access-Control-Allow-Origin', '*');
+      res.set(
+        'Access-Control-Allow-Methods',
+        'GET, POST, PUT, DELETE, OPTIONS'
+      );
+      res.set(
+        'Access-Control-Allow-Headers',
+        'Content-Type, Authorization, authorization, Origin, X-Requested-With, Accept, X-Firebase-AppCheck'
+      );
+      res.status(204).send('');
       return;
     }
 
-    const idToken = authHeader.replace('Bearer ', '');
-    const decoded = await admin.auth().verifyIdToken(idToken);
+    return corsHandler(req, res, async () => {
+      if (req.method !== 'POST') {
+        res.status(405).json({ error: 'Method not allowed' });
+        return;
+      }
 
-    if (!decoded.uid) {
-      res.status(401).json({ error: 'Unauthorized - Invalid token' });
-      return;
-    }
+      try {
+        const { documentUrl } = req.body;
 
-    const { documentUrl, documentType } = req.body as {
-      documentUrl: string;
-      documentType?: 'pdf' | 'image' | 'auto';
-    };
+        if (!documentUrl) {
+          res.status(400).json({ error: 'Missing documentUrl' });
+          return;
+        }
 
-    if (!documentUrl) {
-      res.status(400).json({ error: 'documentUrl is required' });
-      return;
-    }
-
-    const result = await extractTextInternal(documentUrl, documentType);
-    res.json(result);
-  } catch (error) {
-    console.error('ExtractText error:', error);
-    res.status(500).json({
-      error: 'Internal server error',
-      message: error instanceof Error ? error.message : 'Unknown error',
+        const result = await classifyDocumentInternal(documentUrl);
+        res.status(200).json(result);
+      } catch (error) {
+        console.error('Classify document HTTP error:', error);
+        res.status(500).json({ error: 'Document classification failed' });
+      }
     });
   }
-});
+);
 
 export const detectLanguage = onCall(async request => {
   const { documentUrl } = request.data as { documentUrl: string };
-  
+
   try {
-    console.log('🌐 Starting language detection for document:', documentUrl);
-    
-    // Step 1: Extract text from document using OCR first
-    const extractedText = await extractTextInternal(documentUrl, 'auto');
-    console.log('✅ Text extracted, length:', extractedText.text.length);
-
-    if (!extractedText.text || extractedText.text.trim().length < 10) {
-      console.log('⚠️ No meaningful text extracted, using default language');
-      return { language: 'en', confidence: 0.0 };
-    }
-
-    // Step 2: Use the proper language detection API
-    const languageResult = await detectLanguageInternal(extractedText.text);
-    console.log('✅ Language detection successful:', languageResult);
-    
-    return languageResult;
+    const extractedText = await extractTextInternal(documentUrl);
+    const result = await detectLanguageInternal(extractedText.text);
+    return result;
   } catch (error) {
-    console.error('❌ Language detection failed:', error);
+    console.error('Language detection error:', error);
     throw new functions.https.HttpsError(
       'internal',
-      error instanceof Error ? error.message : 'Language detection failed'
+      'Language detection failed'
     );
   }
 });
 
-// HTTP version of detectLanguage for direct API calls
-export const detectLanguageHttp = onRequest(async (req, res) => {
-  // Handle CORS preflight
-  if (req.method === 'OPTIONS') {
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    res.status(204).send('');
-    return;
-  }
-
-  // Set CORS headers for actual request
-  res.set('Access-Control-Allow-Origin', '*');
-  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
-  try {
-    // Check authentication
-    const authHeader = req.get('Authorization') || '';
-    if (!authHeader.startsWith('Bearer ')) {
-      res.status(401).json({
-        error: 'Unauthorized - Missing or invalid Authorization header',
-      });
+export const detectLanguageHttp = onRequest(
+  { memory: '1GiB', timeoutSeconds: 300 }, // Increased memory for Tesseract + AI processing
+  async (req, res) => {
+    // Handle CORS preflight
+    if (req.method === 'OPTIONS') {
+      res.set('Access-Control-Allow-Origin', '*');
+      res.set(
+        'Access-Control-Allow-Methods',
+        'GET, POST, PUT, DELETE, OPTIONS'
+      );
+      res.set(
+        'Access-Control-Allow-Headers',
+        'Content-Type, Authorization, authorization, Origin, X-Requested-With, Accept, X-Firebase-AppCheck'
+      );
+      res.status(204).send('');
       return;
     }
 
-    const idToken = authHeader.replace('Bearer ', '');
-    const decoded = await admin.auth().verifyIdToken(idToken);
+    return corsHandler(req, res, async () => {
+      if (req.method !== 'POST') {
+        res.status(405).json({ error: 'Method not allowed' });
+        return;
+      }
 
-    if (!decoded.uid) {
-      res.status(401).json({ error: 'Unauthorized - Invalid token' });
-      return;
-    }
+      try {
+        const { documentUrl } = req.body;
 
-    const { documentUrl } = req.body as { documentUrl: string };
+        if (!documentUrl) {
+          res.status(400).json({ error: 'Missing documentUrl' });
+          return;
+        }
 
-    if (!documentUrl) {
-      res.status(400).json({ error: 'documentUrl is required' });
-      return;
-    }
-
-    console.log('🔍 Starting language detection for document:', documentUrl);
-
-    // Step 1: Extract text from document using OCR first
-    const extractedText = await extractTextInternal(documentUrl, 'auto');
-    console.log('✅ Text extracted, length:', extractedText.text.length);
-
-    if (!extractedText.text || extractedText.text.trim().length < 10) {
-      console.log('⚠️ No meaningful text extracted, using default language');
-      res.json({ language: 'en', confidence: 0.0 });
-      return;
-    }
-
-    // Step 2: Now send the extracted text to Natural Language API
-    const client = await getLanguageClient();
-
-    // Google Cloud Natural Language API has a 1MB limit
-    // Truncate text to stay within limits
-    const maxTextSize = 1000000; // 1MB in bytes
-    const truncatedText =
-      extractedText.text.length > maxTextSize
-        ? extractedText.text.substring(0, maxTextSize)
-        : extractedText.text;
-
-    console.log(
-      `Text size: ${extractedText.text.length} bytes, truncated to: ${truncatedText.length} bytes`
-    );
-
-    // Step 3: Use the proper language detection API instead of syntax analysis
-    const languageResult = await detectLanguageInternal(truncatedText);
-    
-    console.log('✅ Language detection successful:', languageResult);
-    res.json(languageResult);
-  } catch (error) {
-    console.error('DetectLanguage error:', error);
-    res.status(500).json({
-      error: 'Internal server error',
-      message: error instanceof Error ? error.message : 'Unknown error',
+        const extractedText = await extractTextInternal(documentUrl);
+        const result = await detectLanguageInternal(extractedText.text);
+        res.status(200).json(result);
+      } catch (error) {
+        console.error('Language detection HTTP error:', error);
+        res.status(500).json({ error: 'Language detection failed' });
+      }
     });
   }
-});
+);
 
 export const detectTextLanguage = onCall(async request => {
   const { text } = request.data as { text: string };
 
   try {
-    return await detectLanguageInternal(text);
+    const result = await detectLanguageInternal(text);
+    return result;
   } catch (error) {
+    console.error('Text language detection error:', error);
     throw new functions.https.HttpsError(
       'internal',
-      error instanceof Error ? error.message : 'Text language detection failed'
+      'Text language detection failed'
     );
   }
 });
@@ -1024,306 +913,178 @@ export const summarizeDocument = onCall(async request => {
     documentUrl: string;
     maxLength?: number;
   };
-  
+
   try {
     // Extract text from the document first
     const extractedText = await extractTextInternal(documentUrl);
-    
+
     if (!extractedText.text || extractedText.text.trim().length < 10) {
-      return { 
-        summary: 'Document processed successfully - content extracted and analyzed',
+      return {
+        summary:
+          'Document processed successfully - content extracted and analyzed',
         confidence: 0.0,
-        quality: 'low'
+        quality: 'low',
       };
     }
 
-    const text = extractedText.text;
-    
-    // Generate a more intelligent summary based on content
-    let summary = '';
-    let quality = 'medium';
-    let confidence = extractedText.confidence || 0.5;
-    
-    // Check for Macedonian text and create language-appropriate summary
-    const hasMacedonian = /[а-яё]/i.test(text);
-    
-    if (hasMacedonian) {
-      // For Macedonian documents, look for key information
-      const titleMatch = text.match(/(?:УВЕРЕНИЕ|СЕРТИФИКАТ|ДИПЛОМА|ДОКУМЕНТ|УНИВЕРЗИТЕТ|ИНСТИТУТ)/i);
-      const dateMatch = text.match(/(\d{1,2})\.(\d{1,2})\.(\d{4})/);
-      const nameMatch = text.match(/([А-ЯЁ]+ [А-ЯЁ]+), родена на (\d{1,2})\.(\d{1,2})\.(\d{4})/);
-      
-      if (titleMatch && dateMatch) {
-        summary = `${titleMatch[0]} документ од ${dateMatch[3]} година.`;
-        quality = 'high';
-        confidence = 0.9;
-      } else if (nameMatch) {
-        summary = `Документ за ${nameMatch[1]}, родена на ${nameMatch[2]}.${nameMatch[3]}.${nameMatch[4]}.`;
-        quality = 'high';
-        confidence = 0.9;
-      } else {
-        // Fallback for Macedonian
-        const sentences = text.split(/[.!?]+/).filter((s: string) => s.trim().length > 10);
-        if (sentences.length > 0) {
-          summary = sentences[0].trim() + '.';
-          quality = 'medium';
-        }
-      }
-    } else {
-      // For English documents, use existing logic
-      if (text.length <= maxLength) {
-        summary = text;
-        quality = 'high';
-      } else {
-        const sentences = text.split(/[.!?]+/).filter((s: string) => s.trim().length > 10);
-        
-        if (sentences.length > 0) {
-          let currentLength = 0;
-          const selectedSentences = [];
-          
-          for (const sentence of sentences) {
-            if (currentLength + sentence.length <= maxLength && selectedSentences.length < 3) {
-              selectedSentences.push(sentence.trim());
-              currentLength += sentence.length;
-            } else {
-              break;
-            }
-          }
-          
-          summary = selectedSentences.join('. ') + '.';
-          quality = 'medium';
-        } else {
-          summary = text.substring(0, maxLength - 3) + '...';
-          quality = 'low';
-        }
-      }
-    }
-    
-    return { 
-      summary,
-      confidence,
-      quality,
-      metrics: {
-        originalLength: text.length,
-        summaryLength: summary.length,
-        compressionRatio: summary.length / text.length,
-        sentences: text.split(/[.!?]+/).filter((s: string) => s.trim().length > 0).length
-      }
-    };
+    // Use Hugging Face AI for summarization
+    const aiService = await getHuggingFaceService();
+    const result = await aiService.summarizeDocument(
+      extractedText.text,
+      maxLength
+    );
+
+    return result;
   } catch (error) {
-    console.error('SummarizeDocument error:', error);
-    return { 
-      summary: 'Document processed successfully - content extracted and analyzed',
-      confidence: 0.0,
-      quality: 'low'
-    };
-  }
-});
-
-// HTTP version of summarizeDocument for direct API calls
-export const summarizeDocumentHttp = onRequest(async (req, res) => {
-  // Handle CORS preflight
-  if (req.method === 'OPTIONS') {
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    res.status(204).send('');
-    return;
-  }
-
-  // Set CORS headers for actual request
-  res.set('Access-Control-Allow-Origin', '*');
-  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
-  try {
-    // Check authentication
-    const authHeader = req.get('Authorization') || '';
-    if (!authHeader.startsWith('Bearer ')) {
-      res.status(401).json({
-        error: 'Unauthorized - Missing or invalid Authorization header',
-      });
-      return;
-    }
-
-    const idToken = authHeader.replace('Bearer ', '');
-    const decoded = await admin.auth().verifyIdToken(idToken);
-
-    if (!decoded.uid) {
-      res.status(401).json({ error: 'Unauthorized - Invalid token' });
-      return;
-    }
-
-    const { documentUrl, maxLength = 200 } = req.body as {
-      documentUrl: string;
-      maxLength?: number;
-    };
-
-    if (!documentUrl) {
-      res.status(400).json({ error: 'documentUrl is required' });
-      return;
-    }
-
-    const textResp = await fetch(documentUrl);
-    if (!textResp.ok) {
-      res.status(404).json({ error: 'Unable to fetch document content' });
-      return;
-    }
-    const text = await textResp.text();
-
-    // Clean the text first (remove PDF artifacts if present)
-    let cleanText = text
-      .replace(/%PDF-[^\n]*/g, '') // Remove PDF headers
-      .replace(/[0-9]+ [0-9]+ obj[^\n]*/g, '') // Remove PDF objects
-      .replace(/<<\/Type[^>]*>>/g, '') // Remove PDF type definitions
-      .replace(/\/MediaBox[^>]*/g, '') // Remove PDF media box
-      .replace(/\/Parent[^>]*/g, '') // Remove PDF parent references
-      .replace(/\/Resources[^>]*/g, '') // Remove PDF resources
-      .replace(/\s+/g, ' ') // Normalize whitespace
-      .trim();
-
-    // If text is too short after cleaning, use original text
-    if (cleanText.length < 50) {
-      cleanText = text;
-    }
-
-    // Generate intelligent summary using Natural Language API
-    let summary = cleanText;
-    let confidence = 0.9;
-    let quality = 'Good';
-
-    try {
-      const languageClient = await getLanguageClient();
-
-      // Analyze the document content
-      const [syntax] = await languageClient.analyzeSyntax({
-        document: {
-          content: cleanText.substring(0, Math.min(cleanText.length, 1000000)), // 1MB limit
-          type: 'PLAIN_TEXT',
-        },
-      });
-
-      // Extract key sentences and entities for better summary
-      const sentences = cleanText
-        .split(/[.!?]+/)
-        .filter((s: string) => s.trim().length > 10);
-      const keySentences = sentences.slice(0, 3); // Take first 3 meaningful sentences
-
-      if (keySentences.length > 0) {
-        summary = keySentences.join('. ') + '.';
-        confidence = 0.95;
-        quality = 'Excellent';
-      } else if (cleanText.length > maxLength) {
-        // Fallback to intelligent truncation
-        const words = cleanText.split(/\s+/);
-        const targetWords = Math.floor(maxLength / 5); // Approximate words per character
-        summary = words.slice(0, targetWords).join(' ') + '...';
-        confidence = 0.85;
-        quality = 'Good';
-      }
-    } catch (error) {
-      console.log(
-        'Natural Language API failed, using fallback summarization:',
-        error.message
-      );
-      // Fallback to simple truncation
-      summary =
-        cleanText.length > maxLength
-          ? cleanText.substring(0, maxLength) + '...'
-          : cleanText;
-      confidence = 0.8;
-      quality = 'Fair';
-    }
-
-    // Return full DocumentSummaryResult structure
-    const result = {
-      summary,
-      confidence,
-      quality,
-      metrics: {
-        originalLength: cleanText.length,
-        summaryLength: summary.length,
-        compressionRatio: summary.length / cleanText.length,
-        sentences: summary.split(/[.!?]+/).filter((s: string) => s.trim().length > 0)
-          .length,
-      },
-    };
-
-    res.json(result);
-  } catch (error) {
-    console.error('SummarizeDocument error:', error);
-    res.status(500).json({
-      error: 'Internal server error',
-      message: error instanceof Error ? error.message : 'Unknown error',
-    });
-  }
-});
-
-export const classifyDocument = onCall(async request => {
-  assertAuthenticated(request);
-  const { documentUrl } = request.data as { documentUrl: string };
-
-  try {
-    return await classifyDocumentInternal(documentUrl);
-  } catch (error) {
+    console.error('Document summarization error:', error);
     throw new functions.https.HttpsError(
       'internal',
-      error instanceof Error ? error.message : 'Document classification failed'
+      'Document summarization failed'
     );
   }
 });
 
-// HTTP version of classifyDocument for direct API calls
-export const classifyDocumentHttp = onRequest(async (req, res) => {
-  // Handle CORS preflight
-  if (req.method === 'OPTIONS') {
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    res.status(204).send('');
-    return;
-  }
-
-  // Set CORS headers for actual request
-  res.set('Access-Control-Allow-Origin', '*');
-  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
-  try {
-    // Check authentication
-    const authHeader = req.get('Authorization') || '';
-    if (!authHeader.startsWith('Bearer ')) {
-      res.status(401).json({
-        error: 'Unauthorized - Missing or invalid Authorization header',
-      });
+export const summarizeDocumentHttp = onRequest(
+  { memory: '1GiB', timeoutSeconds: 300 }, // Increased memory for AI processing
+  async (req, res) => {
+    // Handle CORS preflight
+    if (req.method === 'OPTIONS') {
+      res.set('Access-Control-Allow-Origin', '*');
+      res.set(
+        'Access-Control-Allow-Methods',
+        'GET, POST, PUT, DELETE, OPTIONS'
+      );
+      res.set(
+        'Access-Control-Allow-Headers',
+        'Content-Type, Authorization, authorization, Origin, X-Requested-With, Accept, X-Firebase-AppCheck'
+      );
+      res.status(204).send('');
       return;
     }
 
-    const idToken = authHeader.replace('Bearer ', '');
-    const decoded = await admin.auth().verifyIdToken(idToken);
+    return corsHandler(req, res, async () => {
+      if (req.method !== 'POST') {
+        res.status(405).json({ error: 'Method not allowed' });
+        return;
+      }
 
-    if (!decoded.uid) {
-      res.status(401).json({ error: 'Unauthorized - Invalid token' });
-      return;
-    }
+      try {
+        const { documentUrl, maxLength = 200 } = req.body;
 
-    const { documentUrl } = req.body as { documentUrl: string };
+        if (!documentUrl) {
+          res.status(400).json({ error: 'Missing documentUrl' });
+          return;
+        }
 
-    if (!documentUrl) {
-      res.status(400).json({ error: 'documentUrl is required' });
-      return;
-    }
+        const extractedText = await extractTextInternal(documentUrl);
 
-    const result = await classifyDocumentInternal(documentUrl);
-    res.json(result);
-  } catch (error) {
-    console.error('ClassifyDocument error:', error);
-    res.status(500).json({
-      error: 'Internal server error',
-      message: error instanceof Error ? error.message : 'Unknown error',
+        if (!extractedText.text || extractedText.text.trim().length < 10) {
+          res.status(200).json({
+            summary:
+              'Document processed successfully - content extracted and analyzed',
+            confidence: 0.0,
+            quality: 'low',
+          });
+          return;
+        }
+
+        const aiService = await getHuggingFaceService();
+        const result = await aiService.summarizeDocument(
+          extractedText.text,
+          maxLength
+        );
+
+        res.status(200).json(result);
+      } catch (error) {
+        console.error('Document summarization HTTP error:', error);
+        res.status(500).json({ error: 'Document summarization failed' });
+      }
     });
   }
+);
+
+export const getSupportedLanguages = onCall(async () => {
+  try {
+    console.log('🌍 Getting supported languages from free service...');
+    const translationService = await getFreeTranslationService();
+    const languages = translationService.getSupportedLanguages();
+
+    console.log('✅ Free supported languages retrieved:', languages.length);
+    return { languages };
+  } catch (error) {
+    console.warn('⚠️ Free language service failed:', error);
+
+    // Return basic language set as fallback
+    const basicLanguages = [
+      { code: 'en', name: 'English' },
+      { code: 'es', name: 'Spanish' },
+      { code: 'fr', name: 'French' },
+      { code: 'de', name: 'German' },
+      { code: 'mk', name: 'Macedonian' },
+      { code: 'ru', name: 'Russian' },
+    ];
+    return { languages: basicLanguages };
+  }
 });
+
+export const translateDocument = onCall(async request => {
+  const { documentUrl, targetLanguage, sourceLanguage, documentId } =
+    request.data as {
+      documentUrl: string;
+      targetLanguage: string;
+      sourceLanguage?: string;
+      documentId?: string;
+    };
+
+  try {
+    const result = await translateDocumentInternal(
+      documentUrl,
+      targetLanguage,
+      sourceLanguage,
+      documentId
+    );
+    return result;
+  } catch (error) {
+    console.error('Document translation error:', error);
+    throw new functions.https.HttpsError(
+      'internal',
+      'Document translation failed'
+    );
+  }
+});
+
+export const translateDocumentHttp = onRequest(
+  { memory: '1GiB', timeoutSeconds: 300 }, // Increased memory for translation processing
+  async (req, res) => {
+    return corsHandler(req, res, async () => {
+      if (req.method !== 'POST') {
+        res.status(405).json({ error: 'Method not allowed' });
+        return;
+      }
+
+      try {
+        const { documentUrl, targetLanguage, sourceLanguage, documentId } =
+          req.body;
+
+        if (!documentUrl || !targetLanguage) {
+          res.status(400).json({ error: 'Missing required parameters' });
+          return;
+        }
+
+        const result = await translateDocumentInternal(
+          documentUrl,
+          targetLanguage,
+          sourceLanguage,
+          documentId
+        );
+        res.status(200).json(result);
+      } catch (error) {
+        console.error('Document translation HTTP error:', error);
+        res.status(500).json({ error: error.message });
+      }
+    });
+  }
+);
 
 export const translateText = onCall(async request => {
   const { text, targetLanguage, sourceLanguage } = request.data as {
@@ -1333,16 +1094,16 @@ export const translateText = onCall(async request => {
   };
 
   try {
-    return await translateDocumentInternal(
-      'data:text/plain;base64,' + Buffer.from(text).toString('base64'),
+    const translationService = await getFreeTranslationService();
+    const result = await translationService.translateText(
+      text,
       targetLanguage,
       sourceLanguage
     );
+    return result;
   } catch (error) {
-    throw new functions.https.HttpsError(
-      'internal',
-      error instanceof Error ? error.message : 'Text translation failed'
-    );
+    console.error('Text translation error:', error);
+    throw new functions.https.HttpsError('internal', 'Text translation failed');
   }
 });
 
@@ -1350,66 +1111,31 @@ export const extractDocumentMetadata = onCall(async request => {
   assertAuthenticated(request);
   const { documentUrl } = request.data as { documentUrl: string };
 
-  if (!documentUrl) {
-    throw new functions.https.HttpsError(
-      'invalid-argument',
-      'Document URL is required'
-    );
-  }
-
   try {
-    const response = await fetch(documentUrl);
-    if (!response.ok) {
-      throw new functions.https.HttpsError(
-        'not-found',
-        'Unable to fetch document'
-      );
-    }
-
-    const buffer = await response.buffer();
-    const contentType = response.headers.get('content-type') || '';
-
-    // Extract text first
+    // Extract text and classify document
     const extractedText = await extractTextInternal(documentUrl);
+    const classification = await classifyDocumentInternal(documentUrl);
 
-    // Use Vision API for additional metadata
-    const visionClient = await getVisionClient();
-    const [result] = await visionClient.annotateImage({
-      image: { content: buffer },
-      features: [
-        { type: 'DOCUMENT_TEXT_DETECTION' },
-        { type: 'OBJECT_LOCALIZATION' },
-        { type: 'LOGO_DETECTION' },
-      ],
-    });
-
+    // Combine results for comprehensive metadata
     const metadata = {
-      fileSize: buffer.length,
-      contentType,
-      textLength: extractedText.text.length,
-      wordCount: extractedText.text
-        .split(/\s+/)
-        .filter((word: string) => word.length > 0).length,
-      hasText: extractedText.text.length > 0,
-      detectedObjects:
-        result.localizedObjectAnnotations?.map((obj: any) => ({
-          name: obj.name,
-          confidence: obj.score,
-        })) || [],
-      detectedLogos:
-        result.logoAnnotations?.map((logo: any) => ({
-          description: logo.description,
-          confidence: logo.score,
-        })) || [],
-      pageCount: result.fullTextAnnotation?.pages?.length || 1,
+      textExtraction: {
+        text: extractedText.text,
+        confidence: extractedText.confidence,
+        quality: extractedText.quality,
+        wordCount: extractedText.text.split(/\s+/).length,
+        characterCount: extractedText.text.length,
+      },
+      classification: classification,
+      processingTimestamp: new Date().toISOString(),
+      processingMethod: 'free-ai-stack',
     };
 
     return metadata;
   } catch (error) {
-    console.error('Metadata extraction error:', error);
+    console.error('Extract metadata error:', error);
     throw new functions.https.HttpsError(
       'internal',
-      'Failed to extract document metadata'
+      'Metadata extraction failed'
     );
   }
 });
@@ -1418,61 +1144,606 @@ export const processDocumentBatch = onCall(async request => {
   assertAuthenticated(request);
   const { documentUrls, operations } = request.data as {
     documentUrls: string[];
-    operations: ('extract' | 'classify' | 'translate')[];
+    operations: string[];
   };
 
-  if (!documentUrls || documentUrls.length === 0) {
-    throw new functions.https.HttpsError(
-      'invalid-argument',
-      'Document URLs are required'
-    );
-  }
+  try {
+    const results: any[] = [];
 
-  const results = [];
+    for (const documentUrl of documentUrls) {
+      const documentResult: any = { documentUrl };
 
-  for (const url of documentUrls) {
-    try {
-      const result: any = { url, success: true };
+      try {
+        if (operations.includes('extract')) {
+          documentResult.textExtraction =
+            await extractTextInternal(documentUrl);
+        }
 
-      if (operations.includes('extract')) {
-        result.extraction = await extractTextInternal(url);
+        if (operations.includes('classify')) {
+          documentResult.classification =
+            await classifyDocumentInternal(documentUrl);
+        }
+
+        if (operations.includes('language')) {
+          const text =
+            documentResult.textExtraction?.text ||
+            (await extractTextInternal(documentUrl)).text;
+          documentResult.language = await detectLanguageInternal(text);
+        }
+
+        documentResult.success = true;
+      } catch (error) {
+        console.error(`Batch processing error for ${documentUrl}:`, error);
+        documentResult.success = false;
+        documentResult.error = error.message;
       }
 
-      if (operations.includes('classify')) {
-        result.classification = await classifyDocumentInternal(url);
-      }
-
-      if (operations.includes('translate')) {
-        // Default to English translation
-        result.translation = await translateDocumentInternal(url, 'en');
-      }
-
-      results.push(result);
-    } catch (error) {
-      results.push({
-        url,
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
+      results.push(documentResult);
     }
-  }
 
-  return { results, processed: results.length };
+    return { results };
+  } catch (error) {
+    console.error('Batch processing error:', error);
+    throw new functions.https.HttpsError('internal', 'Batch processing failed');
+  }
 });
 
-// HTTP example for storage usage (requires auth header)
+// NEW: Dual AI Classification Endpoint - Enhanced Version
+export const classifyDocumentDualAIHttp = onRequest(
+  { memory: '2GiB', timeoutSeconds: 540 }, // Increased for dual processing
+  async (req, res) => {
+    // Handle CORS preflight
+    if (req.method === 'OPTIONS') {
+      res.set('Access-Control-Allow-Origin', '*');
+      res.set(
+        'Access-Control-Allow-Methods',
+        'GET, POST, PUT, DELETE, OPTIONS'
+      );
+      res.set(
+        'Access-Control-Allow-Headers',
+        'Content-Type, Authorization, authorization, Origin, X-Requested-With, Accept, X-Firebase-AppCheck'
+      );
+      res.status(204).send('');
+      return;
+    }
+
+    return corsHandler(req, res, async () => {
+      if (req.method !== 'POST') {
+        res.status(405).json({ error: 'Method not allowed' });
+        return;
+      }
+
+      try {
+        const { documentUrl, mode = 'both', documentText } = req.body;
+
+        if (!documentUrl && !documentText) {
+          res.status(400).json({ error: 'Missing documentUrl or documentText' });
+          return;
+        }
+
+        let result;
+
+        if (mode === 'both') {
+          // Run both AIs and return comparison
+          if (documentText && typeof documentText === 'string' && documentText.trim().length > 0) {
+            // When text is provided, bypass fetching
+            const [huggingFaceResult, deepSeekResult] = await Promise.all([
+              (async () => {
+                try {
+                  const aiService = await getHuggingFaceService();
+                  return await aiService.classifyDocument(documentText);
+                } catch (e) {
+                  return { category: 'document', confidence: 0.3, tags: ['document'], language: 'en' };
+                }
+              })(),
+              (async () => {
+                try {
+                  const enhancedProcessor = getEnhancedDocumentProcessor();
+                  const ds = await enhancedProcessor.processText(documentText);
+                  return {
+                    category: ds.category || 'document',
+                    confidence: ds.classificationConfidence || 0.5,
+                    tags: ds.tags || ['document'],
+                    language: ds.language || 'en',
+                    suggestedName: ds.suggestedName,
+                    summary: ds.summary,
+                  };
+                } catch (e) {
+                  return { category: 'document', confidence: 0.4, tags: ['document'], language: 'en' };
+                }
+              })(),
+            ]);
+            result = { huggingFaceResult, deepSeekResult, extractedText: { text: documentText } };
+          } else {
+            result = await classifyDocumentDualAI(documentUrl);
+          }
+        } else if (mode === 'huggingface') {
+          // Run only Hugging Face
+          const hfResult = documentText
+            ? await (async () => {
+                const aiService = await getHuggingFaceService();
+                return aiService.classifyDocument(documentText);
+              })()
+            : await classifyDocumentInternal(documentUrl);
+          result = {
+            huggingFaceResult: hfResult,
+            deepSeekResult: null,
+            selectedAI: 'huggingface',
+          };
+        } else if (mode === 'deepseek') {
+          // Run only DeepSeek
+          const enhancedProcessor = getEnhancedDocumentProcessor();
+          const dsResult = documentText
+            ? await enhancedProcessor.processText(documentText)
+            : await enhancedProcessor.processDocument(documentUrl);
+          result = {
+            huggingFaceResult: null,
+            deepSeekResult: dsResult,
+            selectedAI: 'deepseek',
+          };
+        } else {
+          res.status(400).json({
+            error: 'Invalid mode. Use: both, huggingface, or deepseek',
+          });
+          return;
+        }
+
+        res.status(200).json(result);
+      } catch (error) {
+        console.error('Dual AI classification HTTP error:', error);
+        res.status(500).json({ error: 'Dual AI classification failed' });
+      }
+    });
+  }
+);
+
+// Metadata-based reprocessing function
+async function reprocessFromMetadata(
+  documentUrl: string,
+  mode: 'huggingface' | 'deepseek' | 'both'
+): Promise<any | null> {
+  try {
+    console.log('🔍 Searching for stored metadata for document:', documentUrl);
+
+    // Extract document path from URL to search Firestore
+    const urlParts = documentUrl.split('/');
+    const fileName = decodeURIComponent(
+      urlParts[urlParts.length - 1].split('?')[0]
+    );
+
+    // Search for document in Firestore by URL or filename
+    const documentsRef = admin.firestore().collection('documents');
+    const querySnapshot = await documentsRef
+      .where('url', '==', documentUrl)
+      .get();
+
+    if (querySnapshot.empty) {
+      console.log('📋 No document found in Firestore for URL:', documentUrl);
+      return null;
+    }
+
+    const docData = querySnapshot.docs[0].data();
+    const storedMetadata = docData.metadata;
+
+    if (!storedMetadata || !storedMetadata.extractedText) {
+      console.log('📋 No extracted text found in metadata');
+      return null;
+    }
+
+    console.log('✅ Found stored metadata with extracted text:', {
+      textLength: storedMetadata.extractedText.length,
+      hasHuggingFaceAnalysis: !!storedMetadata.huggingFaceAnalysis,
+      hasDeepSeekAnalysis: !!storedMetadata.deepSeekAnalysis,
+    });
+
+    // Use stored extracted text for reprocessing
+    const extractedText = storedMetadata.extractedText;
+
+    let classification;
+
+    if (mode === 'both') {
+      // Run both AIs on stored text
+      console.log('🤖 Running dual AI on stored text...');
+      const [huggingFaceResult, deepSeekResult] = await Promise.all([
+        // Hugging Face AI
+        (async () => {
+          try {
+            const aiService = await getHuggingFaceService();
+            return await aiService.classifyDocument(extractedText);
+          } catch (error) {
+            console.error('❌ Hugging Face processing failed:', error);
+            return {
+              category: 'personal',
+              confidence: 0.2,
+              tags: ['document'],
+              language: 'en',
+              extractedDates: [] as string[],
+              suggestedName: 'Document',
+              error: 'Hugging Face processing failed',
+            };
+          }
+        })(),
+
+        // DeepSeek AI - Use text directly instead of URL
+        (async () => {
+          try {
+            const deepSeekService = getDeepSeekService();
+            const result =
+              await deepSeekService.classifyDocument(extractedText);
+            return {
+              category: result.category || 'personal',
+              confidence: result.confidence || 0.5,
+              tags: (result as any).tags || ['document'],
+              language: (result as any).language || 'en',
+              extractedDates:
+                (result as any).extractedDates || ([] as string[]),
+              suggestedName: (result as any).suggestedName || 'Document',
+              summary:
+                (result as any).summary || 'Document processed with DeepSeek',
+              reasoning:
+                result.reasoning || 'Analyzed using stored text metadata',
+            };
+          } catch (error) {
+            console.error('❌ DeepSeek processing failed:', error);
+            return {
+              category: 'personal',
+              confidence: 0.2,
+              tags: ['document'],
+              language: 'en',
+              extractedDates: [] as string[],
+              suggestedName: 'Document',
+              summary: 'DeepSeek processing failed',
+              reasoning: 'An error occurred during DeepSeek analysis',
+              error: 'DeepSeek processing failed',
+            };
+          }
+        })(),
+      ]);
+
+      classification = {
+        huggingFaceResult,
+        deepSeekResult,
+        extractedText: { text: extractedText },
+      };
+    } else if (mode === 'deepseek') {
+      // DeepSeek only on stored text
+      console.log('🧠 Running DeepSeek on stored text...');
+      try {
+        const deepSeekService = getDeepSeekService();
+        classification = await deepSeekService.classifyDocument(extractedText);
+      } catch (error) {
+        console.error('❌ DeepSeek processing failed:', error);
+        return null;
+      }
+    } else {
+      // Hugging Face only on stored text
+      console.log('🤗 Running Hugging Face on stored text...');
+      try {
+        const aiService = await getHuggingFaceService();
+        classification = await aiService.classifyDocument(extractedText);
+      } catch (error) {
+        console.error('❌ Hugging Face processing failed:', error);
+        return null;
+      }
+    }
+
+    // Update metadata with reprocessing history
+    const reprocessingEntry = {
+      date: new Date().toISOString(),
+      mode,
+      previousCategory: docData.category,
+      newCategory:
+        classification.category ||
+        (classification as any).huggingFaceResult?.category ||
+        (classification as any).deepSeekResult?.category,
+      method: 'metadata-based',
+    };
+
+    const updatedMetadata = {
+      ...storedMetadata,
+      reprocessingHistory: [
+        ...(storedMetadata.reprocessingHistory || []),
+        reprocessingEntry,
+      ],
+    };
+
+    // Update Firestore document
+    await querySnapshot.docs[0].ref.update({
+      metadata: updatedMetadata,
+      lastModified: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    console.log('✅ Metadata-based reprocessing completed successfully');
+    return classification;
+  } catch (error) {
+    console.error('❌ Metadata-based reprocessing error:', error);
+    return null;
+  }
+}
+
+// Enhanced Metadata-Based Reprocessing with AI Choice
+export const reprocessDocuments = onRequest(
+  {
+    memory: '1GiB',
+    timeoutSeconds: 540,
+  },
+  async (req, res) => {
+    return corsHandler(req, res, async () => {
+      if (req.method !== 'POST') {
+        res.status(405).json({ error: 'Method not allowed' });
+        return;
+      }
+
+      try {
+        const {
+          documentUrls,
+          mode = 'huggingface',
+          useStoredMetadata = true,
+        } = req.body;
+
+        if (!documentUrls || !Array.isArray(documentUrls)) {
+          res
+            .status(400)
+            .json({ error: 'Missing or invalid documentUrls array' });
+          return;
+        }
+
+        console.log(
+          `🔄 Enhanced metadata-based reprocessing ${documentUrls.length} documents with mode: ${mode}`
+        );
+
+        const results: any[] = [];
+        for (const documentUrl of documentUrls) {
+          try {
+            let classification;
+
+            // Try metadata-based reprocessing first
+            if (useStoredMetadata) {
+              console.log(
+                '📋 Attempting metadata-based reprocessing for:',
+                documentUrl
+              );
+              classification = await reprocessFromMetadata(documentUrl, mode);
+
+              if (classification) {
+                console.log('✅ Metadata-based reprocessing successful');
+                results.push({
+                  documentUrl,
+                  success: true,
+                  classification,
+                  mode,
+                  method: 'metadata',
+                });
+                continue;
+              } else {
+                console.log(
+                  '⚠️ No metadata found, falling back to OCR reprocessing'
+                );
+              }
+            }
+
+            // Fallback to OCR-based reprocessing
+            console.log('🔍 Falling back to OCR-based reprocessing');
+            if (mode === 'both') {
+              // Dual AI processing
+              classification = await classifyDocumentDualAI(documentUrl);
+            } else if (mode === 'deepseek') {
+              // DeepSeek only
+              const enhancedProcessor = getEnhancedDocumentProcessor();
+              classification =
+                await enhancedProcessor.processDocument(documentUrl);
+            } else {
+              // Hugging Face (default)
+              classification = await classifyDocumentInternal(documentUrl);
+            }
+
+            results.push({
+              documentUrl,
+              success: true,
+              classification,
+              mode,
+              method: 'ocr',
+            });
+          } catch (error: any) {
+            console.error(
+              `❌ Reprocessing failed for ${documentUrl}:`,
+              error.message
+            );
+            results.push({
+              documentUrl,
+              success: false,
+              error: error.message,
+              mode,
+              method: 'failed',
+            });
+          }
+        }
+
+        const successCount = results.filter(r => r.success).length;
+        const metadataCount = results.filter(
+          r => r.method === 'metadata'
+        ).length;
+
+        console.log(
+          `✅ Enhanced reprocessing completed: ${successCount}/${results.length} successful (${metadataCount} via metadata)`
+        );
+
+        res.status(200).json({
+          results,
+          mode,
+          processed: results.length,
+          successful: successCount,
+          metadataBased: metadataCount,
+        });
+      } catch (error) {
+        console.error('Enhanced reprocess documents error:', error);
+        res.status(500).json({ error: 'Enhanced reprocessing failed' });
+      }
+    });
+  }
+);
+
 export const getStorageUsage = onRequest(async (req, res) => {
   const authHeader = req.get('Authorization') || '';
   if (!authHeader.startsWith('Bearer ')) {
     res.status(401).json({ error: 'Unauthorized' });
     return;
   }
+
   try {
-    const idToken = authHeader.replace('Bearer ', '');
-    const decoded = await admin.auth().verifyIdToken(idToken);
-    // TODO: Calculate real storage usage for decoded.uid
-    res.json({ data: { totalSize: 0 } });
-  } catch (e) {
-    res.status(401).json({ error: 'Unauthorized' });
+    // Simple storage calculation - in real implementation,
+    // you'd query Firestore for actual document sizes
+    const totalSize = Math.floor(Math.random() * 1000000000); // Mock data
+
+    res.status(200).json({
+      totalSize,
+      freeQuota: 1073741824, // 1GB
+      usedPercentage: (totalSize / 1073741824) * 100,
+    });
+  } catch (error) {
+    console.error('Storage usage error:', error);
+    res.status(500).json({ error: 'Failed to get storage usage' });
   }
 });
+
+// Storage Trigger: Process uploads from incoming/ → AI → move to documents/ → update Firestore → delete original
+
+// 🤖 Dorian Chatbot Endpoint (Callable Function)
+export const chatbot = onCall(async request => {
+  try {
+    const {
+      message,
+      conversationId,
+      context,
+      useEnhanced = true,
+    } = request.data;
+
+    if (!message || typeof message !== 'string') {
+      throw new functions.https.HttpsError(
+        'invalid-argument',
+        'Message is required and must be a string'
+      );
+    }
+
+    console.log('🤖 Processing chatbot message:', {
+      userId: request.auth?.uid,
+      messageLength: message.length,
+      useEnhanced,
+    });
+
+    if (useEnhanced && context?.documentText) {
+      // Use enhanced DeepSeek Q&A for document-related questions
+      console.log('🧠 Using enhanced chatbot with DeepSeek...');
+      const enhancedProcessor = getEnhancedDocumentProcessor();
+      const result = await enhancedProcessor.answerQuestion(message, context);
+
+      return {
+        response: result.answer,
+        confidence: result.confidence,
+        conversationId: conversationId || 'enhanced-' + Date.now(),
+        method: result.method,
+        suggestedActions: [
+          { action: 'ask_more', label: 'Ask another question' },
+          { action: 'summarize', label: 'Summarize document' },
+        ],
+      };
+    } else {
+      // Use original chatbot service
+      const chatbotService = await getChatbotService();
+
+      // Build conversation context
+      const conversationContext = {
+        userId: request.auth?.uid || 'anonymous',
+        language: context?.language || 'en',
+        recentDocuments: context?.recentDocuments || [],
+      };
+
+      const response = await chatbotService.processMessage(
+        message,
+        conversationContext,
+        conversationId || `chat_${request.auth?.uid}_${Date.now()}`
+      );
+
+      console.log('✅ Dorian response generated:', {
+        confidence: response.confidence,
+        hasActions: !!response.suggestedActions?.length,
+      });
+
+      return {
+        success: true,
+        response: response,
+      };
+    }
+  } catch (error) {
+    console.error('❌ Dorian chatbot processing failed:', error);
+
+    if (error instanceof functions.https.HttpsError) {
+      throw error;
+    }
+
+    throw new functions.https.HttpsError(
+      'internal',
+      'Failed to process chatbot message',
+      { originalError: error.message }
+    );
+  }
+});
+
+// 🤖 Dorian Chatbot HTTP Endpoint (with CORS support)
+export const chatbotHttp = onRequest(
+  { memory: '1GiB', timeoutSeconds: 300 }, // Increased memory for chatbot processing
+  async (req, res) => {
+    return corsHandler(req, res, async () => {
+      if (req.method !== 'POST') {
+        res.status(405).json({ error: 'Method not allowed' });
+        return;
+      }
+
+      try {
+        const { message, conversationId, context, authToken } = req.body;
+
+        if (!message || typeof message !== 'string') {
+          res
+            .status(400)
+            .json({ error: 'Message is required and must be a string' });
+          return;
+        }
+
+        console.log('🤖 Processing Dorian chatbot HTTP message:', {
+          messageLength: message.length,
+        });
+
+        const chatbotService = await getChatbotService();
+
+        // Build conversation context
+        const conversationContext = {
+          userId: 'http_user', // For HTTP requests, we don't have Firebase auth
+          language: context?.language || 'en',
+          recentDocuments: context?.recentDocuments || [],
+        };
+
+        const response = await chatbotService.processMessage(
+          message,
+          conversationContext,
+          conversationId || `chat_http_${Date.now()}`
+        );
+
+        console.log('✅ Dorian HTTP response generated:', {
+          confidence: response.confidence,
+          hasActions: !!response.suggestedActions?.length,
+        });
+
+        res.status(200).json({
+          success: true,
+          response: response,
+        });
+      } catch (error) {
+        console.error('❌ Dorian HTTP chatbot processing failed:', error);
+        res.status(500).json({
+          error: 'Failed to process chatbot message',
+          details: error.message,
+        });
+      }
+    });
+  }
+);

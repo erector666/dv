@@ -22,6 +22,52 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth();
 const db = getFirestore();
 const storage = getStorage(app);
-const functions = getFunctions();
+const functions = getFunctions(app);
+
+// Basic Firestore connection - no optimization bullshit that breaks
+
+// Handle network connectivity issues and QUIC protocol errors
+let networkRetryAttempts = 0;
+const MAX_NETWORK_RETRIES = 3;
+
+const handleNetworkError = async (error: any) => {
+  // Check for specific QUIC protocol errors
+  const isQuicError =
+    error?.message?.includes('QUIC') ||
+    error?.code === 'ERR_QUIC_PROTOCOL_ERROR' ||
+    error?.toString()?.includes('webchannel');
+
+  if (isQuicError && networkRetryAttempts < MAX_NETWORK_RETRIES) {
+    networkRetryAttempts++;
+    console.warn(
+      `🔄 QUIC Protocol Error detected, recovery attempt ${networkRetryAttempts}/${MAX_NETWORK_RETRIES}`
+    );
+
+    try {
+      // Simple delay-based recovery for QUIC issues - NO FAKE EMULATOR SHIT!
+      await new Promise(resolve => setTimeout(resolve, 3000)); // Wait 3 seconds for network recovery
+
+      console.log('✅ Network recovery delay completed');
+      networkRetryAttempts = 0; // Reset on success
+      return true;
+    } catch (recoveryError) {
+      console.error('❌ Network recovery failed:', recoveryError);
+
+      // Final fallback - manual intervention required
+      if (networkRetryAttempts >= MAX_NETWORK_RETRIES) {
+        console.error(
+          '🚨 All network recovery attempts failed. Manual intervention required.'
+        );
+      }
+    }
+  }
+  return false;
+};
+
+// Export network recovery function for use in other services
+export const recoverFromNetworkError = handleNetworkError;
+
+// Note: Functions emulator connection removed for compatibility
+// The chatbot service includes HTTP fallback for development if needed
 
 export { app, auth, db, storage, functions };

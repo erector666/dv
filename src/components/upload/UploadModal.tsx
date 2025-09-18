@@ -28,37 +28,65 @@ const UploadModal: React.FC<UploadModalProps> = ({
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          transition={{ type: "spring", damping: 25, stiffness: 300 }}
-          className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden"
-          onClick={(e) => e.stopPropagation()}
+          transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+          className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-6xl max-h-[95vh] overflow-hidden flex flex-col md:dialog-fullscreen"
+          onClick={e => e.stopPropagation()}
         >
-          {/* Header */}
-          <div className="relative bg-gradient-to-r from-blue-600 to-purple-600 p-6 text-white">
+          {/* Header - Compact for mobile, sticky on small screens */}
+          <div className="relative bg-gradient-to-r from-blue-600 to-purple-600 p-4 sm:p-6 text-white flex-shrink-0 sticky top-0 z-10">
             <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
-                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              <div className="flex items-center space-x-2 sm:space-x-3">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white/20 rounded-full flex items-center justify-center">
+                  <svg
+                    className="w-4 h-4 sm:w-6 sm:h-6"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                    />
                   </svg>
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold">Upload Documents</h2>
-                  <p className="text-blue-100 text-sm">Drag & drop or browse files</p>
+                  <h2 className="text-lg sm:text-2xl font-bold">
+                    Upload Documents
+                  </h2>
+                  <p className="text-blue-100 text-xs sm:text-sm">
+                    Drag & drop or browse files
+                  </p>
                 </div>
               </div>
               <button
                 onClick={onClose}
-                className="w-8 h-8 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-colors"
+                className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-colors"
+                aria-label="Close"
               >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
                 </svg>
               </button>
             </div>
           </div>
 
-          {/* Content */}
-          <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+          {/* Content - Optimized for mobile and better visibility */}
+          <div
+            className="flex-1 overflow-y-auto p-4 sm:p-6"
+            style={{ paddingBottom: 'calc(1rem + var(--safe-bottom, 0px))' }}
+          >
             <DocumentUpload onUploadComplete={onUploadComplete} />
           </div>
         </motion.div>

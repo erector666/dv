@@ -242,16 +242,43 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
         const onAIProgress = (stage: string, progress: number) => {
           console.log(`🤖 AI Processing: ${stage} - ${progress}%`);
 
-          // Map stage to user-friendly message
+          // Map stage to user-friendly message - DETAILED PROGRESS FEEDBACK
           const stageMessages: { [key: string]: string } = {
-            converting_to_pdf: 'Converting to PDF...',
-            uploading_pdf: 'Uploading PDF...',
-            extracting_text: 'Extracting text with OCR...',
-            detecting_language: 'Detecting language...',
-            classifying_document: 'Classifying document...',
-            generating_summary: 'Generating summary...',
-            updating_document: 'Updating document...',
-            completed: 'AI processing completed!',
+            // Upload stages
+            uploading_for_ai: 'Uploading original file for AI analysis...',
+            processing_ai: 'Starting AI analysis...',
+
+            // AI processing stages
+            ai_attempt_1: 'AI Analysis - Attempt 1/3...',
+            ai_attempt_2: 'AI Analysis - Attempt 2/3 (retrying)...',
+            ai_attempt_3: 'AI Analysis - Attempt 3/3 (final attempt)...',
+            processing_with_ai: 'Connecting to AI services...',
+            extracting_text: 'Extracting text from document...',
+            analyzing_content: 'Analyzing document content...',
+            classifying_document: 'Classifying document type...',
+            generating_tags: 'Generating smart tags...',
+            ai_completed: 'AI analysis completed successfully!',
+
+            // Error handling stages
+            ai_failed_attempt_1: 'AI attempt 1 failed, retrying...',
+            ai_failed_attempt_2: 'AI attempt 2 failed, final retry...',
+            ai_failed_attempt_3:
+              'AI processing failed, continuing without AI...',
+            network_recovery: 'Network issue detected, recovering...',
+            retrying_in_2s: 'Retrying in 2 seconds...',
+            retrying_in_4s: 'Retrying in 4 seconds...',
+            retrying_in_6s: 'Retrying in 6 seconds...',
+            retrying_in_10s: 'Retrying in 10 seconds...',
+
+            // Conversion stages
+            converting_to_pdf: 'Converting to PDF format...',
+            uploading_pdf: 'Uploading final PDF...',
+
+            // Legacy stages
+            detecting_language: 'Detecting document language...',
+            generating_summary: 'Generating document summary...',
+            updating_document: 'Saving document metadata...',
+            completed: 'Upload completed successfully!',
           };
 
           const message = stageMessages[stage] || `Processing: ${stage}`;
@@ -328,9 +355,9 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
 
   return (
     <div className="w-full">
-      {/* Drag & Drop Zone */}
+      {/* Drag & Drop Zone - Optimized for mobile */}
       <motion.div
-        className={`relative border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-all duration-300 ${
+        className={`relative border-2 border-dashed rounded-xl sm:rounded-2xl p-4 sm:p-8 text-center cursor-pointer transition-all duration-300 ${
           isDragging
             ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-900/20 scale-105'
             : 'border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600'
@@ -353,28 +380,38 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
           accept={allowedFileTypes.join(',')}
         />
 
-        <div className="flex flex-col items-center justify-center space-y-6">
+        <div className="flex flex-col items-center justify-center space-y-4 sm:space-y-6">
           <motion.div
-            className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg"
+            className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg"
             animate={isDragging ? { rotate: 360 } : {}}
             transition={{ duration: 0.5 }}
           >
-            <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+            <svg
+              className="w-8 h-8 sm:w-10 sm:h-10 text-white"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+              />
             </svg>
           </motion.div>
-          
-          <div className="space-y-2">
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+
+          <div className="space-y-1 sm:space-y-2">
+            <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">
               {translate('upload.title')}
             </h3>
-            <p className="text-gray-600 dark:text-gray-300 max-w-md">
+            <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300 max-w-md px-2">
               {translate('upload.instructions')}
             </p>
           </div>
 
           <motion.button
-            className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium rounded-xl hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-lg hover:shadow-xl transition-all duration-200"
+            className="px-4 py-2 sm:px-6 sm:py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium rounded-lg sm:rounded-xl hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-lg hover:shadow-xl transition-all duration-200 text-sm sm:text-base"
             onClick={e => {
               e.stopPropagation();
               handleBrowseClick();
@@ -385,13 +422,52 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
             {translate('upload.browse')}
           </motion.button>
 
-          <div className="flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400">
+          <div className="flex flex-col sm:flex-row items-center space-y-1 sm:space-y-0 sm:space-x-4 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
             <span>📄 PDF, JPG, PNG, DOCX</span>
-            <span>•</span>
+            <span className="hidden sm:inline">•</span>
             <span>Max {maxFileSize}MB</span>
           </div>
         </div>
       </motion.div>
+
+      {/* Batch Upload Progress */}
+      {isUploading && totalFilesToUpload > 1 && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-800 rounded-2xl"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center space-x-2">
+              <motion.div
+                className="w-3 h-3 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full"
+                animate={{ scale: [1, 1.2, 1] }}
+                transition={{ duration: 1.5, repeat: Infinity }}
+              />
+              <h4 className="text-lg font-semibold text-blue-800 dark:text-blue-200">
+                📤 Batch Upload Progress
+              </h4>
+            </div>
+            <span className="text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-800/50 px-3 py-1 rounded-full">
+              {completedFiles.length} of {totalFilesToUpload} completed
+            </span>
+          </div>
+          <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-3 overflow-hidden">
+            <motion.div
+              className="h-3 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full"
+              initial={{ width: 0 }}
+              animate={{
+                width: `${(completedFiles.length / totalFilesToUpload) * 100}%`,
+              }}
+              transition={{ duration: 0.5, ease: 'easeOut' }}
+            />
+          </div>
+          <p className="text-sm text-blue-600 dark:text-blue-400 mt-2 text-center font-medium">
+            {Math.round((completedFiles.length / totalFilesToUpload) * 100)}%
+            complete
+          </p>
+        </motion.div>
+      )}
 
       {/* AI Processing Status */}
       {isUploading && Object.keys(aiProgress).length > 0 && (
@@ -411,11 +487,12 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
                 AI Processing
               </h4>
               <span className="text-sm text-gray-600 dark:text-gray-300">
-                {Object.keys(aiProgress).length} file{Object.keys(aiProgress).length !== 1 ? 's' : ''}
+                {Object.keys(aiProgress).length} file
+                {Object.keys(aiProgress).length !== 1 ? 's' : ''}
               </span>
             </div>
           </div>
-          
+
           <div className="space-y-3">
             {Object.entries(aiProgress).map(([fileName, progress]) => (
               <motion.div
@@ -432,7 +509,7 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
                     {progress.progress}%
                   </span>
                 </div>
-                
+
                 <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
                   <motion.div
                     className="h-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full"
@@ -441,7 +518,7 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
                     transition={{ duration: 0.8, ease: 'easeOut' }}
                   />
                 </div>
-                
+
                 <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
                   {progress.message}
                 </p>
@@ -664,14 +741,14 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
                           </span>
                         </div>
                         <div className="h-2 bg-green-200 dark:bg-green-800 rounded-full overflow-hidden">
-                          <motion.div
-                            className="h-2 bg-green-500 rounded-full"
-                            initial={{ width: 0 }}
-                            animate={{
-                              width: `${aiProgress[file.name].progress}%`,
-                            }}
-                            transition={{ duration: 0.5, ease: 'easeOut' }}
-                          ></motion.div>
+                    <motion.div
+                      className="h-2 bg-green-500 rounded-full"
+                      initial={{ width: 0 }}
+                      animate={{
+                        width: `${aiProgress[file.name].progress}%`,
+                      }}
+                      transition={{ duration: 0.5, ease: 'easeOut' }}
+                    ></motion.div>
                         </div>
                         <div className="flex items-center justify-between mt-1">
                           <motion.p
@@ -731,35 +808,6 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
         </motion.div>
       )}
 
-      {/* Batch Upload Progress */}
-      {isUploading && totalFilesToUpload > 1 && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg"
-        >
-          <div className="flex items-center justify-between mb-2">
-            <h4 className="text-sm font-medium text-blue-800 dark:text-blue-200">
-              📤 Batch Upload Progress
-            </h4>
-            <span className="text-sm text-blue-600 dark:text-blue-400">
-              {completedFiles.length} of {totalFilesToUpload} completed
-            </span>
-          </div>
-          <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-2">
-            <motion.div
-              className="h-2 bg-blue-600 dark:bg-blue-400 rounded-full"
-              initial={{ width: 0 }}
-              animate={{ width: `${(completedFiles.length / totalFilesToUpload) * 100}%` }}
-              transition={{ duration: 0.5, ease: 'easeOut' }}
-            />
-          </div>
-          <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-            {Math.round((completedFiles.length / totalFilesToUpload) * 100)}% complete
-          </p>
-        </motion.div>
-      )}
-
       {/* Upload Buttons */}
       {files.length > 0 && (
         <div className="mt-6 flex justify-between items-center">
@@ -777,32 +825,65 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
                 }`}
               >
                 {isUploading ? (
-                  <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{
-                      duration: 1,
-                      repeat: Infinity,
-                      ease: 'linear',
-                    }}
-                    className="inline-flex items-center space-x-2"
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24">
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
+                  <div className="inline-flex items-center space-x-3">
+                    <div className="flex space-x-1">
+                      <motion.div
+                        className="w-2 h-2 bg-white rounded-full"
+                        animate={{
+                          y: [0, -8, 0],
+                          opacity: [0.4, 1, 0.4],
+                        }}
+                        transition={{
+                          duration: 1.2,
+                          repeat: Infinity,
+                          ease: 'easeInOut',
+                        }}
                       />
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      <motion.div
+                        className="w-2 h-2 bg-white rounded-full"
+                        animate={{
+                          y: [0, -8, 0],
+                          opacity: [0.4, 1, 0.4],
+                        }}
+                        transition={{
+                          duration: 1.2,
+                          delay: 0.2,
+                          repeat: Infinity,
+                          ease: 'easeInOut',
+                        }}
                       />
-                    </svg>
-                    <span>Uploading...</span>
-                  </motion.div>
+                      <motion.div
+                        className="w-2 h-2 bg-white rounded-full"
+                        animate={{
+                          y: [0, -8, 0],
+                          opacity: [0.4, 1, 0.4],
+                        }}
+                        transition={{
+                          duration: 1.2,
+                          delay: 0.4,
+                          repeat: Infinity,
+                          ease: 'easeInOut',
+                        }}
+                      />
+                    </div>
+                    <motion.span
+                      animate={{ opacity: [0.7, 1, 0.7] }}
+                      transition={{
+                        duration: 2,
+                        repeat: Infinity,
+                        ease: 'easeInOut',
+                      }}
+                    >
+                      {(() => {
+                        const total = totalFilesToUpload || selectedFiles.size || files.length;
+                        const current = Math.min(
+                          completedFiles.length + 1,
+                          total
+                        );
+                        return `Uploading ${current}/${total}`;
+                      })()}
+                    </motion.span>
+                  </div>
                 ) : (
                   `Upload Selected (${selectedFiles.size})`
                 )}
@@ -823,28 +904,65 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
               }`}
             >
               {isUploading ? (
-                <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                  className="inline-flex items-center space-x-2"
-                >
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24">
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
+                <div className="inline-flex items-center space-x-3">
+                  <div className="flex space-x-1">
+                    <motion.div
+                      className="w-2 h-2 bg-white rounded-full"
+                      animate={{
+                        y: [0, -8, 0],
+                        opacity: [0.4, 1, 0.4],
+                      }}
+                      transition={{
+                        duration: 1.2,
+                        repeat: Infinity,
+                        ease: 'easeInOut',
+                      }}
                     />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    <motion.div
+                      className="w-2 h-2 bg-white rounded-full"
+                      animate={{
+                        y: [0, -8, 0],
+                        opacity: [0.4, 1, 0.4],
+                      }}
+                      transition={{
+                        duration: 1.2,
+                        delay: 0.2,
+                        repeat: Infinity,
+                        ease: 'easeInOut',
+                      }}
                     />
-                  </svg>
-                  <span>Uploading...</span>
-                </motion.div>
+                    <motion.div
+                      className="w-2 h-2 bg-white rounded-full"
+                      animate={{
+                        y: [0, -8, 0],
+                        opacity: [0.4, 1, 0.4],
+                      }}
+                      transition={{
+                        duration: 1.2,
+                        delay: 0.4,
+                        repeat: Infinity,
+                        ease: 'easeInOut',
+                      }}
+                    />
+                  </div>
+                  <motion.span
+                    animate={{ opacity: [0.7, 1, 0.7] }}
+                    transition={{
+                      duration: 2,
+                      repeat: Infinity,
+                      ease: 'easeInOut',
+                    }}
+                  >
+                    {(() => {
+                      const total = totalFilesToUpload || files.length;
+                      const current = Math.min(
+                        completedFiles.length + 1,
+                        total
+                      );
+                      return `Uploading ${current}/${total}`;
+                    })()}
+                  </motion.span>
+                </div>
               ) : (
                 `Upload All (${files.length})`
               )}

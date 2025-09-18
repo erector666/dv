@@ -1,5 +1,5 @@
 import React from 'react';
-import { SunIcon, MoonIcon } from '@heroicons/react/24/outline';
+import { Sun, Moon } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 
 interface ThemeToggleProps {
@@ -43,7 +43,7 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({
     >
       <div className="relative flex items-center justify-center">
         {/* Sun Icon */}
-        <SunIcon
+        <Sun
           className={`
             ${iconSizes[size]}
             transition-all duration-300 ease-in-out
@@ -57,7 +57,7 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({
         />
 
         {/* Moon Icon */}
-        <MoonIcon
+        <Moon
           className={`
             ${iconSizes[size]}
             transition-all duration-300 ease-in-out

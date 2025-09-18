@@ -1,7 +1,14 @@
 import React, { useState, ReactNode } from 'react';
 import { Outlet } from 'react-router-dom';
+import { useQuery } from 'react-query';
 import Sidebar from './Sidebar';
 import Header from './Header';
+import ChatBot from '../chat/ChatBot';
+import { Button } from '../ui/Button';
+import { useAuth } from '../../context/AuthContext';
+import { useUploadModal } from '../../context/UploadModalContext';
+import { getUserDocuments } from '../../services/documentService';
+import { MessageCircle } from 'lucide-react';
 
 interface LayoutProps {
   children?: ReactNode;
@@ -9,6 +16,37 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const { currentUser } = useAuth();
+  const { openModal } = useUploadModal();
+
+  // Fetch user's documents for chatbot context
+  const { data: documents = [] } = useQuery(
+    ['documents', currentUser?.uid],
+    () => getUserDocuments(currentUser?.uid || ''),
+    {
+      enabled: !!currentUser?.uid,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      retry: 1,
+    }
+  );
+
+  // Convert documents to the format expected by ChatBot
+  const recentDocuments = documents
+    .filter(doc => doc.id) // Filter out documents without IDs
+    .slice(0, 10)
+    .map(doc => ({
+      id: doc.id!, // Non-null assertion since we filtered above
+      name: doc.name,
+      category: doc.category || 'uncategorized',
+      uploadDate:
+        doc.uploadedAt instanceof Date
+          ? doc.uploadedAt
+          : new Date(doc.uploadedAt || Date.now()),
+      url: doc.url, // Add document URL for analysis
+      size: doc.size, // Add document size
+      type: doc.type, // Add document type
+    }));
 
   const toggleMobileSidebar = () => {
     setIsMobileSidebarOpen(!isMobileSidebarOpen);
@@ -16,6 +54,86 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const closeMobileSidebar = () => {
     setIsMobileSidebarOpen(false);
+  };
+
+  const toggleChat = () => {
+    setIsChatOpen(!isChatOpen);
+  };
+
+  const handleChatAction = (action: string, data?: any) => {
+    setIsChatOpen(false); // Close chat after action
+
+    switch (action) {
+      case 'open_upload_modal':
+        openModal();
+        break;
+      case 'search_documents':
+        // Navigate to dashboard with search focus
+        window.location.href = '/dashboard';
+        setTimeout(() => {
+          const searchInput = document.querySelector(
+            'input[type="search"]'
+          ) as HTMLInputElement;
+          if (searchInput) {
+            searchInput.focus();
+            if (data?.query) {
+              searchInput.value = data.query;
+              searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+          }
+        }, 100);
+        break;
+      case 'show_recent_documents':
+        // Navigate to dashboard
+        window.location.href = '/dashboard';
+        break;
+      case 'browse_categories':
+        // Navigate to dashboard and scroll to categories
+        window.location.href = '/dashboard';
+        setTimeout(() => {
+          const categoriesSection = document.querySelector(
+            '[data-section="categories"]'
+          );
+          if (categoriesSection) {
+            categoriesSection.scrollIntoView({ behavior: 'smooth' });
+          }
+        }, 100);
+        break;
+      case 'view_document':
+        if (data?.id) {
+          // Navigate to document view (if you have a document viewer route)
+          console.log('View document:', data.id);
+          // window.location.href = `/document/${data.id}`;
+        }
+        break;
+      case 'explain_features':
+      case 'show_tutorial':
+        // Show help or tutorial
+        alert(
+          'Feature explanation coming soon! 🚀\n\nDocVault helps you:\n• Upload & organize documents\n• Search by content\n• Translate documents\n• Extract key information'
+        );
+        break;
+      case 'organize_documents':
+        // Navigate to dashboard with organization focus
+        window.location.href = '/dashboard';
+        break;
+      case 'analyze_document':
+        if (data?.id) {
+          alert(
+            `🔍 Deep Analysis\n\nAnalyzing document: ${data.id}\n\nThis feature will provide:\n• Content summary\n• Key information extraction\n• Document insights\n• Language detection\n\nComing soon! 🚀`
+          );
+        }
+        break;
+      case 'translate_document':
+        if (data?.id) {
+          alert(
+            `🌍 Document Translation\n\nTranslating document: ${data.id}\n\nThis feature will:\n• Detect source language\n• Translate to target language\n• Preserve formatting\n• Generate translated PDF\n\nComing soon! 🚀`
+          );
+        }
+        break;
+      default:
+      // Handle unknown actions silently
+    }
   };
 
   return (
@@ -42,6 +160,30 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
         <main className="flex-1 overflow-y-auto">{children || <Outlet />}</main>
       </div>
+
+      {/* Floating Chat Button - safe area aware */}
+      {currentUser && (
+        <Button
+          onClick={toggleChat}
+          className="fixed w-14 h-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 z-40"
+          style={{
+            right: '1.25rem',
+            bottom: 'calc(1.25rem + var(--safe-bottom, 0px))',
+          }}
+          size="lg"
+          title="Chat with Dorian - Your AI Assistant"
+        >
+          <MessageCircle className="w-6 h-6" />
+        </Button>
+      )}
+
+      {/* ChatBot Modal */}
+      <ChatBot
+        isOpen={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
+        onAction={handleChatAction}
+        recentDocuments={recentDocuments}
+      />
     </div>
   );
 };

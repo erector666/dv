@@ -18,18 +18,47 @@ export const formatFileSize = (bytes: number): string => {
  * @param date Date object or string
  * @returns Formatted date string
  */
-export const formatDate = (date: Date | string | null | undefined): string => {
+export const formatDate = (
+  date: Date | string | any | null | undefined
+): string => {
   // Handle null, undefined, or invalid dates
   if (!date) return 'Unknown date';
-  
+
+  // Handle empty objects {} - return Unknown date silently
+  if (typeof date === 'object' && Object.keys(date).length === 0) {
+    return 'Unknown date';
+  }
+
   try {
-    const dateObj = date instanceof Date ? date : new Date(date);
-    
+    let dateObj: Date;
+
+    // Handle Firestore Timestamp objects
+    if (
+      date &&
+      typeof date === 'object' &&
+      date.toDate &&
+      typeof date.toDate === 'function'
+    ) {
+      dateObj = date.toDate();
+    }
+    // Handle Firestore Timestamp with seconds/nanoseconds
+    else if (date && typeof date === 'object' && date.seconds !== undefined) {
+      dateObj = new Date(
+        date.seconds * 1000 + (date.nanoseconds || 0) / 1000000
+      );
+    }
+    // Handle regular Date objects and strings
+    else if (date instanceof Date) {
+      dateObj = date;
+    } else {
+      dateObj = new Date(date);
+    }
+
     // Check if the date is valid
     if (isNaN(dateObj.getTime())) {
-      return 'Invalid date';
+      return 'Unknown date'; // Don't log warning for empty objects
     }
-    
+
     return new Intl.DateTimeFormat('en-US', {
       year: 'numeric',
       month: 'short',
@@ -38,8 +67,7 @@ export const formatDate = (date: Date | string | null | undefined): string => {
       minute: '2-digit',
     }).format(dateObj);
   } catch (error) {
-    console.error('Error formatting date:', error);
-    return 'Invalid date';
+    return 'Unknown date'; // Don't log errors for empty objects
   }
 };
 

@@ -4,6 +4,19 @@ import { useQuery } from 'react-query';
 import { useLanguage } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
 import { getStorageUsage } from '../../services/storageService';
+import {
+  LayoutDashboard,
+  FileText,
+  DollarSign,
+  GraduationCap,
+  Scale,
+  Building2,
+  Heart,
+  Shield,
+  FolderOpen,
+  HardDrive,
+  Settings,
+} from 'lucide-react';
 
 interface SidebarProps {
   isMobile?: boolean;
@@ -23,15 +36,35 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile = false, onClose }) => {
   const { translate } = useLanguage();
   const { currentUser } = useAuth();
 
-  // Fetch real storage usage data
+  // Fetch real storage usage data with error handling
   const {
     data: storageData,
     isLoading,
     error,
   } = useQuery('storageUsage', () => getStorageUsage(currentUser?.uid || ''), {
     enabled: !!currentUser?.uid,
-    refetchInterval: 30000, // Refetch every 30 seconds
-    staleTime: 10000, // Consider data stale after 10 seconds
+    refetchInterval: 60000, // Refetch every 60 seconds (reduced from 30s)
+    staleTime: 30000, // Consider data stale after 30 seconds
+    retry: (failureCount, error) => {
+      // Don't retry on authentication errors
+      if (
+        error instanceof Error &&
+        error.message.includes('permission-denied')
+      ) {
+        return false;
+      }
+      // Retry up to 3 times for network errors
+      return failureCount < 3;
+    },
+    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
+    onError: error => {
+      // Reduce error logging spam for network issues
+      if (error instanceof Error && error.message.includes('QUIC')) {
+        // Silent handling for QUIC errors to reduce console spam
+        return;
+      }
+      console.warn('Storage usage query failed:', error);
+    },
   });
 
   const totalStorage = 10 * 1024 * 1024 * 1024; // 10 GB in bytes
@@ -47,8 +80,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile = false, onClose }) => {
 
   return (
     <div
-      className={`h-full bg-white dark:bg-gray-800 shadow-md flex flex-col w-60 ${
-        isMobile ? 'fixed inset-y-0 left-0 z-50' : 'sticky top-0'
+      className={`h-full bg-white dark:bg-gray-800 shadow-md flex flex-col ${
+        isMobile
+          ? 'fixed inset-y-0 left-0 z-50 w-[85vw] max-w-sm'
+          : 'sticky top-0 w-60'
       }`}
     >
       {/* Logo */}
@@ -77,20 +112,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile = false, onClose }) => {
                 }`
               }
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-8 w-8"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
-                />
-              </svg>
+              <LayoutDashboard className="h-6 w-6" />
               <span className="ml-3">{translate('dashboard')}</span>
             </NavLink>
           </li>
@@ -115,7 +137,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile = false, onClose }) => {
                 }`
               }
             >
-              <span className="text-3xl">📄</span>
+              <FileText className="h-6 w-6" />
               <span className="ml-3">{translate('personal')}</span>
             </NavLink>
 
@@ -131,7 +153,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile = false, onClose }) => {
                 }`
               }
             >
-              <span className="text-3xl">💰</span>
+              <DollarSign className="h-6 w-6" />
               <span className="ml-3">Financial</span>
             </NavLink>
 
@@ -147,7 +169,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile = false, onClose }) => {
                 }`
               }
             >
-              <span className="text-3xl">🎓</span>
+              <GraduationCap className="h-6 w-6" />
               <span className="ml-3">Education</span>
             </NavLink>
 
@@ -163,7 +185,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile = false, onClose }) => {
                 }`
               }
             >
-              <span className="text-3xl">⚖️</span>
+              <Scale className="h-6 w-6" />
               <span className="ml-3">Legal</span>
             </NavLink>
 
@@ -179,7 +201,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile = false, onClose }) => {
                 }`
               }
             >
-              <span className="text-3xl">🏛️</span>
+              <Building2 className="h-6 w-6" />
               <span className="ml-3">Government</span>
             </NavLink>
 
@@ -195,7 +217,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile = false, onClose }) => {
                 }`
               }
             >
-              <span className="text-3xl">🏥</span>
+              <Heart className="h-6 w-6" />
               <span className="ml-3">{translate('medical')}</span>
             </NavLink>
 
@@ -211,7 +233,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile = false, onClose }) => {
                 }`
               }
             >
-              <span className="text-3xl">🔒</span>
+              <Shield className="h-6 w-6" />
               <span className="ml-3">{translate('insurance')}</span>
             </NavLink>
 
@@ -227,7 +249,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile = false, onClose }) => {
                 }`
               }
             >
-              <span className="text-3xl">📁</span>
+              <FolderOpen className="h-6 w-6" />
               <span className="ml-3">{translate('other')}</span>
             </NavLink>
           </li>
@@ -239,20 +261,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile = false, onClose }) => {
         {/* Storage Indicator */}
         <div className="mb-4">
           <div className="flex items-center mb-2">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-6 w-6 mr-2 text-gray-500 dark:text-gray-400"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"
-              />
-            </svg>
+            <HardDrive className="h-6 w-6 mr-2 text-gray-500 dark:text-gray-400" />
             <span className="text-sm font-medium">Storage</span>
           </div>
           <div>
@@ -261,9 +270,23 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile = false, onClose }) => {
                 Loading storage...
               </p>
             ) : error ? (
-              <p className="text-xs text-red-500 dark:text-red-400">
-                Error loading storage
-              </p>
+              <div>
+                <p className="text-xs text-yellow-600 dark:text-yellow-400 mb-1">
+                  Storage info temporarily unavailable
+                </p>
+                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mb-1">
+                  <div
+                    className="bg-gray-400 h-2 rounded-full"
+                    style={{ width: '0%' }}
+                  ></div>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  0 Bytes / {formatBytes(10 * 1024 * 1024 * 1024)} used
+                </p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                  Network connectivity issue. Will retry automatically.
+                </p>
+              </div>
             ) : storageData ? (
               <>
                 <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mb-1">
@@ -304,26 +327,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile = false, onClose }) => {
             }`
           }
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-8 w-8"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-            />
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-            />
-          </svg>
+          <Settings className="h-6 w-6" />
           <span className="ml-3">{translate('settings')}</span>
         </NavLink>
       </div>
