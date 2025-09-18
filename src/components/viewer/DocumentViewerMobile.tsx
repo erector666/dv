@@ -239,7 +239,7 @@ const DocumentViewerMobile: React.FC<DocumentViewerProps> = ({
               </div>
 
               {/* AI Analysis */}
-              {document.metadata && (
+              {document.metadata ? (
                 <div className="bg-white rounded-lg p-4 shadow-sm">
                   <h3 className="font-semibold text-gray-900 mb-3">AI Analysis</h3>
                   <div className="space-y-2 text-sm">
@@ -256,9 +256,43 @@ const DocumentViewerMobile: React.FC<DocumentViewerProps> = ({
                     {document.metadata.wordCount && (
                       <div className="flex justify-between">
                         <span className="text-gray-500">Word Count:</span>
-                        <span className="text-gray-900">{document.metadata.wordCount}</span>
+                        <span className="text-gray-900">{document.metadata.wordCount.toLocaleString()}</span>
                       </div>
                     )}
+                    {document.metadata.qualityScore && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Quality Score:</span>
+                        <span className="text-gray-900">{document.metadata.qualityScore}/100</span>
+                      </div>
+                    )}
+                    {document.metadata.processingMethod && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Processing:</span>
+                        <span className="text-gray-900">{document.metadata.processingMethod}</span>
+                      </div>
+                    )}
+                    {document.metadata.aiProcessingCompleted && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">AI Processed:</span>
+                        <span className="text-gray-900">
+                          {document.metadata.aiProcessingCompleted === true ? 'Yes' : 
+                           typeof document.metadata.aiProcessingCompleted === 'string' ? 
+                           new Date(document.metadata.aiProcessingCompleted).toLocaleDateString() : 
+                           'Yes'}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-white rounded-lg p-4 shadow-sm">
+                  <h3 className="font-semibold text-gray-900 mb-3">AI Analysis</h3>
+                  <div className="text-center py-4">
+                    <svg className="w-12 h-12 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                    </svg>
+                    <p className="text-sm text-gray-500">No AI analysis available</p>
+                    <p className="text-xs text-gray-400 mt-1">Document may still be processing</p>
                   </div>
                 </div>
               )}
@@ -287,6 +321,68 @@ const DocumentViewerMobile: React.FC<DocumentViewerProps> = ({
                   </div>
                 </div>
               )}
+
+              {/* Extracted Text Preview */}
+              {document.metadata?.extractedText && (
+                <div className="bg-white rounded-lg p-4 shadow-sm">
+                  <h3 className="font-semibold text-gray-900 mb-3">Extracted Text</h3>
+                  <div className="max-h-32 overflow-y-auto">
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                      {document.metadata.extractedText.length > 200 
+                        ? `${document.metadata.extractedText.substring(0, 200)}...`
+                        : document.metadata.extractedText}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Keywords */}
+              {document.metadata?.keywords && document.metadata.keywords.length > 0 && (
+                <div className="bg-white rounded-lg p-4 shadow-sm">
+                  <h3 className="font-semibold text-gray-900 mb-3">Keywords</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {document.metadata.keywords.map((keyword: any, index: number) => (
+                      <span
+                        key={index}
+                        className="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs"
+                      >
+                        {String(keyword)}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Document Properties */}
+              <div className="bg-white rounded-lg p-4 shadow-sm">
+                <h3 className="font-semibold text-gray-900 mb-3">Document Properties</h3>
+                <div className="space-y-2 text-sm">
+                  {document.metadata?.hasTables && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Contains Tables:</span>
+                      <span className="text-gray-900">{document.metadata.hasTables ? 'Yes' : 'No'}</span>
+                    </div>
+                  )}
+                  {document.metadata?.hasImages && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Contains Images:</span>
+                      <span className="text-gray-900">{document.metadata.hasImages ? 'Yes' : 'No'}</span>
+                    </div>
+                  )}
+                  {document.metadata?.convertedToPdf && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Converted to PDF:</span>
+                      <span className="text-gray-900">{document.metadata.convertedToPdf ? 'Yes' : 'No'}</span>
+                    </div>
+                  )}
+                  {document.metadata?.originalFileType && document.metadata.originalFileType !== document.type && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Original Type:</span>
+                      <span className="text-gray-900">{document.metadata.originalFileType}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         );
