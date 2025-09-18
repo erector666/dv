@@ -33,6 +33,7 @@ const DocumentViewerMobile: React.FC<DocumentViewerProps> = ({
   const [showMetadata, setShowMetadata] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'document' | 'metadata' | 'translation'>('document');
+  const [documentLoadError, setDocumentLoadError] = useState(false);
 
   // Close modal with Escape key
   useEffect(() => {
@@ -340,11 +341,42 @@ const DocumentViewerMobile: React.FC<DocumentViewerProps> = ({
 
       default: // document view
         if (isPDF) {
-          return (
+          return documentLoadError ? (
+            <div className="flex-1 flex flex-col items-center justify-center bg-gray-50 p-8">
+              <div className="text-center">
+                <div className="text-6xl mb-4">📄</div>
+                <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                  Unable to Load Document
+                </h3>
+                <p className="text-gray-600 mb-4">
+                  The document preview is unavailable.
+                </p>
+                <a
+                  href={document.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md"
+                >
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Download
+                </a>
+              </div>
+            </div>
+          ) : (
             <iframe
               src={document.url}
               className="flex-1 w-full border-0"
               title={document.name}
+              onError={(e) => {
+                console.error('Failed to load document in mobile viewer:', document.url, e);
+                setDocumentLoadError(true);
+              }}
+              onLoad={() => {
+                console.log('Document loaded successfully in mobile viewer:', document.url);
+                setDocumentLoadError(false);
+              }}
             />
           );
         } else if (isImage) {

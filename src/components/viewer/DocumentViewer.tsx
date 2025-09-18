@@ -43,6 +43,7 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
   const [showTextPanel, setShowTextPanel] = useState(false);
   const [textSearch, setTextSearch] = useState('');
   const [isFullTextOpen, setIsFullTextOpen] = useState(false);
+  const [documentLoadError, setDocumentLoadError] = useState(false);
   
   // Check if mobile view
   useEffect(() => {
@@ -1028,11 +1029,44 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
                 </div>
               </div>
             ) : (
-              <iframe
-                src={document.url}
-                className="w-full h-full border-0 rounded"
-                title={document.name}
-              />
+              documentLoadError ? (
+                <div className="w-full h-full flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-800 rounded">
+                  <div className="text-center p-8">
+                    <div className="text-6xl mb-4">📄</div>
+                    <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-2">
+                      Unable to Load Document
+                    </h3>
+                    <p className="text-gray-600 dark:text-gray-400 mb-4">
+                      The document preview is currently unavailable.
+                    </p>
+                    <a
+                      href={document.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                    >
+                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                      Download Document
+                    </a>
+                  </div>
+                </div>
+              ) : (
+                <iframe
+                  src={document.url}
+                  className="w-full h-full border-0 rounded"
+                  title={document.name}
+                  onError={(e) => {
+                    console.error('Failed to load document:', document.url, e);
+                    setDocumentLoadError(true);
+                  }}
+                  onLoad={() => {
+                    console.log('Document loaded successfully:', document.url);
+                    setDocumentLoadError(false);
+                  }}
+                />
+              )
             )}
           </div>
         </div>
