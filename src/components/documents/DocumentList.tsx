@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useQuery } from 'react-query';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
+import { useSearch } from '../../context/SearchContext';
 import {
   getUserDocuments,
   Document,
@@ -16,17 +17,16 @@ import { reprocessDocumentsEnhanced } from '../../services/dualAIService';
 
 interface DocumentListProps {
   category?: string;
-  searchTerm?: string;
   onViewDocument?: (document: Document) => void;
 }
 
 const DocumentList: React.FC<DocumentListProps> = ({
   category,
-  searchTerm = '',
   onViewDocument,
 }) => {
   const { currentUser } = useAuth();
   const { translate } = useLanguage();
+  const { searchTerm } = useSearch();
 
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(
     null
@@ -74,14 +74,56 @@ const DocumentList: React.FC<DocumentListProps> = ({
   // Removed excessive debug logging to reduce console spam
 
   // Filter documents based on search term
-  const filteredDocuments = documents?.filter(
-    doc =>
-      doc.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (doc.tags &&
-        doc.tags.some(tag =>
-          tag.toLowerCase().includes(searchTerm.toLowerCase())
-        ))
-  );
+  const filteredDocuments = documents?.filter(doc => {
+    if (!searchTerm) return true;
+    
+    const searchLower = searchTerm.toLowerCase();
+    
+    // Search in document name
+    if (doc.name.toLowerCase().includes(searchLower)) return true;
+    
+    // Search in tags
+    if (doc.tags && doc.tags.some(tag => tag.toLowerCase().includes(searchLower))) {
+      return true;
+    }
+    
+    // Search in category
+    if (doc.category && doc.category.toLowerCase().includes(searchLower)) {
+      return true;
+    }
+    
+    // Search in metadata fields
+    if (doc.metadata) {
+      // Search in summary
+      if (doc.metadata.summary && 
+          doc.metadata.summary.toLowerCase().includes(searchLower)) {
+        return true;
+      }
+      
+      // Search in language
+      if (doc.metadata.language && 
+          doc.metadata.language.toLowerCase().includes(searchLower)) {
+        return true;
+      }
+      
+      // Search in detected text content
+      if (doc.metadata.text && 
+          doc.metadata.text.toLowerCase().includes(searchLower)) {
+        return true;
+      }
+      
+      // Search in any other metadata string values
+      const metadataValues = Object.values(doc.metadata)
+        .filter(value => typeof value === 'string')
+        .map(value => value.toLowerCase());
+      
+      if (metadataValues.some(value => value.includes(searchLower))) {
+        return true;
+      }
+    }
+    
+    return false;
+  });
 
   // Removed debug logging to reduce console spam
 

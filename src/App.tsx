@@ -9,6 +9,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import { LanguageProvider } from './context/LanguageContext';
 import { AuthProvider } from './context/AuthContext';
 import { UploadModalProvider } from './context/UploadModalContext';
+import { SearchProvider } from './context/SearchContext';
 
 // Components
 import ErrorBoundary from './components/ErrorBoundary';
@@ -144,7 +145,9 @@ function App() {
           <LanguageProvider>
             <AuthProvider>
               <UploadModalProvider>
-                <RouterProvider router={router} />
+                <SearchProvider>
+                  <RouterProvider router={router} />
+                </SearchProvider>
               </UploadModalProvider>
             </AuthProvider>
           </LanguageProvider>
