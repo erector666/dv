@@ -1346,7 +1346,13 @@ const DocumentList: React.FC<DocumentListProps> = ({
                     <button
                       onClick={e => {
                         e.stopPropagation();
-                        handleDocumentClick(document);
+                        // Open document viewer directly
+                        if (onViewDocument) {
+                          onViewDocument(document);
+                        } else {
+                          setDocumentToView(document);
+                          setIsViewerModalOpen(true);
+                        }
                       }}
                       className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-200 dark:hover:bg-blue-800 transition-colors"
                       title="Open document viewer"
