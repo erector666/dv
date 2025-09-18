@@ -11,10 +11,61 @@ AppVault is an AI-powered document management web application built with React, 
 - Document translation
 - Document viewing and organization
 - Category-based document management
+- **Enhanced Document Cards** with comprehensive metadata display
 - Multilingual support (English, Macedonian, French)
 - Light/Dark theme support
 - Responsive design for mobile and desktop
 - Comprehensive authentication system with password reset functionality
+
+### Enhanced Document Cards
+
+The application features rich, detailed document cards that provide comprehensive information at a glance:
+
+#### Visual Enhancements
+- **Document Preview Thumbnails** - Visual previews for images and PDFs with fallback icons
+- **Document Type Badges** - Quick identification of file types (PDF, Word, Excel, Images)
+- **Enhanced Visual Hierarchy** - Improved layout with better spacing and typography
+
+#### Processing & Quality Information
+- **Processing Status Indicators** - Real-time status with detailed step tracking
+- **Quality Metrics** - Document quality scores with visual progress bars
+- **Processing Time** - Performance metrics for AI processing
+- **Confidence Scores** - AI processing confidence levels with color-coded indicators
+- **Error Information** - Detailed error messages for failed processing
+
+#### Analytics & Usage Statistics
+- **View Count Tracking** - Number of times document has been viewed
+- **Last Accessed Timestamps** - When document was last opened
+- **Document Age** - Time since upload with smart formatting
+- **Download/Share/Edit Counts** - Usage analytics for document interactions
+- **Popularity Scoring** - Visual popularity indicators
+
+#### Security & Privacy Features
+- **Encryption Status** - Visual indicators for encrypted documents
+- **Privacy Level Badges** - Public/Private/Restricted classification
+- **Sharing Status** - Number of people with document access
+- **Document Lock/Archive Status** - Security state indicators
+
+#### Collaboration Features
+- **Collaborator Tracking** - Number of active collaborators
+- **Version History** - Visual version badges with modification dates
+- **Change Tracking** - Edit history and modification timestamps
+- **Sharing Indicators** - Collaboration status display
+
+#### Quick Actions
+- **Download Button** - One-click document download
+- **Share Functionality** - Native sharing API integration
+- **Reprocess Button** - AI re-analysis capabilities
+- **Info Button** - Comprehensive document details popup
+- **Delete Button** - Secure document removal with validation
+
+#### Advanced Metadata Display
+- **AI Model Information** - Which AI model processed the document
+- **Language Detection** - Detected language with confidence scores
+- **Entity Extraction** - Extracted names, dates, and other entities
+- **Category Classification** - Document categorization with accuracy metrics
+- **Word Count** - Document length statistics
+- **Summary Preview** - AI-generated document summaries
 
 ## Project Structure
 
