@@ -44,10 +44,11 @@ export const processDocumentFast = async (
         const aiResult = await response.json();
         
         // Merge AI results with document
+        const uniqueTags = Array.from(new Set([...document.tags, ...(aiResult.tags || [])]));
         return {
           ...document,
           category: aiResult.category || quickClassification.category,
-          tags: [...new Set([...document.tags, ...(aiResult.tags || [])])],
+          tags: uniqueTags,
           metadata: {
             ...document.metadata,
             aiProcessed: true,
@@ -64,10 +65,11 @@ export const processDocumentFast = async (
     }
     
     // Fallback to heuristics-based classification
+    const fallbackTags = Array.from(new Set([...document.tags, ...quickClassification.tags]));
     return {
       ...document,
       category: quickClassification.category,
-      tags: [...new Set([...document.tags, ...quickClassification.tags])],
+      tags: fallbackTags,
       metadata: {
         ...document.metadata,
         aiProcessed: false,
