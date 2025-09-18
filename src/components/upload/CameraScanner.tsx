@@ -20,7 +20,8 @@ const CameraScanner: React.FC<CameraScannerProps> = ({ onClose, onCapture }) => 
 	const canvasRef = useRef<HTMLCanvasElement | null>(null);
 	const overlayRef = useRef<HTMLCanvasElement | null>(null);
 	const streamRef = useRef<MediaStream | null>(null);
-	const [isLoading, setIsLoading] = useState(true);
+	const [isCameraLoading, setIsCameraLoading] = useState(true);
+	const [isOpenCvReady, setIsOpenCvReady] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	// Store latest detected quadrilateral for perspective correction on capture
 	const latestQuadRef = useRef<Array<{ x: number; y: number }>|null>(null);
@@ -36,17 +37,28 @@ const CameraScanner: React.FC<CameraScannerProps> = ({ onClose, onCapture }) => 
 				const videoEl = videoRef.current;
 				if (videoEl) {
 					videoEl.srcObject = streamRef.current;
+					// Wait for video to be ready
+					videoEl.onloadedmetadata = () => {
+						if (!mounted) return;
+						setIsCameraLoading(false);
+					};
 					await videoEl.play();
 				}
-				// Load OpenCV lazily
-				await loadOpenCv();
-				if (!mounted) return;
-				setIsLoading(false);
-				startEdgeDetection();
+				// Load OpenCV lazily (don't block camera display)
+				loadOpenCv().then(() => {
+					if (!mounted) return;
+					setIsOpenCvReady(true);
+					startEdgeDetection();
+				}).catch(err => {
+					console.error('OpenCV loading failed:', err);
+					// Continue without edge detection
+					if (!mounted) return;
+					setIsOpenCvReady(false);
+				});
 			} catch (e: any) {
 				console.error('Camera init error:', e);
 				setError(e?.message || 'Unable to access camera');
-				setIsLoading(false);
+				setIsCameraLoading(false);
 			}
 		})();
     return () => {
@@ -65,7 +77,7 @@ const CameraScanner: React.FC<CameraScannerProps> = ({ onClose, onCapture }) => 
 	}, []);
 
 	const startEdgeDetection = () => {
-		if (!(window as any).cv || !videoRef.current || !overlayRef.current) return;
+		if (!(window as any).cv || !videoRef.current || !overlayRef.current || !isOpenCvReady) return;
 		const cv = (window as any).cv as any;
 		const overlay = overlayRef.current;
 		const ctx = overlay.getContext('2d');
@@ -190,7 +202,19 @@ const CameraScanner: React.FC<CameraScannerProps> = ({ onClose, onCapture }) => 
 			const ctx = canvas.getContext('2d');
 			if (!ctx) return;
 			ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-			const cv = (window as any).cv as any;
+			
+			// Check if OpenCV is available for advanced processing
+			const cv = (window as any).cv;
+			if (!cv || !isOpenCvReady) {
+				// Fallback: capture without perspective correction
+				const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/png'));
+				if (!blob) return;
+				const file = new File([blob], `scan_${Date.now()}.png`, { type: 'image/png' });
+				onCapture(file);
+				onClose();
+				return;
+			}
+			
 			// Read frame into OpenCV matrix
 			const src = cv.imread(canvas);
 			let processed: any = null;
@@ -271,9 +295,17 @@ const CameraScanner: React.FC<CameraScannerProps> = ({ onClose, onCapture }) => 
 					<video ref={videoRef} className="w-full max-h-[70vh] object-contain" playsInline muted />
 					<canvas ref={overlayRef} className="absolute inset-0 w-full h-full pointer-events-none"></canvas>
 					<canvas ref={canvasRef} className="hidden"></canvas>
-					{isLoading && (
-						<div className="absolute inset-0 flex items-center justify-center text-white">
-							Loading camera...
+					{isCameraLoading && (
+						<div className="absolute inset-0 flex items-center justify-center text-white bg-black">
+							<div className="text-center">
+								<div className="mb-2">Loading camera...</div>
+								<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto"></div>
+							</div>
+						</div>
+					)}
+					{!isCameraLoading && !isOpenCvReady && (
+						<div className="absolute top-2 left-2 text-xs text-yellow-300 bg-black bg-opacity-50 px-2 py-1 rounded">
+							Edge detection loading...
 						</div>
 					)}
 					{error && (
