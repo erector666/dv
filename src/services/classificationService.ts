@@ -69,7 +69,7 @@ function generateNameFromText(text: string): string {
       /^([A-ZČĆŽŠĐ][A-ZČĆŽŠĐa-zčćžšđ\s]{5,50})/, // Macedonian/Serbian caps
       /^([A-Z][A-Za-z\s]{5,50})/, // English caps
       /^([ÀÁÂÄÇÉÈÊËÏÎÔÖÙÛÜŸ][À-ÿa-z\s]{5,50})/, // French accented
-      /УВЕРЕНИЕ|CERTIFICATE|ATTESTATION|DIPLOM/i, // Document type keywords
+      /УВЕРЕНИЕ|CERTIFICATE|ATTESTATION|DIPLOM/i, // Document type keywords (no escaped slash)
     ];
 
     for (const pattern of titlePatterns) {
@@ -480,48 +480,67 @@ export const generateDocumentSummary = async (
 
     // Call the Firebase Cloud Function as HTTP request with timeout
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 120000); // 120 second timeout for AI processing (Firebase cold starts)
+    const timeoutId = setTimeout(() => controller.abort(), 120000); // 120s server timeout
 
-    let summary: DocumentSummaryResult;
+    // Local cap to avoid blocking overall pipeline
+    const localCapMs = 30000; // 30s soft cap
+    const fallbackSummary: DocumentSummaryResult = {
+      summary: 'Document processed successfully',
+      confidence: 0.0,
+      quality: 'low',
+      metrics: {
+        originalLength: 0,
+        summaryLength: 0,
+        compressionRatio: 0,
+        sentences: 0,
+      },
+    };
 
-    try {
-      const response = await fetch(
-        'https://us-central1-gpt1-77ce0.cloudfunctions.net/summarizeDocumentHttp',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${idToken}`,
-          },
-          body: JSON.stringify({
-            documentUrl,
-            maxLength,
-          }),
-          signal: controller.signal,
+    const fetchSummary = async (): Promise<DocumentSummaryResult> => {
+      try {
+        const response = await fetch(
+          'https://us-central1-gpt1-77ce0.cloudfunctions.net/summarizeDocumentHttp',
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${idToken}`,
+            },
+            body: JSON.stringify({
+              documentUrl,
+              maxLength,
+            }),
+            signal: controller.signal,
+          }
+        );
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(
+            errorData.error || `HTTP ${response.status}: ${response.statusText}`
+          );
         }
-      );
 
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(
-          errorData.error || `HTTP ${response.status}: ${response.statusText}`
-        );
+        return (await response.json()) as DocumentSummaryResult;
+      } catch (err: any) {
+        if (err?.name === 'AbortError') {
+          console.warn('⚠️ Summarization aborted at 120s server timeout');
+          return fallbackSummary;
+        }
+        console.warn('⚠️ Summarization failed, using fallback:', err?.message);
+        return fallbackSummary;
       }
+    };
 
-      summary = (await response.json()) as DocumentSummaryResult;
-    } catch (error) {
-      clearTimeout(timeoutId);
-      if ((error as any).name === 'AbortError') {
-        throw new Error(
-          'Document summarization request timed out after 60 seconds'
-        );
-      }
-      throw error;
-    }
+    const localTimeout = new Promise<DocumentSummaryResult>(resolve =>
+      setTimeout(() => resolve(fallbackSummary), localCapMs)
+    );
 
-    console.log('✅ Document summarization completed:', {
+    const summary = await Promise.race([fetchSummary(), localTimeout]);
+
+    console.log('✅ Document summarization completed (soft-capped):', {
       quality: summary.quality,
       confidence: summary.confidence,
       compressionRatio: summary.metrics?.compressionRatio || 'N/A',

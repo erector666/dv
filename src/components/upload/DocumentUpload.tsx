@@ -6,6 +6,7 @@ import {
   uploadDocumentWithAI,
   DocumentUploadProgress,
 } from '../../services/documentService';
+import CameraScanner from './CameraScanner';
 
 interface DocumentUploadProps {
   onUploadComplete?: (documentId: string) => void;
@@ -37,6 +38,7 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [fileTypeFilter, setFileTypeFilter] = useState<string>('all');
   const [totalFilesToUpload, setTotalFilesToUpload] = useState(0);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -142,6 +144,10 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
     setSelectedFiles(new Set());
     setUploadProgress({});
     setAiProgress({});
+  };
+
+  const handleCameraCapture = (file: File) => {
+    setFiles(prev => [file, ...prev]);
   };
 
   const handleSortFiles = (newSortBy: 'name' | 'size' | 'type') => {
@@ -410,17 +416,31 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
             </p>
           </div>
 
-          <motion.button
-            className="px-4 py-2 sm:px-6 sm:py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium rounded-lg sm:rounded-xl hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-lg hover:shadow-xl transition-all duration-200 text-sm sm:text-base"
-            onClick={e => {
-              e.stopPropagation();
-              handleBrowseClick();
-            }}
-            whileHover={{ y: -2 }}
-            whileTap={{ y: 0 }}
-          >
-            {translate('upload.browse')}
-          </motion.button>
+          <div className="flex flex-col sm:flex-row items-center gap-3">
+            <motion.button
+              className="px-4 py-2 sm:px-6 sm:py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium rounded-lg sm:rounded-xl hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-lg hover:shadow-xl transition-all duration-200 text-sm sm:text-base"
+              onClick={e => {
+                e.stopPropagation();
+                handleBrowseClick();
+              }}
+              whileHover={{ y: -2 }}
+              whileTap={{ y: 0 }}
+            >
+              {translate('upload.browse')}
+            </motion.button>
+
+            <motion.button
+              className="px-4 py-2 sm:px-6 sm:py-3 bg-white text-blue-700 border border-blue-200 dark:bg-gray-800 dark:text-blue-300 dark:border-blue-700 font-medium rounded-lg sm:rounded-xl hover:bg-blue-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm transition-all duration-200 text-sm sm:text-base"
+              onClick={e => {
+                e.stopPropagation();
+                setIsCameraOpen(true);
+              }}
+              whileHover={{ y: -2 }}
+              whileTap={{ y: 0 }}
+            >
+              Scan with Camera
+            </motion.button>
+          </div>
 
           <div className="flex flex-col sm:flex-row items-center space-y-1 sm:space-y-0 sm:space-x-4 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
             <span>📄 PDF, JPG, PNG, DOCX</span>
@@ -1111,6 +1131,13 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
             </div>
           </motion.div>
         </motion.div>
+      )}
+
+      {isCameraOpen && (
+        <CameraScanner
+          onClose={() => setIsCameraOpen(false)}
+          onCapture={handleCameraCapture}
+        />
       )}
     </div>
   );

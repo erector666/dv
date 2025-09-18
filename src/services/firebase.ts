@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import * as FirestoreMod from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import { getFunctions } from 'firebase/functions';
 
@@ -20,7 +20,15 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth();
-const db = getFirestore();
+// Force long polling to avoid QUIC/WebChannel issues; disable fetch streams
+// Use initializeFirestore if available; otherwise fall back to getFirestore
+const db = (FirestoreMod as any).initializeFirestore
+  ? (FirestoreMod as any).initializeFirestore(app, {
+      // Hard-enable long polling to mitigate QUIC/WebChannel flakiness
+      experimentalForceLongPolling: true,
+      useFetchStreams: false,
+    })
+  : (FirestoreMod.getFirestore as any)(app);
 const storage = getStorage(app);
 const functions = getFunctions(app);
 

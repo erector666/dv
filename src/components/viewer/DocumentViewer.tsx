@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '../../context/LanguageContext';
 import {
@@ -41,9 +41,21 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
   const [selectedLanguage, setSelectedLanguage] = useState<string>('');
   const [showTextPanel, setShowTextPanel] = useState(false);
   const [textSearch, setTextSearch] = useState('');
-  const [extractedExpanded, setExtractedExpanded] = useState(false);
+  const [isFullTextOpen, setIsFullTextOpen] = useState(false);
 
-  // Early return if document is not provided
+  // Close full text overlay with Escape (hook must run unconditionally)
+  useEffect(() => {
+    if (!isFullTextOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsFullTextOpen(false);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isFullTextOpen]);
+
+  // Early fallback rendering if document is missing
   if (!document) {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
@@ -69,6 +81,25 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
     { code: 'mk', name: 'Македонски', flag: '🇲🇰' },
     { code: 'fr', name: 'Français', flag: '🇫🇷' },
   ];
+
+  // Prefer a semantic display title over filename
+  const getDisplayTitle = (): string => {
+    const m = document.metadata || {};
+    const detectedCategory =
+      (metadataResult && metadataResult.category) ||
+      m.category ||
+      document.category;
+    const suggestedTitle =
+      (metadataResult && metadataResult.suggestedName) ||
+      m.suggestedName;
+    return (
+      (detectedCategory && String(detectedCategory).trim()) ||
+      (suggestedTitle && String(suggestedTitle).trim()) ||
+      'Document'
+    );
+  };
+
+  
 
   const handleTranslate = async (targetLanguage: string) => {
     if (!document) return;
@@ -260,6 +291,13 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
             </div>
             <div className="flex items-center space-x-2">
               <button
+                onClick={() => setIsFullTextOpen(true)}
+                className="px-2 py-1 text-sm bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-md"
+                title="Open full page"
+              >
+                Full page
+              </button>
+              <button
                 onClick={handleCopyExtracted}
                 className="px-2 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-md"
                 title="Copy"
@@ -277,6 +315,65 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
                 onClick={() => setShowTextPanel(false)}
                 className="text-gray-500 hover:text-gray-700"
                 title="Close"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div className="flex-1 p-4 overflow-auto">
+            <pre className="whitespace-pre-wrap text-sm text-gray-800">{filtered || 'No extracted text available'}</pre>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Full-screen overlay for viewing the entire extracted text
+  const renderFullTextOverlay = () => {
+    if (!isFullTextOpen) return null;
+    const rawText = getExtractedText();
+    const filtered = textSearch
+      ? rawText
+          .split(/\n/)
+          .filter(line => line.toLowerCase().includes(textSearch.toLowerCase()))
+          .join('\n')
+      : rawText;
+
+    return (
+      <div className="fixed inset-0 z-[70] bg-black bg-opacity-60">
+        <div className="absolute inset-4 md:inset-8 bg-white rounded-lg shadow-2xl flex flex-col">
+          <div className="flex items-center justify-between p-4 border-b">
+            <div className="flex items-center space-x-3">
+              <h3 className="text-lg font-semibold text-gray-900">Extracted Text</h3>
+              <input
+                type="text"
+                value={textSearch}
+                onChange={e => setTextSearch(e.target.value)}
+                placeholder="Search..."
+                className="px-2 py-1 text-sm border rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={handleCopyExtracted}
+                className="px-2 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-md"
+                title="Copy"
+              >
+                Copy
+              </button>
+              <button
+                onClick={handleDownloadExtracted}
+                className="px-2 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-md"
+                title="Download .txt"
+              >
+                Download
+              </button>
+              <button
+                onClick={() => setIsFullTextOpen(false)}
+                className="text-gray-500 hover:text-gray-700"
+                title="Close (Esc)"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -622,9 +719,16 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
             {/* Extracted Text */}
             {metadataResult.extractedText && (
               <div className="bg-gray-50 p-4 rounded-lg">
-                <h4 className="font-medium text-gray-900 mb-2">
-                  Extracted Text
-                </h4>
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-medium text-gray-900">Extracted Text</h4>
+                  <button
+                    onClick={() => setIsFullTextOpen(true)}
+                    className="text-blue-600 hover:text-blue-800 text-sm"
+                    title="Open full page"
+                  >
+                    View full text
+                  </button>
+                </div>
                 <div className="max-h-40 overflow-y-auto">
                   <p className="text-sm text-gray-700 whitespace-pre-wrap">
                     {renderMetadataValue(metadataResult.extractedText)}
@@ -689,7 +793,7 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
                 <div>
                   <strong>Category:</strong>{' '}
                   {renderMetadataValue(metadataResult.category)}
-                </div>
+  p                </div>
               </div>
             </div>
           </div>
@@ -705,7 +809,7 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b">
             <h2 className="text-xl font-semibold text-gray-800">
-              {document.name}
+              {getDisplayTitle()}
               {translationResult && (
                 <span className="ml-2 text-sm text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
                   Translated to{' '}
@@ -716,6 +820,7 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
                 </span>
               )}
             </h2>
+            <div className="text-xs text-gray-500 mt-1">{document.name}</div>
             <div className="flex items-center space-x-2">
               {/* Options Menu */}
               {renderOptionsMenu()}
@@ -915,6 +1020,7 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
             )}
           </div>
         </div>
+        {renderFullTextOverlay()}
       </div>
     );
   }
@@ -940,7 +1046,7 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b">
             <h2 className="text-xl font-semibold text-gray-800">
-              {document.name}
+              {getDisplayTitle()}
               {translationResult && (
                 <span className="ml-2 text-sm text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
                   Translated to{' '}
@@ -951,6 +1057,7 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
                 </span>
               )}
             </h2>
+            <div className="text-xs text-gray-500 mt-1">{document.name}</div>
             <div className="flex items-center space-x-2">
               {/* Options Menu */}
               {renderOptionsMenu()}
@@ -1165,6 +1272,7 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
             )}
           </div>
         </div>
+        {renderFullTextOverlay()}
       </div>
     );
   }
@@ -1175,9 +1283,8 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
       <div className="bg-white rounded-lg shadow-xl max-w-2xl w-11/12 flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-xl font-semibold text-gray-800">
-            {document.name}
-          </h2>
+          <h2 className="text-xl font-semibold text-gray-800">{getDisplayTitle()}</h2>
+          <div className="text-xs text-gray-500 mt-1">{document.name}</div>
           <div className="flex items-center space-x-2">
             {/* Options Menu */}
             {renderOptionsMenu()}
@@ -1276,6 +1383,7 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
           )}
         </div>
       </div>
+      {renderFullTextOverlay()}
     </div>
   );
 };

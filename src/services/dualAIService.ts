@@ -104,7 +104,8 @@ export class DualAIService {
    */
   async reprocessDocuments(
     documentUrls: string[],
-    mode: 'huggingface' | 'deepseek' | 'both' = 'both'
+    mode: 'huggingface' | 'deepseek' | 'both' = 'both',
+    documentTexts?: Record<string, string>
   ): Promise<{
     results: ReprocessResult[];
     mode: string;
@@ -118,32 +119,71 @@ export class DualAIService {
 
       const response = await fetch(`${this.baseUrl}/reprocessDocuments`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          documentUrls,
-          mode,
-          useStoredMetadata: true, // Use metadata-based reprocessing
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ documentUrls, mode, useStoredMetadata: true }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.text();
-        throw new Error(
-          `Enhanced reprocessing failed: ${response.status} - ${errorData}`
-        );
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ Enhanced reprocessing completed:', {
+          processed: result.processed,
+          mode: result.mode,
+          successCount: result.results.filter((r: ReprocessResult) => r.success)
+            .length,
+        });
+        return result;
       }
 
-      const result = await response.json();
-      console.log('✅ Enhanced reprocessing completed:', {
-        processed: result.processed,
-        mode: result.mode,
-        successCount: result.results.filter((r: ReprocessResult) => r.success)
-          .length,
-      });
+      const errorData = await response.text();
+      console.warn(
+        `⚠️ Batch reprocessing failed with ${response.status}. Falling back to per-document processing.`
+      );
 
-      return result;
+      // Fallback: per-document processing via classifyDocumentDualAIHttp
+      const fallbackResults: ReprocessResult[] = [];
+      for (const url of documentUrls) {
+        try {
+          const perRes = await fetch(
+            `${this.baseUrl}/classifyDocumentDualAIHttp`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                documentUrl: url,
+                mode,
+                ...(documentTexts && documentTexts[url]
+                  ? { documentText: documentTexts[url] }
+                  : {}),
+              }),
+            }
+          );
+          if (!perRes.ok) {
+            const txt = await perRes.text();
+            throw new Error(`HTTP ${perRes.status}: ${txt}`);
+          }
+          const classification = await perRes.json();
+          fallbackResults.push({
+            documentUrl: url,
+            success: true,
+            classification,
+            mode,
+          });
+        } catch (err: any) {
+          console.error('Per-document fallback failed:', err);
+          fallbackResults.push({
+            documentUrl: url,
+            success: false,
+            error: err?.message || 'fallback_failed',
+            mode,
+          });
+        }
+      }
+
+      return {
+        results: fallbackResults,
+        mode,
+        processed: fallbackResults.length,
+      };
     } catch (error) {
       console.error('❌ Enhanced reprocessing error:', error);
       throw error;

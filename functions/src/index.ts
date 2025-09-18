@@ -1,4 +1,6 @@
 import * as functions from 'firebase-functions';
+import { onObjectFinalized } from 'firebase-functions/v2/storage';
+import * as crypto from 'crypto';
 // Removed onFinalize storage trigger for now to restore previous behavior
 import * as admin from 'firebase-admin';
 import { onCall } from 'firebase-functions/v2/https';
@@ -1605,6 +1607,116 @@ export const getStorageUsage = onRequest(async (req, res) => {
     res.status(500).json({ error: 'Failed to get storage usage' });
   }
 });
+
+// Storage onFinalize: process files uploaded to incoming/{userId}/
+export const processIncomingUpload = onObjectFinalized(
+  { memory: '1GiB', timeoutSeconds: 540, region: 'us-central1' },
+  async event => {
+    try {
+      const object = event.data;
+      const bucketName = object.bucket;
+      const filePath = object.name || '';
+      const contentType = object.contentType || 'application/octet-stream';
+
+      if (!filePath.startsWith('incoming/')) {
+        console.log('Skipping non-incoming object:', filePath);
+        return;
+      }
+
+      console.log('📥 onFinalize processing:', filePath);
+      const bucket = admin.storage().bucket(bucketName);
+      const srcFile = bucket.file(filePath);
+
+      // Parse path incoming/{userId}/{filename}
+      const parts = filePath.split('/');
+      if (parts.length < 3) {
+        console.warn('Unexpected incoming path:', filePath);
+        return;
+      }
+      const userId = parts[1];
+      const fileName = parts.slice(2).join('/');
+      const destPath = `documents/${userId}/${fileName}`;
+      const destFile = bucket.file(destPath);
+
+      // Copy to documents/
+      await srcFile.copy(destFile);
+
+      // Public media URL (token)
+      const token = (crypto as any).randomUUID
+        ? (crypto as any).randomUUID()
+        : crypto.randomBytes(16).toString('hex');
+      await destFile.setMetadata({
+        contentType,
+        metadata: { firebaseStorageDownloadTokens: token },
+        cacheControl: 'public, max-age=3600',
+      } as any);
+      const encodedPath = encodeURIComponent(destPath);
+      const downloadURL = `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodedPath}?alt=media&token=${token}`;
+
+      // Prefer to use signed URL for internal processing
+      const [signedUrl] = await destFile.getSignedUrl({
+        action: 'read',
+        expires: Date.now() + 60 * 60 * 1000,
+      });
+
+      // Run extraction + classification on server helpers
+      const extractedText = await extractTextInternal(signedUrl, 'auto');
+      let classification: any = null;
+      try {
+        classification = await classifyDocumentInternal(signedUrl);
+      } catch (e) {
+        console.warn('Classification failed:', (e as any)?.message);
+      }
+
+      // Find Firestore doc (created by client) by original incoming path
+      const docsRef = admin.firestore().collection('documents');
+      const snap = await docsRef.where('path', '==', filePath).limit(1).get();
+      if (snap.empty) {
+        console.warn('No Firestore document found for', filePath);
+      } else {
+        const docRef = snap.docs[0].ref;
+        const updates: Record<string, any> = {
+          url: downloadURL,
+          path: destPath,
+          status: 'ready',
+          lastModified: admin.firestore.FieldValue.serverTimestamp(),
+          'metadata.aiProcessed': true,
+          'metadata.aiProcessingCompleted': admin.firestore.FieldValue.serverTimestamp(),
+          'metadata.textExtraction': {
+            extractedText: extractedText?.text || '',
+            confidence: extractedText?.confidence || 0,
+            wordCount: extractedText?.text ? extractedText.text.split(/\s+/).length : 0,
+            documentType: extractedText?.type || 'auto',
+            extractionMethod: 'server_ocr',
+            extractedAt: new Date().toISOString(),
+          },
+        };
+
+        if (classification) {
+          updates['category'] = classification.category || 'document';
+          updates['tags'] = classification.tags || ['document'];
+          updates['metadata.classificationConfidence'] = classification.confidence || 0;
+          if (classification.suggestedName) updates['metadata.suggestedName'] = classification.suggestedName;
+          if (classification.summary) updates['metadata.summary'] = classification.summary;
+          if (classification.language) updates['metadata.language'] = classification.language;
+          if (classification.extractedDates) updates['metadata.extractedDates'] = classification.extractedDates;
+        }
+
+        await docRef.update(updates);
+        console.log('✅ Firestore updated for', filePath);
+      }
+
+      try {
+        await srcFile.delete();
+        console.log('🧹 Deleted original incoming file');
+      } catch (e) {
+        console.warn('Cleanup incoming delete failed:', (e as any)?.message);
+      }
+    } catch (err) {
+      console.error('❌ processIncomingUpload error:', (err as any)?.message || err);
+    }
+  }
+);
 
 // Storage Trigger: Process uploads from incoming/ → AI → move to documents/ → update Firestore → delete original
 

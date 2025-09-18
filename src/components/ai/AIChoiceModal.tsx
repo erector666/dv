@@ -36,9 +36,7 @@ const AIChoiceModal: React.FC<AIChoiceModalProps> = ({
   onChoose,
   isProcessing = false,
 }) => {
-  const [selectedAI, setSelectedAI] = useState<
-    'huggingface' | 'deepseek' | null
-  >(null);
+  const [selectedAI] = useState<'huggingface' | 'deepseek' | null>(null);
 
   if (!isOpen) return null;
 

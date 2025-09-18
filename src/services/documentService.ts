@@ -70,9 +70,9 @@ const processDocumentWithRetry = async (
             progressTracker.progress = 45;
             onProgress?.('classifying_document', 45);
           } else if (progressTracker.stage === 'classifying_document') {
-            progressTracker.stage = 'generating_tags';
+            progressTracker.stage = 'generating_summary';
             progressTracker.progress = 50;
-            onProgress?.('generating_tags', 50);
+            onProgress?.('generating_summary', 50);
           }
         }, 5000); // Update every 5 seconds
 
@@ -369,6 +369,7 @@ export interface Document {
   lastModified?: any;
   metadata?: Record<string, any>;
   suggestedName?: string; // Add AI-suggested name
+  status?: 'processing' | 'ready' | 'error';
 }
 
 export interface DocumentUploadProgress {
@@ -391,7 +392,7 @@ export const uploadDocument = async (
     // Create a storage reference
     const storageRef = ref(
       storage,
-      `documents/${userId}/${Date.now()}_${file.name}`
+      `incoming/${userId}/${Date.now()}_${file.name}`
     );
 
     // Upload file to Firebase Storage
@@ -429,9 +430,13 @@ export const uploadDocument = async (
               userId,
               uploadedAt: serverTimestamp(),
               lastModified: serverTimestamp(),
+              status: 'processing',
               ...(category && { category }),
               ...(tags && { tags }),
-              ...(metadata && { metadata }),
+              metadata: {
+                ...(metadata || {}),
+                aiProcessed: false,
+              },
             };
 
             // Add document to Firestore (with retry)

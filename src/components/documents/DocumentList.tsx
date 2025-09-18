@@ -7,7 +7,7 @@ import {
   getUserDocuments,
   Document,
   deleteDocument,
-  reprocessDocumentsWithNewAI,
+  updateDocument,
 } from '../../services/documentService';
 import { DocumentViewer } from '../viewer';
 import { formatFileSize, formatDate } from '../../utils/formatters';
@@ -45,6 +45,9 @@ const DocumentList: React.FC<DocumentListProps> = ({
   const [isBatchDeleting, setIsBatchDeleting] = useState(false);
   const [isReprocessing, setIsReprocessing] = useState(false);
   const [isReprocessModalOpen, setIsReprocessModalOpen] = useState(false);
+  const [reprocessTarget, setReprocessTarget] = useState<
+    { type: 'all' | 'selected' | 'single'; document?: Document }
+  | null>(null);
 
   // Fetch documents using React Query
   const {
@@ -214,6 +217,25 @@ const DocumentList: React.FC<DocumentListProps> = ({
     }
 
     // Open reprocess modal directly - no mock documents needed
+    setReprocessTarget({ type: 'all' });
+    setIsReprocessModalOpen(true);
+  };
+
+  const handleReprocessSelectedDocuments = () => {
+    if (selectedDocuments.size === 0) {
+      alert('Please select at least one document to reprocess');
+      return;
+    }
+    setReprocessTarget({ type: 'selected' });
+    setIsReprocessModalOpen(true);
+  };
+
+  const handleReprocessSingleDocument = (
+    e: React.MouseEvent,
+    document: Document
+  ) => {
+    e.stopPropagation();
+    setReprocessTarget({ type: 'single', document });
     setIsReprocessModalOpen(true);
   };
 
@@ -226,11 +248,34 @@ const DocumentList: React.FC<DocumentListProps> = ({
     setIsReprocessModalOpen(false);
 
     try {
+      let targetDescription = 'all documents';
+      let documentUrls: string[] = [];
+      const isNonEmptyString = (u: unknown): u is string =>
+        typeof u === 'string' && u.length > 0;
+
+      if (reprocessTarget?.type === 'selected') {
+        const selectedDocs = (documents || []).filter(doc => {
+          const id = doc.firestoreId || doc.id;
+          return id && selectedDocuments.has(id);
+        });
+        documentUrls = selectedDocs
+          .map(doc => doc.url)
+          .filter(isNonEmptyString);
+        targetDescription = `${selectedDocs.length} selected documents`;
+      } else if (reprocessTarget?.type === 'single' && reprocessTarget.document) {
+        documentUrls = [reprocessTarget.document.url].filter(isNonEmptyString);
+        targetDescription = `document: ${reprocessTarget.document.name}`;
+      } else {
+        documentUrls = documents
+          .map(doc => doc.url)
+          .filter(isNonEmptyString);
+        targetDescription = `${documents.length} documents`;
+      }
+
       console.log(
-        `🚀 Starting enhanced reprocessing with ${mode} for ${documents.length} documents`
+        `🚀 Starting enhanced reprocessing with ${mode} for ${targetDescription}`
       );
 
-      const documentUrls = documents.map(doc => doc.url).filter(Boolean);
       const result = await reprocessDocumentsEnhanced(documentUrls, mode);
 
       console.log('✅ Enhanced reprocessing completed:', result);
@@ -453,6 +498,28 @@ const DocumentList: React.FC<DocumentListProps> = ({
             {isBatchMode && selectedDocuments.size > 0 && (
               <div className="flex items-center space-x-2">
                 <button
+                  onClick={handleReprocessSelectedDocuments}
+                  disabled={selectedDocuments.size === 0 || isReprocessing}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center space-x-2"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="w-4 h-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <polyline points="23 4 23 10 17 10"></polyline>
+                    <polyline points="1 20 1 14 7 14"></polyline>
+                    <path d="M3.51 9a9 9 0 0114.13-3.36L23 10"></path>
+                    <path d="M20.49 15a9 9 0 01-14.13 3.36L1 14"></path>
+                  </svg>
+                  <span>Reprocess Selected ({selectedDocuments.size})</span>
+                </button>
+                <button
                   onClick={handleBatchDelete}
                   disabled={selectedDocuments.size === 0}
                   className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center space-x-2"
@@ -467,7 +534,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth={2}
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1 1h-4a1 1 0 00-1 1v3M4 7h16"
                     />
                   </svg>
                   <span>Delete Selected ({selectedDocuments.size})</span>
@@ -554,7 +621,11 @@ const DocumentList: React.FC<DocumentListProps> = ({
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="text-lg font-medium text-gray-900 dark:text-white truncate flex items-center gap-2">
-                    <span className="truncate">{document.name}</span>
+                    <span className="truncate">
+                      {(document.category && String(document.category)) ||
+                        (document.metadata?.suggestedName && String(document.metadata.suggestedName)) ||
+                        'Document'}
+                    </span>
                     {(document.metadata?.language || document.metadata?.languageDetection?.language) && (
                       <span
                         className="flex-shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
@@ -566,12 +637,26 @@ const DocumentList: React.FC<DocumentListProps> = ({
                       </span>
                     )}
                   </h3>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{document.name}</div>
                   <div className="mt-1 flex flex-col space-y-1 text-sm text-gray-500 dark:text-gray-400">
                     <p>{formatFileSize(document.size)}</p>
                     <p>{formatDate(document.uploadedAt)}</p>
 
+                    {/* Processing state */}
+                    {document.status === 'processing' && (
+                      <div className="mt-2 space-y-1">
+                        <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                          <svg className="w-3 h-3 mr-1 animate-spin" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                          </svg>
+                          Processing…
+                        </div>
+                      </div>
+                    )}
+
                     {/* AI Processing Results */}
-                    {document.metadata?.aiProcessed && (
+                    {document.status !== 'processing' && document.metadata?.aiProcessed && (
                       <div className="mt-2 space-y-1">
                         {/* AI Processing Badge */}
                         <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
@@ -637,9 +722,34 @@ const DocumentList: React.FC<DocumentListProps> = ({
                         {/* Suggested Name (if different from current name) */}
                         {document.metadata?.suggestedName &&
                           document.metadata.suggestedName !== document.name && (
-                            <p className="text-xs text-blue-600 dark:text-blue-400">
-                              💡 Suggested: {document.metadata.suggestedName}
-                            </p>
+                            <div className="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-2">
+                              <span>💡 Suggested: {document.metadata.suggestedName}</span>
+                              {document.firestoreId && (
+                                <button
+                                  onClick={async e => {
+                                    e.stopPropagation();
+                                    try {
+                                      const newBase = String(document.metadata?.suggestedName).replace(/[\\/:*?"<>|]/g, '').trim();
+                                      await updateDocument(document.firestoreId!, {
+                                        name: `${newBase}.pdf`,
+                                        metadata: {
+                                          ...(document.metadata || {}),
+                                          suggestedName: newBase,
+                                        } as any,
+                                      } as any);
+                                      refetch();
+                                    } catch (err) {
+                                      console.error('Failed to apply suggested name', err);
+                                      alert('Failed to apply suggested name');
+                                    }
+                                  }}
+                                  className="px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-900 text-blue-700 dark:text-blue-200 hover:bg-blue-100 dark:hover:bg-blue-800"
+                                  title="Rename to suggested"
+                                >
+                                  Apply
+                                </button>
+                              )}
+                            </div>
                           )}
 
                         {/* Entities */}
@@ -758,7 +868,26 @@ const DocumentList: React.FC<DocumentListProps> = ({
                     </div>
                   )}
                 </div>
-                <div className="flex-shrink-0">
+                <div className="flex-shrink-0 flex items-center space-x-2">
+                  <button
+                    onClick={e => handleReprocessSingleDocument(e, document)}
+                    className="text-gray-400 hover:text-purple-600 dark:text-gray-500 dark:hover:text-purple-400 focus:outline-none"
+                    title="Reprocess this document"
+                    disabled={!document.url || isReprocessing}
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-5 w-5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <polyline points="23 4 23 10 17 10"></polyline>
+                      <polyline points="1 20 1 14 7 14"></polyline>
+                      <path d="M3.51 9a9 9 0 0114.13-3.36L23 10"></path>
+                      <path d="M20.49 15a9 9 0 01-14.13 3.36L1 14"></path>
+                    </svg>
+                  </button>
                   {document.firestoreId && document.firestoreId !== '' ? (
                     <button
                       onClick={e => handleDeleteClick(e, document)}
@@ -776,7 +905,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
                           strokeLinecap="round"
                           strokeLinejoin="round"
                           strokeWidth={2}
-                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1 1h-4a1 1 0 00-1 1v3M4 7h16"
                         />
                       </svg>
                     </button>
@@ -977,7 +1106,24 @@ const DocumentList: React.FC<DocumentListProps> = ({
         <ReprocessModal
           isOpen={isReprocessModalOpen}
           onClose={() => setIsReprocessModalOpen(false)}
-          documentCount={documents?.length || 0}
+          documentCount={
+            reprocessTarget?.type === 'all'
+              ? documents?.length || 0
+              : reprocessTarget?.type === 'selected'
+                ? selectedDocuments.size
+                : undefined
+          }
+          document={
+            reprocessTarget?.type === 'single' && reprocessTarget.document
+              ? {
+                  id:
+                    (reprocessTarget.document.id || reprocessTarget.document.firestoreId || reprocessTarget.document.name) as string,
+                  name: reprocessTarget.document.name,
+                  category: (reprocessTarget.document.category as string) || '',
+                  metadata: reprocessTarget.document.metadata as any,
+                }
+              : undefined
+          }
           onReprocess={handleEnhancedReprocess}
           isProcessing={isReprocessing}
         />
