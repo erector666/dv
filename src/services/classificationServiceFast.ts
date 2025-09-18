@@ -1,4 +1,5 @@
 import { Document } from './documentService';
+import { getAuth } from 'firebase/auth';
 
 /**
  * Fast document processing with optimizations:
@@ -17,19 +18,37 @@ export const processDocumentFast = async (
     // Use local heuristics for quick classification
     const quickClassification = classifyByHeuristics(document);
     
+    // Get auth token if available
+    let authToken = '';
+    try {
+      const auth = getAuth();
+      const user = auth.currentUser;
+      if (user) {
+        authToken = await user.getIdToken();
+      }
+    } catch (authError) {
+      console.warn('Could not get auth token, continuing without:', authError);
+    }
+    
     // Try fast AI processing with short timeout
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
     
     try {
       // Call simplified classification endpoint (single AI)
+      const headers: any = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+      }
+      
       const response = await fetch(
         'https://us-central1-gpt1-77ce0.cloudfunctions.net/classifyDocumentHttp',
         {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers,
           body: JSON.stringify({
             documentUrl: document.url,
             mode: 'fast', // Request fast mode

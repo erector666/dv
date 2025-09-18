@@ -309,16 +309,31 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
           }
         };
 
-        // Use optimized upload for faster processing
-        const document = await uploadDocumentOptimized(
-          file,
-          currentUser.uid,
-          undefined, // category
-          undefined, // tags
-          undefined, // metadata
-          onProgress,
-          onAIProgress
-        );
+        // Try optimized upload first, fall back to original if it fails
+        let document;
+        try {
+          document = await uploadDocumentOptimized(
+            file,
+            currentUser.uid,
+            undefined, // category
+            undefined, // tags
+            undefined, // metadata
+            onProgress,
+            onAIProgress
+          );
+        } catch (optimizedError) {
+          console.warn('Optimized upload failed, using original:', optimizedError);
+          // Fallback to original upload method
+          document = await uploadDocumentWithAI(
+            file,
+            currentUser.uid,
+            undefined, // category
+            undefined, // tags
+            undefined, // metadata
+            onProgress,
+            onAIProgress
+          );
+        }
 
         // Add to completed files
         setCompletedFiles(prev => [...prev, file.name]);
