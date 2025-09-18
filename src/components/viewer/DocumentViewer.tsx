@@ -6,6 +6,7 @@ import {
   translateText,
   TranslationResult,
 } from '../../services/translationService';
+import DocumentViewerMobile from './DocumentViewerMobile';
 
 interface DocumentViewerProps {
   document: {
@@ -26,6 +27,23 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
   document,
   onClose,
 }) => {
+  // Check if mobile view
+  const [isMobile, setIsMobile] = useState(false);
+  
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768); // md breakpoint
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Use mobile viewer for small screens
+  if (isMobile) {
+    return <DocumentViewerMobile document={document} onClose={onClose} />;
+  }
+
   // Initialize state with proper types
   const [translationResult, setTranslationResult] =
     useState<TranslationResult | null>(null);
@@ -793,7 +811,7 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
                 <div>
                   <strong>Category:</strong>{' '}
                   {renderMetadataValue(metadataResult.category)}
-  p                </div>
+                </div>
               </div>
             </div>
           </div>
