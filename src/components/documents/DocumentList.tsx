@@ -247,21 +247,26 @@ const DocumentList: React.FC<DocumentListProps> = ({
 
   // Removed debug logging to reduce console spam
 
-  // Handle document click
+  // Handle document click - Open in new tab for quick viewing
   const handleDocumentClick = (document: Document) => {
     if (onViewDocument) {
       onViewDocument(document);
     } else {
-      // Open document in modal instead of navigating to route
-      setDocumentToView(document);
-      setIsViewerModalOpen(true);
+      // Open document in new tab for quick viewing
+      window.open(document.url, '_blank');
     }
   };
 
   // Context menu actions
   const handleViewDocument = (document: Document) => {
     closeContextMenu();
-    handleDocumentClick(document);
+    // Full document viewer in modal with all features
+    if (onViewDocument) {
+      onViewDocument(document);
+    } else {
+      setDocumentToView(document);
+      setIsViewerModalOpen(true);
+    }
   };
 
   const handleReprocessDocument = (document: Document) => {
@@ -1870,7 +1875,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
           <>
             <ContextMenuSection>
               <ContextMenuItem
-                label="View Document"
+                label="View in Modal"
                 icon={
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
