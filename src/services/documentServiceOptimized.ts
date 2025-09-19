@@ -1,8 +1,6 @@
 import {
   collection,
   addDoc,
-  updateDoc,
-  doc,
   serverTimestamp,
 } from 'firebase/firestore';
 import {
@@ -13,7 +11,7 @@ import {
 import { db, storage } from './firebase';
 import { processDocumentFast } from './classificationServiceFast';
 import jsPDF from 'jspdf';
-import { Document, DocumentUploadProgress } from './documentService';
+import { Document, DocumentUploadProgress, updateDocument } from './documentService';
 
 /**
  * Optimized document upload with single upload and fast AI processing
@@ -98,7 +96,7 @@ export const uploadDocumentOptimized = async (
       tags: tags || [],
       uploadedAt: serverTimestamp(),
       lastModified: serverTimestamp(),
-      status: 'processing',
+      status: 'processing' as const,
       metadata: {
         ...metadata,
         originalFileType: originalType,
@@ -162,9 +160,9 @@ export const uploadDocumentOptimized = async (
     const sanitizeFileName = (name: string) => name.replace(/[\\/:*?"<>|]/g, '').trim();
     const finalName = aiSuggestedName ? `${sanitizeFileName(aiSuggestedName)}.pdf` : pdfFile.name;
 
-    const updateData = {
+    const updateData: Partial<Document> = {
       name: finalName,
-      status: 'ready',
+      status: 'ready' as const,
       category: aiEnhancedDocument.category || category || 'uncategorized',
       tags: Array.from(new Set([
         ...(aiEnhancedDocument.tags || []),
@@ -174,7 +172,7 @@ export const uploadDocumentOptimized = async (
         'this-year',
         'processed',
         'ai-enhanced'
-      ])).filter(Boolean),
+      ])).filter(Boolean) as string[],
       metadata: {
         ...metadata,
         ...aiEnhancedDocument.metadata,
@@ -188,8 +186,8 @@ export const uploadDocumentOptimized = async (
       ...(aiEnhancedDocument.language ? { language: aiEnhancedDocument.language } : {}),
     };
 
-    // Update the document in Firestore
-    await updateDoc(doc(db, 'documents', documentId), updateData);
+    // Update the document in Firestore using the existing updateDocument function
+    await updateDocument(documentId, updateData);
 
     // Create final document object
     const finalDocument: Document = {
@@ -198,6 +196,7 @@ export const uploadDocumentOptimized = async (
       id: documentId,
       firestoreId: documentId,
       uploadedAt: initialDocument.uploadedAt,
+      status: 'ready' as const, // Ensure status is properly typed
     };
 
     // Final progress update
