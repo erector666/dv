@@ -18,7 +18,7 @@ interface ContextMenuItemProps {
   shortcut?: string;
 }
 
-interface ContextMenuSection {
+interface ContextMenuSectionProps {
   items: ContextMenuItemProps[];
   separator?: boolean;
 }
@@ -128,4 +128,4 @@ export const ContextMenuSeparator: React.FC = () => (
   <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
 );
 
-export { type ContextMenuItemProps, type ContextMenuSection };
+export { type ContextMenuItemProps, type ContextMenuSectionProps };
