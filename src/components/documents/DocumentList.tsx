@@ -368,6 +368,38 @@ const DocumentList: React.FC<DocumentListProps> = ({
     setIsBatchDeleteModalOpen(true);
   };
 
+  // Bulk download functionality
+  const handleBulkDownload = async () => {
+    if (selectedDocuments.size === 0) return;
+    
+    const documentsToDownload = filteredDocuments?.filter(doc => {
+      const docId = doc.firestoreId || doc.id;
+      return docId && selectedDocuments.has(docId);
+    }) || [];
+
+    if (documentsToDownload.length === 0) return;
+
+    try {
+      // For now, download documents individually
+      // In a real implementation, you might want to create a ZIP file server-side
+      for (const document of documentsToDownload) {
+        const link = window.document.createElement('a');
+        link.href = document.url;
+        link.download = document.name;
+        link.target = '_blank';
+        window.document.body.appendChild(link);
+        link.click();
+        window.document.body.removeChild(link);
+        
+        // Small delay between downloads to avoid overwhelming the browser
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    } catch (error) {
+      console.error('Error downloading documents:', error);
+      alert('Error downloading documents. Please try again.');
+    }
+  };
+
   const confirmBatchDelete = async () => {
     if (selectedDocuments.size === 0) return;
 
@@ -716,11 +748,35 @@ const DocumentList: React.FC<DocumentListProps> = ({
                 )}
               </div>
 
-              {/* Batch action buttons - responsive layout */}
+              {/* Enhanced Batch action buttons - responsive layout */}
               {isBatchMode && selectedDocuments.size > 0 && (
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <button
-                    onClick={handleReprocessSelectedDocuments}
+                <div className="space-y-3">
+                  {/* Primary Actions Row */}
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <button
+                      onClick={handleBulkDownload}
+                      disabled={selectedDocuments.size === 0}
+                      className="px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center space-x-2 text-sm sm:text-base"
+                    >
+                      <svg
+                        className="w-4 h-4 flex-shrink-0"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                        />
+                      </svg>
+                      <span className="hidden sm:inline">Download ({selectedDocuments.size})</span>
+                      <span className="sm:hidden">Download</span>
+                    </button>
+                    
+                    <button
+                      onClick={handleReprocessSelectedDocuments}
                     disabled={selectedDocuments.size === 0 || isReprocessing}
                     className="px-3 sm:px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center space-x-2 text-sm sm:text-base"
                   >
@@ -760,9 +816,57 @@ const DocumentList: React.FC<DocumentListProps> = ({
                         d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1 1h-4a1 1 0 00-1 1v3M4 7h16"
                       />
                     </svg>
-                    <span className="hidden sm:inline">Delete Selected ({selectedDocuments.size})</span>
+                    <span className="hidden sm:inline">Delete ({selectedDocuments.size})</span>
                     <span className="sm:hidden">Delete ({selectedDocuments.size})</span>
                   </button>
+                  </div>
+                  
+                  {/* Secondary Actions Row - Category & Tag Management */}
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <button
+                      onClick={() => {/* TODO: Implement bulk category assignment */}}
+                      disabled={selectedDocuments.size === 0}
+                      className="px-3 sm:px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center space-x-2 text-sm sm:text-base"
+                    >
+                      <svg
+                        className="w-4 h-4 flex-shrink-0"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"
+                        />
+                      </svg>
+                      <span className="hidden sm:inline">Assign Category</span>
+                      <span className="sm:hidden">Category</span>
+                    </button>
+                    
+                    <button
+                      onClick={() => {/* TODO: Implement bulk tag management */}}
+                      disabled={selectedDocuments.size === 0}
+                      className="px-3 sm:px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center space-x-2 text-sm sm:text-base"
+                    >
+                      <svg
+                        className="w-4 h-4 flex-shrink-0"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"
+                        />
+                      </svg>
+                      <span className="hidden sm:inline">Manage Tags</span>
+                      <span className="sm:hidden">Tags</span>
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -941,6 +1045,27 @@ const DocumentList: React.FC<DocumentListProps> = ({
                         </svg>
                       )}
                     </div>
+                  </div>
+                  
+                  {/* Status Indicator */}
+                  <div className="absolute -top-1 -left-1 md:-top-1.5 md:-left-1.5">
+                    <div className={`w-3 h-3 md:w-4 md:h-4 rounded-full border-2 border-white dark:border-gray-800 ${
+                      document.status === 'processing' 
+                        ? 'bg-yellow-400 animate-pulse' 
+                        : document.status === 'ready'
+                        ? 'bg-green-400'
+                        : document.status === 'error'
+                        ? 'bg-red-400'
+                        : 'bg-gray-400'
+                    }`} title={
+                      document.status === 'processing' 
+                        ? 'Processing...' 
+                        : document.status === 'ready'
+                        ? 'Ready'
+                        : document.status === 'error'
+                        ? 'Error'
+                        : 'Unknown status'
+                    }></div>
                   </div>
                 </div>
                 <div className="flex-1 min-w-0">
