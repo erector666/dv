@@ -49,9 +49,84 @@ const CategoryView: React.FC = () => {
     }
   );
 
-  // Filter documents by category
-  const categoryDocuments =
-    documents?.filter(doc => doc.category === categoryId) || [];
+  // Filter documents by category using the same logic as DocumentList
+  const filterDocumentsByCategory = (docs: any[], category: string) => {
+    if (!category || category === 'all') return docs;
+    
+    const filterCategory = category.toLowerCase();
+    
+    return docs.filter(doc => {
+      const docCategory = doc.category?.toLowerCase();
+      
+      // Handle special category mappings
+      if (filterCategory === 'personal' && (!docCategory || docCategory === 'document')) {
+        return true; // Include documents with no category or generic "document" in personal
+      }
+      
+      // Handle financial category mapping
+      if (filterCategory === 'financial') {
+        return docCategory === 'financial' || 
+               docCategory === 'finance' || 
+               docCategory === 'bills' ||
+               (docCategory && docCategory.includes('bill')) ||
+               (docCategory && docCategory.includes('financial'));
+      }
+      
+      // Handle bills category mapping
+      if (filterCategory === 'bills') {
+        return docCategory === 'bills' || 
+               docCategory === 'financial' || 
+               docCategory === 'finance' ||
+               (docCategory && docCategory.includes('bill')) ||
+               (docCategory && docCategory.includes('financial'));
+      }
+      
+      // Handle education category mapping
+      if (filterCategory === 'education') {
+        return docCategory === 'education' || 
+               docCategory === 'educational' ||
+               docCategory === 'school' ||
+               docCategory === 'university' ||
+               docCategory === 'academic';
+      }
+      
+      // Handle legal category mapping
+      if (filterCategory === 'legal') {
+        return docCategory === 'legal' || 
+               docCategory === 'law' ||
+               docCategory === 'contract' ||
+               docCategory === 'agreement';
+      }
+      
+      // Handle medical category mapping
+      if (filterCategory === 'medical') {
+        return docCategory === 'medical' || 
+               docCategory === 'health' ||
+               docCategory === 'healthcare' ||
+               docCategory === 'doctor' ||
+               docCategory === 'hospital';
+      }
+      
+      // Handle insurance category mapping
+      if (filterCategory === 'insurance') {
+        return docCategory === 'insurance' || 
+               docCategory === 'insure';
+      }
+      
+      // Handle government category mapping
+      if (filterCategory === 'government') {
+        return docCategory === 'government' || 
+               docCategory === 'gov' ||
+               docCategory === 'official' ||
+               docCategory === 'public';
+      }
+      
+      // Default exact match (case insensitive)
+      return docCategory === filterCategory;
+    });
+  };
+
+  const categoryDocuments = filterDocumentsByCategory(documents || [], categoryId || '');
 
   const handleUploadComplete = () => {
     console.log(
