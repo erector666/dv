@@ -822,8 +822,49 @@ export const processDocument = async (
       const f = (fileName || '').toLowerCase();
       const c = (rawCategory || '').toLowerCase();
 
-      // Enhanced keyword-based categorization
-      if (/invoice|receipt|vat|amount due|facture|reçu|total\s*\$|total\s*€|payment|bill|statement/.test(t)) {
+      // Enhanced keyword-based categorization for bills and financial documents
+      const financialKeywords = [
+        // Basic financial terms
+        'invoice', 'receipt', 'bill', 'statement', 'payment', 'billing', 'charged',
+        'debit', 'credit', 'balance', 'outstanding', 'due date', 'account number',
+        'transaction', 'financial', 'finance', 'monetary', 'currency', 'price',
+        'cost', 'fee', 'charges', 'subscription', 'membership', 'renewal',
+        
+        // Payment and banking terms
+        'overdue', 'past due', 'minimum payment', 'payment due', 'account statement',
+        'bank statement', 'credit card', 'debit card', 'checking', 'savings',
+        'loan', 'mortgage', 'refinance', 'interest', 'principal', 'installment',
+        'monthly payment', 'quarterly', 'annual', 'yearly',
+        
+        // Tax and accounting terms
+        'tax', 'withholding', 'deduction', 'gross', 'net', 'income', 'expense',
+        'profit', 'loss', 'revenue', 'expenditure', 'budget', 'cash flow',
+        'assets', 'liabilities', 'equity', 'portfolio', 'investment', 'dividend',
+        'capital', 'deposit', 'withdrawal', 'transfer', 'wire', 'ach',
+        
+        // Digital payment terms
+        'electronic', 'online', 'digital payment', 'paypal', 'stripe', 'square',
+        'venmo', 'zelle', 'apple pay', 'google pay', 'samsung pay',
+        
+        // VAT and international terms
+        'vat', 'amount due', 'facture', 'reçu', 'total', '€', '$'
+      ];
+      
+      const financialPattern = new RegExp(financialKeywords.join('|'), 'i');
+      if (financialPattern.test(t) || financialPattern.test(f)) {
+        return 'Finance';
+      }
+      
+      // Additional filename-based detection for bills
+      const billFilenamePatterns = [
+        /bill/i, /invoice/i, /receipt/i, /statement/i, /payment/i,
+        /billing/i, /charged/i, /financial/i, /finance/i, /fee/i,
+        /cost/i, /price/i, /tax/i, /vat/i, /amount/i, /due/i,
+        /overdue/i, /subscription/i, /membership/i, /loan/i,
+        /mortgage/i, /interest/i, /account/i, /bank/i, /transaction/i
+      ];
+      
+      if (billFilenamePatterns.some(pattern => pattern.test(f))) {
         return 'Finance';
       }
       if (/contract|agreement|terms|signature|law|attorney|legal|clause|settlement|court/.test(t)) {

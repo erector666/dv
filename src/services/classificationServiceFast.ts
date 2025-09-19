@@ -119,7 +119,11 @@ function classifyByHeuristics(document: Document): {
   
   // Document type detection
   if (type.includes('pdf') || name.endsWith('.pdf')) {
-    if (name.includes('invoice') || name.includes('bill')) {
+    // Enhanced bill and financial document detection
+    const financialTerms = ['invoice', 'bill', 'receipt', 'statement', 'payment', 'billing', 'charged', 'debit', 'credit', 'balance', 'financial', 'finance', 'fee', 'cost', 'price', 'tax', 'vat', 'amount', 'due', 'overdue', 'subscription', 'membership', 'loan', 'mortgage', 'interest', 'account', 'bank', 'transaction'];
+    const hasFinancialTerm = financialTerms.some(term => name.toLowerCase().includes(term));
+    
+    if (hasFinancialTerm) {
       return { category: 'Finance', tags: [...baseTags, 'financial', 'statement', 'invoice', 'pdf'] };
     }
     if (name.includes('contract') || name.includes('agreement')) {

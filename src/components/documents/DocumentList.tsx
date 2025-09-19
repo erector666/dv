@@ -101,29 +101,16 @@ const DocumentList: React.FC<DocumentListProps> = ({
       
       // Handle special category mappings
       if (filterCategory === 'personal' && (!docCategory || docCategory === 'document')) {
-        console.log(`✅ Personal match for "${doc.name}"`);
         return true; // Include documents with no category or generic "document" in personal
       }
       
       // Handle financial category mapping
       if (filterCategory === 'financial') {
-        const isMatch = docCategory === 'financial' || 
+        return docCategory === 'financial' || 
                docCategory === 'finance' || 
                docCategory === 'bills' ||
                (docCategory && docCategory.includes('bill')) ||
                (docCategory && docCategory.includes('financial'));
-        console.log(`💰 Financial check for "${doc.name}":`, {
-          docCategory,
-          isMatch,
-          checks: {
-            exactFinancial: docCategory === 'financial',
-            exactFinance: docCategory === 'finance',
-            exactBills: docCategory === 'bills',
-            containsBill: docCategory && docCategory.includes('bill'),
-            containsFinancial: docCategory && docCategory.includes('financial')
-          }
-        });
-        return isMatch;
       }
       
       // Handle bills category mapping
