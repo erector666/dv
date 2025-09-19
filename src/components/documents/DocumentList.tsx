@@ -87,18 +87,38 @@ const DocumentList: React.FC<DocumentListProps> = ({
       const docCategory = doc.category?.toLowerCase();
       const filterCategory = category.toLowerCase();
       
+      // Debug individual document filtering
+      console.log(`🔍 Filtering doc "${doc.name}":`, {
+        docCategory,
+        filterCategory,
+        matches: false // Will be set below
+      });
+      
       // Handle special category mappings
       if (filterCategory === 'personal' && (!docCategory || docCategory === 'document')) {
+        console.log(`✅ Personal match for "${doc.name}"`);
         return true; // Include documents with no category or generic "document" in personal
       }
       
       // Handle financial category mapping
       if (filterCategory === 'financial') {
-        return docCategory === 'financial' || 
+        const isMatch = docCategory === 'financial' || 
                docCategory === 'finance' || 
                docCategory === 'bills' ||
                (docCategory && docCategory.includes('bill')) ||
                (docCategory && docCategory.includes('financial'));
+        console.log(`💰 Financial check for "${doc.name}":`, {
+          docCategory,
+          isMatch,
+          checks: {
+            exactFinancial: docCategory === 'financial',
+            exactFinance: docCategory === 'finance',
+            exactBills: docCategory === 'bills',
+            containsBill: docCategory && docCategory.includes('bill'),
+            containsFinancial: docCategory && docCategory.includes('financial')
+          }
+        });
+        return isMatch;
       }
       
       // Handle bills category mapping
@@ -207,7 +227,18 @@ const DocumentList: React.FC<DocumentListProps> = ({
     return false;
   });
 
-  // Debug logging removed - simplified approach
+  // Debug logging to understand why no documents are showing
+  console.log('🔍 DocumentList Debug:', {
+    category,
+    totalDocuments: documents?.length || 0,
+    filteredDocuments: filteredDocuments?.length || 0,
+    searchTerm,
+    sampleDocuments: documents?.slice(0, 3).map(doc => ({
+      name: doc.name,
+      category: doc.category,
+      hasCategory: !!doc.category
+    }))
+  });
 
   // Removed debug logging to reduce console spam
 
