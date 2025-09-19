@@ -10,11 +10,12 @@ import {
   deleteDocument,
   updateDocument,
   improveDocumentCategories,
+  reprocessDocumentsWithNewAI,
 } from '../../services/documentService';
 import { DocumentViewer, DocumentViewerMobile } from '../viewer';
 import { formatFileSize, formatDate, formatDateWithFallback } from '../../utils/formatters';
 import { ReprocessModal } from '../ai';
-import { reprocessDocumentsEnhanced } from '../../services/dualAIService';
+import { reprocessDocumentsEnhanced, checkAIServiceHealth } from '../../services/dualAIService';
 import { ContextMenu, ContextMenuItem, ContextMenuSection, ContextMenuSeparator } from '../ui/ContextMenu';
 import { useContextMenu } from '../../hooks/useContextMenu';
 
@@ -495,18 +496,47 @@ const DocumentList: React.FC<DocumentListProps> = ({
       console.log(
         `🚀 Starting enhanced reprocessing with ${mode} for ${targetDescription}`
       );
+      console.log('Document URLs:', documentUrls);
 
-      const result = await reprocessDocumentsEnhanced(documentUrls, mode);
+      if (documentUrls.length === 0) {
+        throw new Error('No valid document URLs found for reprocessing');
+      }
 
-      console.log('✅ Enhanced reprocessing completed:', result);
+      // Check AI service health first
+      console.log('🔍 Checking AI service health...');
+      const healthCheck = await checkAIServiceHealth();
+      
+      if (!healthCheck.available) {
+        throw new Error(`AI service is currently unavailable: ${healthCheck.error || 'Unknown error'}`);
+      }
+      
+      console.log(`✅ AI service is available (${healthCheck.responseTime}ms response time)`);
+
+      // Try the enhanced reprocessing first
+      let result;
+      try {
+        result = await reprocessDocumentsEnhanced(documentUrls, mode);
+        console.log('✅ Enhanced reprocessing completed:', result);
+      } catch (enhancedError) {
+        console.warn('⚠️ Enhanced reprocessing failed, trying fallback:', enhancedError);
+        
+        // Fallback to the older reprocessing method
+        const documentsToReprocess = documents.filter(doc => 
+          documentUrls.includes(doc.url)
+        );
+        
+        console.log('🔄 Trying fallback reprocessing method...');
+        result = await reprocessDocumentsWithNewAI(documentsToReprocess);
+        console.log('✅ Fallback reprocessing completed:', result);
+      }
 
       // Refresh the document list
       refetch();
 
-      const successCount = result.results.filter(r => r.success).length;
-      const failCount = result.results.length - successCount;
+      const successCount = result.results?.filter((r: any) => r.success).length || result.processed || 0;
+      const failCount = (result.results?.length || 0) - successCount;
 
-      let message = `✅ Enhanced reprocessing completed!\n`;
+      let message = `✅ AI reprocessing completed!\n`;
       message += `• Successfully processed: ${successCount} documents\n`;
       if (failCount > 0) {
         message += `• Failed: ${failCount} documents\n`;
@@ -518,8 +548,25 @@ const DocumentList: React.FC<DocumentListProps> = ({
       window.location.reload();
     } catch (error) {
       console.error('Error in enhanced reprocessing:', error);
+      let errorMessage = 'Unknown error';
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        
+        // Provide more specific error messages
+        if (errorMessage.includes('Failed to fetch')) {
+          errorMessage = 'Network error: Unable to connect to AI processing service. Please check your internet connection and try again.';
+        } else if (errorMessage.includes('404')) {
+          errorMessage = 'AI processing service not found. The service may be temporarily unavailable.';
+        } else if (errorMessage.includes('500')) {
+          errorMessage = 'AI processing service error. Please try again in a few minutes.';
+        } else if (errorMessage.includes('timeout')) {
+          errorMessage = 'AI processing timed out. The documents may be too large or the service is busy.';
+        }
+      }
+      
       alert(
-        `❌ Enhanced reprocessing failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+        `❌ AI reprocessing failed: ${errorMessage}\n\nPlease try again or contact support if the issue persists.`
       );
     } finally {
       setIsReprocessing(false);

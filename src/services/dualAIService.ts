@@ -117,11 +117,18 @@ export class DualAIService {
         mode,
       });
 
+      // Create AbortController for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
+
       const response = await fetch(`${this.baseUrl}/reprocessDocuments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ documentUrls, mode, useStoredMetadata: true }),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       if (response.ok) {
         const result = await response.json();
@@ -143,6 +150,10 @@ export class DualAIService {
       const fallbackResults: ReprocessResult[] = [];
       for (const url of documentUrls) {
         try {
+          // Create AbortController for timeout
+          const fallbackController = new AbortController();
+          const fallbackTimeoutId = setTimeout(() => fallbackController.abort(), 30000); // 30 second timeout per document
+
           const perRes = await fetch(
             `${this.baseUrl}/classifyDocumentDualAIHttp`,
             {
@@ -155,8 +166,11 @@ export class DualAIService {
                   ? { documentText: documentTexts[url] }
                   : {}),
               }),
+              signal: fallbackController.signal,
             }
           );
+          
+          clearTimeout(fallbackTimeoutId);
           if (!perRes.ok) {
             const txt = await perRes.text();
             throw new Error(`HTTP ${perRes.status}: ${txt}`);
@@ -170,10 +184,23 @@ export class DualAIService {
           });
         } catch (err: any) {
           console.error('Per-document fallback failed:', err);
+          let errorMessage = err?.message || 'fallback_failed';
+          
+          // Handle specific error types
+          if (err.name === 'AbortError') {
+            errorMessage = 'Processing timeout - document too large or service busy';
+          } else if (err.message?.includes('Failed to fetch')) {
+            errorMessage = 'Network error - unable to connect to AI service';
+          } else if (err.message?.includes('404')) {
+            errorMessage = 'AI service not found - service may be temporarily unavailable';
+          } else if (err.message?.includes('500')) {
+            errorMessage = 'AI service error - please try again later';
+          }
+          
           fallbackResults.push({
             documentUrl: url,
             success: false,
-            error: err?.message || 'fallback_failed',
+            error: errorMessage,
             mode,
           });
         }
@@ -217,6 +244,60 @@ export class DualAIService {
         success: false,
         error: error.message,
         processingTime,
+      };
+    }
+  }
+
+  /**
+   * Check if AI service is available
+   */
+  async checkAIServiceHealth(): Promise<{
+    available: boolean;
+    error?: string;
+    responseTime?: number;
+  }> {
+    const startTime = Date.now();
+    
+    try {
+      // Create AbortController for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout for health check
+
+      const response = await fetch(`${this.baseUrl}/classifyDocumentDualAIHttp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          documentUrl: 'https://example.com/test.pdf', // Test URL
+          mode: 'both',
+        }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+      const responseTime = Date.now() - startTime;
+
+      // We expect this to fail with the test URL, but if we get a response, the service is up
+      return {
+        available: true,
+        responseTime,
+      };
+    } catch (error: any) {
+      const responseTime = Date.now() - startTime;
+      
+      // If it's a timeout or network error, service is likely down
+      if (error.name === 'AbortError' || error.message?.includes('Failed to fetch')) {
+        return {
+          available: false,
+          error: 'Service timeout or network error',
+          responseTime,
+        };
+      }
+      
+      // If we get any other error (like 400, 500), the service is responding
+      return {
+        available: true,
+        error: error.message,
+        responseTime,
       };
     }
   }
@@ -355,4 +436,11 @@ export const getDualAIClassification = async (
   mode: 'both' | 'huggingface' | 'deepseek' = 'both'
 ) => {
   return dualAIService.classifyDocumentDualAI(documentUrl, mode);
+};
+
+/**
+ * Check AI service health
+ */
+export const checkAIServiceHealth = async () => {
+  return dualAIService.checkAIServiceHealth();
 };
