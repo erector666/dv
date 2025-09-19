@@ -681,8 +681,8 @@ export const uploadDocumentWithAI = async (
           processedDocument.metadata?.textExtraction?.wordCount > 500 ? 'text-heavy' : '',
           file.type?.includes('image/') ? 'image-only' : '',
           // Add confidence-based tags
-          classification?.confidence > 0.8 ? 'high-confidence' : '',
-          classification?.confidence < 0.6 ? 'low-confidence' : '',
+          processedDocument.metadata?.classificationConfidence > 0.8 ? 'high-confidence' : '',
+          processedDocument.metadata?.classificationConfidence < 0.6 ? 'low-confidence' : '',
           // Add processing status tags
           'processed',
           'ai-enhanced'
