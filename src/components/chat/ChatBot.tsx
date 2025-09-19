@@ -248,7 +248,7 @@ const ChatBot: React.FC<ChatBotProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
-      <Card className="w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] h-full sm:h-auto min-h-[400px] flex flex-col rounded-none sm:rounded-lg">
+      <Card variant="glass" className="w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] h-full sm:h-auto min-h-[400px] flex flex-col rounded-none sm:rounded-lg">
         <CardHeader className="flex-shrink-0 border-b border-gray-200 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-800 z-10">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
