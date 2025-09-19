@@ -33,7 +33,7 @@ const DocumentViewerMobile: React.FC<DocumentViewerProps> = ({
   const [isTranslating, setIsTranslating] = useState(false);
   const [showMetadata, setShowMetadata] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState<string>('');
-  const [activeTab, setActiveTab] = useState<'document' | 'metadata' | 'translation'>('document');
+  const [activeTab, setActiveTab] = useState<'document' | 'metadata' | 'text' | 'translation'>('document');
   const [documentLoadError, setDocumentLoadError] = useState(false);
 
   // Close modal with Escape key
@@ -160,6 +160,25 @@ const DocumentViewerMobile: React.FC<DocumentViewerProps> = ({
                     <div className="text-xs text-gray-500">Document information</div>
                   </div>
                 </button>
+
+                {/* View Extracted Text */}
+                {document.metadata?.extractedText && (
+                  <button
+                    onClick={() => {
+                      setActiveTab('text');
+                      setShowMenu(false);
+                    }}
+                    className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 text-left"
+                  >
+                    <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <div>
+                      <div className="font-medium">View Text</div>
+                      <div className="text-xs text-gray-500">Extracted document text</div>
+                    </div>
+                  </button>
+                )}
 
                 {/* Translate */}
                 <div className="border-t pt-2">
@@ -339,16 +358,17 @@ const DocumentViewerMobile: React.FC<DocumentViewerProps> = ({
                 </div>
               )}
 
-              {/* Extracted Text Preview */}
+              {/* Extracted Text */}
               {document.metadata?.extractedText && (
                 <div className="bg-white rounded-lg p-4 shadow-sm">
                   <h3 className="font-semibold text-gray-900 mb-3">Extracted Text</h3>
-                  <div className="max-h-32 overflow-y-auto">
-                    <p className="text-sm text-gray-700 whitespace-pre-wrap">
-                      {document.metadata.extractedText.length > 200 
-                        ? `${document.metadata.extractedText.substring(0, 200)}...`
-                        : document.metadata.extractedText}
+                  <div className="bg-gray-50 rounded-lg p-3 max-h-64 overflow-y-auto">
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+                      {document.metadata.extractedText}
                     </p>
+                  </div>
+                  <div className="mt-2 text-xs text-gray-500">
+                    {document.metadata.extractedText.length} characters • {document.metadata.extractedText.split(/\s+/).length} words
                   </div>
                 </div>
               )}
@@ -401,6 +421,54 @@ const DocumentViewerMobile: React.FC<DocumentViewerProps> = ({
                 </div>
               </div>
             </div>
+          </div>
+        );
+
+      case 'text':
+        return (
+          <div className="flex-1 overflow-y-auto p-4 pb-20">
+            {document.metadata?.extractedText ? (
+              <div className="space-y-4">
+                <div className="bg-white rounded-lg p-4 shadow-sm">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-semibold text-gray-900">Extracted Text</h3>
+                    <div className="text-xs text-gray-500">
+                      {document.metadata.extractedText.length} chars • {document.metadata.extractedText.split(/\s+/).length} words
+                    </div>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-4 max-h-96 overflow-y-auto">
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+                      {document.metadata.extractedText}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Copy to clipboard functionality */}
+                <div className="bg-white rounded-lg p-4 shadow-sm">
+                  <h3 className="font-semibold text-gray-900 mb-3">Actions</h3>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(document.metadata.extractedText);
+                      // You could add a toast notification here
+                    }}
+                    className="w-full flex items-center justify-center space-x-2 p-3 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                    <span className="font-medium">Copy Text</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full text-center">
+                <svg className="w-16 h-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <p className="text-gray-500 mb-2">No extracted text available</p>
+                <p className="text-sm text-gray-400">The document may still be processing or text extraction failed</p>
+              </div>
+            )}
           </div>
         );
 
@@ -580,6 +648,18 @@ const DocumentViewerMobile: React.FC<DocumentViewerProps> = ({
           >
             Details
           </button>
+          {document.metadata?.extractedText && (
+            <button
+              onClick={() => setActiveTab('text')}
+              className={`flex-1 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === 'text'
+                  ? 'text-blue-600 border-blue-600'
+                  : 'text-gray-500 border-transparent'
+              }`}
+            >
+              Text
+            </button>
+          )}
           <button
             onClick={() => setActiveTab('translation')}
             className={`flex-1 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
