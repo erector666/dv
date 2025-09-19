@@ -656,11 +656,12 @@ const DocumentList: React.FC<DocumentListProps> = ({
                     // Show basic document info if no summary available
                     const info = [
                       `Name: ${document.name}`,
+                      document.category && `Category: ${document.category}`,
                       `Type: ${document.type}`,
                       `Size: ${formatFileSize(document.size)}`,
                       `Uploaded: ${formatDateWithFallback(document.uploadedAt, 'Recently uploaded')}`,
                       document.metadata?.language && `Language: ${document.metadata.language}`,
-                      document.metadata?.category && `Category: ${document.metadata.category}`,
+                      document.metadata?.category && `AI Category: ${document.metadata.category}`,
                       document.metadata?.wordCount && `Words: ${document.metadata.wordCount.toLocaleString()}`,
                     ].filter(Boolean).join('\n');
                     alert(`Document Information:\n\n${info}`);
@@ -737,8 +738,8 @@ const DocumentList: React.FC<DocumentListProps> = ({
                 <div className="flex-1 min-w-0">
                   <h3 className="text-lg font-medium text-gray-900 dark:text-white truncate flex items-center gap-2">
                     <span className="truncate">
-                      {(document.category && String(document.category)) ||
-                        (document.metadata?.suggestedName && String(document.metadata.suggestedName)) ||
+                      {(document.metadata?.suggestedName && String(document.metadata.suggestedName)) ||
+                        document.name ||
                         'Document'}
                     </span>
                     {(document.metadata?.language || document.metadata?.languageDetection?.language) && (
@@ -753,6 +754,24 @@ const DocumentList: React.FC<DocumentListProps> = ({
                     )}
                   </h3>
                   <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{document.name}</div>
+                  
+                  {/* Prominent Category Display */}
+                  <div className="mt-1">
+                    {document.category ? (
+                      <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                        📁 {document.category}
+                        {document.metadata?.classificationConfidence && (
+                          <span className="ml-1 text-green-600 dark:text-green-300">
+                            ({Math.round(document.metadata.classificationConfidence * 100)}%)
+                          </span>
+                        )}
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
+                        📁 No category assigned
+                      </span>
+                    )}
+                  </div>
                   <div className="mt-1 flex flex-col space-y-1 text-sm text-gray-500 dark:text-gray-400">
                     <p>{formatFileSize(document.size)}</p>
                     <p>{formatDateWithFallback(document.uploadedAt, 'Recently uploaded')}</p>
