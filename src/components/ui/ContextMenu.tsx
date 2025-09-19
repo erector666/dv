@@ -9,7 +9,7 @@ interface ContextMenuProps {
   className?: string;
 }
 
-interface ContextMenuItem {
+interface ContextMenuItemProps {
   label: string;
   icon: React.ReactNode;
   onClick: () => void;
@@ -19,7 +19,7 @@ interface ContextMenuItem {
 }
 
 interface ContextMenuSection {
-  items: ContextMenuItem[];
+  items: ContextMenuItemProps[];
   separator?: boolean;
 }
 
@@ -73,7 +73,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
   );
 };
 
-export const ContextMenuItem: React.FC<ContextMenuItem> = ({
+export const ContextMenuItem: React.FC<ContextMenuItemProps> = ({
   label,
   icon,
   onClick,
@@ -128,4 +128,4 @@ export const ContextMenuSeparator: React.FC = () => (
   <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
 );
 
-export { type ContextMenuItem, type ContextMenuSection };
+export { type ContextMenuItemProps, type ContextMenuSection };
