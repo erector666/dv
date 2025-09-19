@@ -80,8 +80,24 @@ const DocumentList: React.FC<DocumentListProps> = ({
 
   // Removed excessive debug logging to reduce console spam
 
-  // Filter documents based on search term
+  // Filter documents based on search term and category
   const filteredDocuments = documents?.filter(doc => {
+    // First filter by category if specified
+    if (category && category !== 'all') {
+      const docCategory = doc.category?.toLowerCase();
+      const filterCategory = category.toLowerCase();
+      
+      // Handle special category mappings
+      if (filterCategory === 'personal' && (!docCategory || docCategory === 'document')) {
+        return true; // Include documents with no category or generic "document" in personal
+      }
+      
+      if (docCategory !== filterCategory) {
+        return false; // Category doesn't match
+      }
+    }
+    
+    // Then filter by search term if provided
     if (!searchTerm) return true;
     
     const searchLower = searchTerm.toLowerCase();
@@ -715,7 +731,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
           return (
           <div
             key={documentKey}
-            className={`bg-gradient-to-br from-white via-gray-50 to-white dark:from-gray-800 dark:via-gray-850 dark:to-gray-800 rounded-2xl shadow-md md:shadow-lg overflow-hidden cursor-pointer hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 ease-out border border-gray-200/60 dark:border-gray-700/60 backdrop-blur-sm ${
+            className={`bg-gradient-to-br from-white via-gray-50 to-white dark:from-gray-800 dark:via-gray-850 dark:to-gray-800 rounded-2xl shadow-md md:shadow-lg overflow-hidden ${isBatchMode ? 'cursor-pointer' : 'cursor-default'} hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 ease-out border border-gray-200/60 dark:border-gray-700/60 backdrop-blur-sm ${
               isBatchMode && isSelected
                 ? 'ring-2 ring-blue-400 bg-gradient-to-br from-blue-50 via-blue-100 to-blue-50 dark:from-blue-900/30 dark:via-blue-800/30 dark:to-blue-900/30 shadow-blue-200/50 dark:shadow-blue-900/50'
                 : 'hover:border-gray-300/80 dark:hover:border-gray-600/80 hover:bg-gradient-to-br hover:from-gray-50 hover:via-white hover:to-gray-50 dark:hover:from-gray-750 dark:hover:via-gray-800 dark:hover:to-gray-750'
@@ -724,30 +740,8 @@ const DocumentList: React.FC<DocumentListProps> = ({
                 if (isBatchMode && docId) {
                   e.stopPropagation();
                   toggleDocumentSelection(docId);
-                } else if (!isBatchMode) {
-                  // Show document summary/preview when card is clicked
-                  const summary = document.metadata?.summary;
-                  if (summary && summary.length > 50) {
-                    // Show a preview of the document content
-                    const preview = summary.length > 200 
-                      ? summary.substring(0, 200) + '...' 
-                      : summary;
-                    alert(`Document Preview:\n\n${preview}`);
-                  } else {
-                    // Show basic document info if no summary available
-                    const info = [
-                      `Name: ${document.name}`,
-                      document.category && `Category: ${document.category}`,
-                      `Type: ${document.type}`,
-                      `Size: ${formatFileSize(document.size)}`,
-                      `Uploaded: ${formatDateWithFallback(document.uploadedAt, 'Recently uploaded')}`,
-                      document.metadata?.language && `Language: ${document.metadata.language}`,
-                      document.metadata?.category && `AI Category: ${document.metadata.category}`,
-                      document.metadata?.wordCount && `Words: ${document.metadata.wordCount.toLocaleString()}`,
-                    ].filter(Boolean).join('\n');
-                    alert(`Document Information:\n\n${info}`);
-                  }
                 }
+                // Removed card click handler to prevent double view - use View button instead
               }}
             >
               <div className="p-3 md:p-4 flex items-start space-x-3 md:space-x-4">
