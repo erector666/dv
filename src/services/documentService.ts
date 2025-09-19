@@ -679,7 +679,7 @@ export const uploadDocumentWithAI = async (
           'this-year',
           // Add content-based tags based on processing results
           processedDocument.metadata?.textExtraction?.wordCount > 500 ? 'text-heavy' : '',
-          document.type?.includes('image/') ? 'image-only' : '',
+          file.type?.includes('image/') ? 'image-only' : '',
           // Add confidence-based tags
           classification?.confidence > 0.8 ? 'high-confidence' : '',
           classification?.confidence < 0.6 ? 'low-confidence' : '',
