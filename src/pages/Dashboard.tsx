@@ -227,10 +227,9 @@ const Dashboard: React.FC = () => {
       </div>
 
       {/* Document Viewer Modal */}
-      {documentToView && (
+      {documentToView && isViewerModalOpen && (
         <DocumentViewer
           document={documentToView}
-          isOpen={isViewerModalOpen}
           onClose={() => {
             setIsViewerModalOpen(false);
             setDocumentToView(null);
