@@ -1114,7 +1114,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
                   </button>
                   
                   <button
-                    onClick={e => handleDeleteSingleDocument(e, document)}
+                    onClick={e => handleDeleteClick(e, document)}
                     className="p-2 text-gray-400 hover:text-red-600 dark:text-gray-500 dark:hover:text-red-400 focus:outline-none rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                     title="Delete this document"
                     disabled={!document.firestoreId || document.firestoreId === ''}
