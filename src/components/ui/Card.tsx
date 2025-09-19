@@ -217,7 +217,7 @@ const StatsCard = React.forwardRef<
     trend?: 'up' | 'down' | 'neutral';
     trendValue?: string;
   }
->(({ className, icon, label, value, trend, trendValue, ...props }, ref) => {
+>(({ className, icon, label, value, trend, trendValue, variant, ...props }, ref) => {
   const trendColors: Record<'up' | 'down' | 'neutral', string> = {
     up: 'text-green-600 dark:text-green-400',
     down: 'text-red-600 dark:text-red-400',
@@ -233,12 +233,15 @@ const StatsCard = React.forwardRef<
   return (
     <Card
       ref={ref}
-      variant="statsCard"
+      variant={variant || "statsCard"}
       className={clsx('group cursor-pointer', className)}
       {...props}
     >
       <div className="flex items-center justify-between mb-4">
-        <div className="p-3 rounded-xl bg-indigo-100 dark:bg-indigo-900/50 group-hover:scale-110 transition-transform duration-200">
+        <div className={clsx(
+          'p-3 rounded-xl group-hover:scale-110 transition-transform duration-200',
+          variant?.includes('neon') ? 'bg-white/10' : 'bg-indigo-100 dark:bg-indigo-900/50'
+        )}>
           {icon}
         </div>
         {trend && trendValue && (
@@ -249,10 +252,20 @@ const StatsCard = React.forwardRef<
         )}
       </div>
       <div>
-        <p className="text-2xl font-bold text-gray-900 dark:text-white mb-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+        <p className={clsx(
+          'text-2xl font-bold mb-1 transition-colors',
+          variant?.includes('neon') || variant?.includes('gradient') 
+            ? 'text-white' 
+            : 'text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400'
+        )}>
           {value}
         </p>
-        <p className="text-sm text-gray-600 dark:text-gray-400">{label}</p>
+        <p className={clsx(
+          'text-sm',
+          variant?.includes('neon') || variant?.includes('gradient')
+            ? 'text-gray-200'
+            : 'text-gray-600 dark:text-gray-400'
+        )}>{label}</p>
       </div>
     </Card>
   );
