@@ -11,7 +11,7 @@ import {
   updateDocument,
   improveDocumentCategories,
 } from '../../services/documentService';
-import { DocumentViewer } from '../viewer';
+import { DocumentViewer, DocumentViewerMobile } from '../viewer';
 import { formatFileSize, formatDate, formatDateWithFallback } from '../../utils/formatters';
 import { ReprocessModal } from '../ai';
 import { reprocessDocumentsEnhanced } from '../../services/dualAIService';
