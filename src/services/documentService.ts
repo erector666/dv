@@ -510,14 +510,18 @@ export const uploadDocumentWithAI = async (
     const tempUploadTask = uploadBytesResumable(tempStorageRef, file);
 
     // Wait for temp upload to complete
+    let currentProgress = 0;
     const tempUploadURL = await new Promise<string>((resolve, reject) => {
       tempUploadTask.on(
         'state_changed',
         snapshot => {
-          const progress =
+          const uploadProgress =
             (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          if (onProgress) {
-            onProgress({ progress: progress * 0.2, snapshot }); // 20% of total progress
+          // Smooth progress: 0-20% for temp upload
+          const newProgress = uploadProgress * 0.2;
+          if (onProgress && newProgress > currentProgress) {
+            currentProgress = Math.max(currentProgress, newProgress);
+            onProgress({ progress: currentProgress, snapshot });
           }
         },
         error => reject(error),
@@ -526,6 +530,7 @@ export const uploadDocumentWithAI = async (
             const downloadURL = await getDownloadURL(
               tempUploadTask.snapshot.ref
             );
+            currentProgress = Math.max(currentProgress, 20); // Ensure we're at 20%
             resolve(downloadURL);
           } catch (error) {
             reject(error);
@@ -558,16 +563,34 @@ export const uploadDocumentWithAI = async (
     };
 
     // Process document with AI using the ORIGINAL file (with timeout and retry)
+    // Ensure progress updates during AI processing
+    currentProgress = Math.max(currentProgress, 25); // AI processing starts at 25%
+    if (onProgress) {
+      onProgress({ progress: currentProgress, snapshot: null });
+    }
+    
     const processedDocument = await processDocumentWithRetry(
       tempDocument,
       3,
       onAIProgress
     );
     console.log('✅ AI processing completed successfully');
+    
+    // Update progress after AI completion
+    currentProgress = Math.max(currentProgress, 55); // AI completes at 55%
+    if (onProgress) {
+      onProgress({ progress: currentProgress, snapshot: null });
+    }
 
     // Step 3: Convert to PDF AFTER AI processing
     onAIProgress?.('converting_to_pdf', 60);
     console.log('🔄 Converting to PDF after AI processing...');
+    
+    // Update progress for PDF conversion phase
+    currentProgress = Math.max(currentProgress, 58); // PDF conversion starts at 58%
+    if (onProgress) {
+      onProgress({ progress: currentProgress, snapshot: null });
+    }
 
     let pdfFile: File;
 
@@ -598,6 +621,12 @@ export const uploadDocumentWithAI = async (
         pdfFile = file;
       }
     }
+    
+    // Update progress after PDF conversion
+    currentProgress = Math.max(currentProgress, 60); // PDF conversion completes at 60%
+    if (onProgress) {
+      onProgress({ progress: currentProgress, snapshot: null });
+    }
 
     // Step 4: Upload final PDF to permanent storage
     onAIProgress?.('uploading_final', 80);
@@ -610,15 +639,18 @@ export const uploadDocumentWithAI = async (
 
     const finalUploadTask = uploadBytesResumable(finalStorageRef, pdfFile);
 
-    // Wait for final upload to complete
+    // Wait for final upload to complete with smooth progress
     const finalDownloadURL = await new Promise<string>((resolve, reject) => {
       finalUploadTask.on(
         'state_changed',
         snapshot => {
-          const progress =
+          const uploadProgress =
             (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          if (onProgress) {
-            onProgress({ progress: 60 + progress * 0.3, snapshot }); // 60-90% of total progress
+          // Smooth progress: 60-90% for final upload, ensuring no backward jumps
+          const newProgress = 60 + (uploadProgress * 0.3);
+          if (onProgress && newProgress > currentProgress) {
+            currentProgress = Math.max(currentProgress, newProgress);
+            onProgress({ progress: currentProgress, snapshot });
           }
         },
         error => reject(error),
@@ -627,6 +659,7 @@ export const uploadDocumentWithAI = async (
             const downloadURL = await getDownloadURL(
               finalUploadTask.snapshot.ref
             );
+            currentProgress = Math.max(currentProgress, 90); // Ensure we're at 90%
             resolve(downloadURL);
           } catch (error) {
             reject(error);
@@ -712,6 +745,12 @@ export const uploadDocumentWithAI = async (
       firestoreId: finalDocRef.id,
     };
 
+    // Final progress update
+    currentProgress = 100;
+    if (onProgress) {
+      onProgress({ progress: currentProgress, snapshot: null });
+    }
+    
     onAIProgress?.('completed', 100);
     console.log('🎉 AI-enhanced document upload completed successfully!');
 

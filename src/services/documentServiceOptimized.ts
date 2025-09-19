@@ -54,19 +54,24 @@ export const uploadDocumentOptimized = async (
 
     const uploadTask = uploadBytesResumable(storageRef, pdfFile);
     
-    // Upload with progress tracking
+    // Upload with smooth progress tracking
+    let currentProgress = 0;
     const downloadURL = await new Promise<string>((resolve, reject) => {
       uploadTask.on(
         'state_changed',
         snapshot => {
-          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          if (onProgress) {
-            onProgress({ progress: progress * 0.5, snapshot }); // 0-50% for upload
+          const uploadProgress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          // Smooth progress: 0-50% for upload, no backward jumps
+          const newProgress = uploadProgress * 0.5;
+          if (onProgress && newProgress > currentProgress) {
+            currentProgress = Math.max(currentProgress, newProgress);
+            onProgress({ progress: currentProgress, snapshot });
           }
         },
         error => reject(error),
         async () => {
           const url = await getDownloadURL(uploadTask.snapshot.ref);
+          currentProgress = Math.max(currentProgress, 50); // Ensure we're at 50%
           resolve(url);
         }
       );
@@ -74,6 +79,12 @@ export const uploadDocumentOptimized = async (
 
     // Step 3: Fast AI processing (single AI, no retries, shorter timeout)
     onAIProgress?.('ai_processing', 50);
+    
+    // Update progress for AI processing
+    currentProgress = Math.max(currentProgress, 50); // AI processing starts at 50%
+    if (onProgress) {
+      onProgress({ progress: currentProgress, snapshot: null });
+    }
     
     // Create document object for AI processing
     const tempDocument: Document = {
@@ -96,13 +107,27 @@ export const uploadDocumentOptimized = async (
     try {
       aiEnhancedDocument = await processDocumentFast(tempDocument);
       onAIProgress?.('ai_completed', 80);
+      // Update progress after AI completion
+      currentProgress = Math.max(currentProgress, 80); // AI completes at 80%
+      if (onProgress) {
+        onProgress({ progress: currentProgress, snapshot: null });
+      }
     } catch (aiError) {
       console.warn('⚠️ Fast AI processing failed, using basic document:', aiError);
       // Continue without AI enhancement
+      currentProgress = Math.max(currentProgress, 80); // Still progress even if AI fails
+      if (onProgress) {
+        onProgress({ progress: currentProgress, snapshot: null });
+      }
     }
 
     // Step 4: Save to Firestore
     onAIProgress?.('saving', 90);
+    currentProgress = Math.max(currentProgress, 90); // Firestore save starts at 90%
+    if (onProgress) {
+      onProgress({ progress: currentProgress, snapshot: null });
+    }
+    
     const docData = {
       ...aiEnhancedDocument,
       id: undefined, // Remove id before saving
@@ -117,6 +142,12 @@ export const uploadDocumentOptimized = async (
       id: docRef.id,
       firestoreId: docRef.id,
     };
+
+    // Final progress update
+    currentProgress = 100;
+    if (onProgress) {
+      onProgress({ progress: currentProgress, snapshot: null });
+    }
 
     const elapsed = Date.now() - startTime;
     console.log(`✅ OPTIMIZED upload completed in ${(elapsed/1000).toFixed(1)}s`);
