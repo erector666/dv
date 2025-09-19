@@ -465,6 +465,13 @@ const DocumentList: React.FC<DocumentListProps> = ({
     setIsReprocessModalOpen(true);
   };
 
+  const handleReprocessConfirm = async () => {
+    if (!reprocessTarget) return;
+    
+    // Use the existing enhanced reprocess function with 'both' mode
+    await handleEnhancedReprocess('both');
+  };
+
   const handleEnhancedReprocess = async (
     mode: 'huggingface' | 'deepseek' | 'both'
   ) => {
