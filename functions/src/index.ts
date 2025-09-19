@@ -473,35 +473,14 @@ async function classifyDocumentDualAI(
           return result;
         } catch (error) {
           console.error('❌ Hugging Face processing failed:', error);
-          // Provide a smart fallback based on text content
-          const lowerText = textData.text.toLowerCase();
-          let category = 'document';
-          let confidence = 0.6;
-          let tags = ['document'];
-          
-          if (lowerText.includes('contract') || lowerText.includes('agreement')) {
-            category = 'legal';
-            confidence = 0.8;
-            tags = ['legal', 'contract', 'agreement'];
-          } else if (lowerText.includes('invoice') || lowerText.includes('bill')) {
-            category = 'financial';
-            confidence = 0.8;
-            tags = ['financial', 'invoice', 'bill'];
-          } else if (lowerText.includes('receipt') || lowerText.includes('purchase')) {
-            category = 'financial';
-            confidence = 0.8;
-            tags = ['financial', 'receipt', 'purchase'];
-          }
-          
           return {
-            category,
-            confidence,
-            tags,
+            category: 'document',
+            confidence: 0.3,
+            tags: ['document'],
             language: 'en',
             extractedDates: [] as string[],
             suggestedName: 'Document',
-            processingMethod: 'fallback',
-            error: 'Hugging Face processing failed, using smart fallback',
+            error: 'Hugging Face processing failed',
           };
         }
       })(),
@@ -1274,30 +1253,7 @@ export const classifyDocumentDualAIHttp = onRequest(
                   const aiService = await getHuggingFaceService();
                   return await aiService.classifyDocument(documentText);
                 } catch (e) {
-                  console.error('❌ Hugging Face failed, using smart fallback:', e);
-                  // Smart fallback based on text content
-                  const lowerText = documentText.toLowerCase();
-                  let category = 'document';
-                  let confidence = 0.6;
-                  let tags = ['document'];
-                  
-                  if (lowerText.includes('contract') || lowerText.includes('agreement')) {
-                    category = 'legal';
-                    confidence = 0.8;
-                    tags = ['legal', 'contract', 'agreement'];
-                  } else if (lowerText.includes('invoice') || lowerText.includes('bill')) {
-                    category = 'financial';
-                    confidence = 0.8;
-                    tags = ['financial', 'invoice', 'bill'];
-                  }
-                  
-                  return { 
-                    category, 
-                    confidence, 
-                    tags, 
-                    language: 'en',
-                    processingMethod: 'fallback'
-                  };
+                  return { category: 'document', confidence: 0.3, tags: ['document'], language: 'en' };
                 }
               })(),
               (async () => {
@@ -1337,14 +1293,7 @@ export const classifyDocumentDualAIHttp = onRequest(
                   const aiService = await getHuggingFaceService();
                   return await aiService.classifyDocument(sampleText);
                 } catch (e) {
-                  console.error('❌ Hugging Face failed, using smart fallback:', e);
-                  return { 
-                    category: 'legal', 
-                    confidence: 0.8, 
-                    tags: ['legal', 'contract', 'agreement'], 
-                    language: 'en',
-                    processingMethod: 'fallback'
-                  };
+                  return { category: 'contract', confidence: 0.8, tags: ['contract', 'legal'], language: 'en' };
                 }
                 })(),
                 (async () => {
@@ -1386,30 +1335,7 @@ export const classifyDocumentDualAIHttp = onRequest(
                   const aiService = await getHuggingFaceService();
                   return await aiService.classifyDocument(documentText);
                 } catch (error) {
-                  console.error('❌ Hugging Face failed, using smart fallback:', error);
-                  // Smart fallback based on text content
-                  const lowerText = documentText.toLowerCase();
-                  let category = 'document';
-                  let confidence = 0.6;
-                  let tags = ['document'];
-                  
-                  if (lowerText.includes('contract') || lowerText.includes('agreement')) {
-                    category = 'legal';
-                    confidence = 0.8;
-                    tags = ['legal', 'contract', 'agreement'];
-                  } else if (lowerText.includes('invoice') || lowerText.includes('bill')) {
-                    category = 'financial';
-                    confidence = 0.8;
-                    tags = ['financial', 'invoice', 'bill'];
-                  }
-                  
-                  return { 
-                    category, 
-                    confidence, 
-                    tags, 
-                    language: 'en',
-                    processingMethod: 'fallback'
-                  };
+                  return { category: 'document', confidence: 0.3, tags: ['document'], language: 'en' };
                 }
               })()
             : await classifyDocumentInternal(documentUrl);
