@@ -16,8 +16,8 @@ import jsPDF from 'jspdf';
 import { Document, DocumentUploadProgress } from './documentService';
 
 /**
- * Optimized document upload with faster AI processing
- * Target: < 15 seconds total upload time
+ * Optimized document upload with single upload and fast AI processing
+ * Target: < 10 seconds total upload time with single upload
  */
 export const uploadDocumentOptimized = async (
   file: File,
@@ -29,11 +29,12 @@ export const uploadDocumentOptimized = async (
   onAIProgress?: (stage: string, progress: number) => void
 ): Promise<Document> => {
   try {
-    console.log('🚀 Starting OPTIMIZED upload for:', file.name);
+    console.log('🚀 Starting SINGLE-UPLOAD optimized upload for:', file.name);
     const startTime = Date.now();
+    let currentProgress = 0;
 
-    // Step 1: Convert to PDF if needed (keep as-is, already optimized)
-    onAIProgress?.('converting', 10);
+    // Step 1: Convert to PDF if needed (before upload)
+    onAIProgress?.('converting', 5);
     let pdfFile = file;
     const originalType = file.type;
     
@@ -45,8 +46,14 @@ export const uploadDocumentOptimized = async (
       }
     }
 
-    // Step 2: Upload directly to permanent storage (skip temp upload)
-    onAIProgress?.('uploading', 20);
+    // Update progress after conversion
+    currentProgress = Math.max(currentProgress, 10);
+    if (onProgress) {
+      onProgress({ progress: currentProgress, snapshot: null });
+    }
+
+    // Step 2: Single upload directly to permanent storage
+    onAIProgress?.('uploading', 15);
     const storageRef = ref(
       storage,
       `documents/${userId}/${Date.now()}_${pdfFile.name}`
@@ -54,15 +61,14 @@ export const uploadDocumentOptimized = async (
 
     const uploadTask = uploadBytesResumable(storageRef, pdfFile);
     
-    // Upload with smooth progress tracking
-    let currentProgress = 0;
+    // Upload with smooth progress tracking (15-60% for upload)
     const downloadURL = await new Promise<string>((resolve, reject) => {
       uploadTask.on(
         'state_changed',
         snapshot => {
           const uploadProgress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          // Smooth progress: 0-50% for upload, no backward jumps
-          const newProgress = uploadProgress * 0.5;
+          // Smooth progress: 15-60% for upload
+          const newProgress = 15 + (uploadProgress * 0.45);
           if (onProgress && newProgress > currentProgress) {
             currentProgress = Math.max(currentProgress, newProgress);
             onProgress({ progress: currentProgress, snapshot });
@@ -71,28 +77,57 @@ export const uploadDocumentOptimized = async (
         error => reject(error),
         async () => {
           const url = await getDownloadURL(uploadTask.snapshot.ref);
-          currentProgress = Math.max(currentProgress, 50); // Ensure we're at 50%
+          currentProgress = Math.max(currentProgress, 60); // Ensure we're at 60%
           resolve(url);
         }
       );
     });
 
-    // Step 3: Fast AI processing (single AI, no retries, shorter timeout)
-    onAIProgress?.('ai_processing', 50);
-    
-    // Update progress for AI processing
-    currentProgress = Math.max(currentProgress, 50); // AI processing starts at 50%
-    if (onProgress) {
-      onProgress({ progress: currentProgress, snapshot: null });
-    }
-    
-    // Create document object for AI processing
-    const tempDocument: Document = {
-      id: '',
+    console.log('✅ File uploaded to permanent storage:', downloadURL);
+
+    // Step 3: Create initial document record
+    onAIProgress?.('creating_record', 65);
+    const initialDocument = {
       name: pdfFile.name,
       type: pdfFile.type,
       size: pdfFile.size,
       url: downloadURL,
+      path: storageRef.fullPath,
+      userId,
+      category: category || 'uncategorized',
+      tags: tags || [],
+      uploadedAt: serverTimestamp(),
+      lastModified: serverTimestamp(),
+      status: 'processing',
+      metadata: {
+        ...metadata,
+        originalFileType: originalType,
+        convertedToPdf: originalType !== 'application/pdf',
+        originalFileName: file.name,
+        aiProcessed: false,
+      },
+    };
+
+    const docRef = await addDoc(collection(db, 'documents'), initialDocument);
+    const documentId = docRef.id;
+
+    // Update progress after document creation
+    currentProgress = Math.max(currentProgress, 70);
+    if (onProgress) {
+      onProgress({ progress: currentProgress, snapshot: null });
+    }
+
+    // Step 4: Fast AI processing using permanent URL
+    onAIProgress?.('ai_processing', 75);
+    
+    // Create document object for AI processing using permanent URL
+    const documentForAI: Document = {
+      id: documentId,
+      firestoreId: documentId,
+      name: pdfFile.name,
+      type: originalType, // Use original type for better AI processing
+      size: file.size,
+      url: downloadURL, // Use permanent URL
       path: storageRef.fullPath,
       userId,
       category: category || 'uncategorized',
@@ -103,44 +138,66 @@ export const uploadDocumentOptimized = async (
     };
 
     // Use optimized fast AI processing
-    let aiEnhancedDocument = tempDocument;
+    let aiEnhancedDocument = documentForAI;
     try {
-      aiEnhancedDocument = await processDocumentFast(tempDocument);
-      onAIProgress?.('ai_completed', 80);
+      aiEnhancedDocument = await processDocumentFast(documentForAI);
+      onAIProgress?.('ai_completed', 85);
       // Update progress after AI completion
-      currentProgress = Math.max(currentProgress, 80); // AI completes at 80%
+      currentProgress = Math.max(currentProgress, 85);
       if (onProgress) {
         onProgress({ progress: currentProgress, snapshot: null });
       }
     } catch (aiError) {
       console.warn('⚠️ Fast AI processing failed, using basic document:', aiError);
       // Continue without AI enhancement
-      currentProgress = Math.max(currentProgress, 80); // Still progress even if AI fails
+      currentProgress = Math.max(currentProgress, 85);
       if (onProgress) {
         onProgress({ progress: currentProgress, snapshot: null });
       }
     }
 
-    // Step 4: Save to Firestore
-    onAIProgress?.('saving', 90);
-    currentProgress = Math.max(currentProgress, 90); // Firestore save starts at 90%
-    if (onProgress) {
-      onProgress({ progress: currentProgress, snapshot: null });
-    }
-    
-    const docData = {
-      ...aiEnhancedDocument,
-      id: undefined, // Remove id before saving
-      uploadedAt: serverTimestamp(),
+    // Step 5: Update document with AI results
+    onAIProgress?.('updating_metadata', 90);
+    const aiSuggestedName = aiEnhancedDocument.suggestedName || aiEnhancedDocument.metadata?.suggestedName;
+    const sanitizeFileName = (name: string) => name.replace(/[\\/:*?"<>|]/g, '').trim();
+    const finalName = aiSuggestedName ? `${sanitizeFileName(aiSuggestedName)}.pdf` : pdfFile.name;
+
+    const updateData = {
+      name: finalName,
+      status: 'ready',
+      category: aiEnhancedDocument.category || category || 'uncategorized',
+      tags: Array.from(new Set([
+        ...(aiEnhancedDocument.tags || []),
+        ...(tags || []),
+        aiEnhancedDocument.language ? `lang:${aiEnhancedDocument.language}` : '',
+        new Date().getFullYear().toString(),
+        'this-year',
+        'processed',
+        'ai-enhanced'
+      ])).filter(Boolean),
+      metadata: {
+        ...metadata,
+        ...aiEnhancedDocument.metadata,
+        originalFileType: originalType,
+        convertedToPdf: originalType !== 'application/pdf',
+        originalFileName: file.name,
+        aiProcessingCompleted: serverTimestamp(),
+        aiProcessed: true,
+      },
       lastModified: serverTimestamp(),
+      ...(aiEnhancedDocument.language ? { language: aiEnhancedDocument.language } : {}),
     };
 
-    const docRef = await addDoc(collection(db, 'documents'), docData);
-    
+    // Update the document in Firestore
+    await updateDoc(doc(db, 'documents', documentId), updateData);
+
+    // Create final document object
     const finalDocument: Document = {
-      ...aiEnhancedDocument,
-      id: docRef.id,
-      firestoreId: docRef.id,
+      ...initialDocument,
+      ...updateData,
+      id: documentId,
+      firestoreId: documentId,
+      uploadedAt: initialDocument.uploadedAt,
     };
 
     // Final progress update
@@ -150,12 +207,12 @@ export const uploadDocumentOptimized = async (
     }
 
     const elapsed = Date.now() - startTime;
-    console.log(`✅ OPTIMIZED upload completed in ${(elapsed/1000).toFixed(1)}s`);
+    console.log(`✅ SINGLE-UPLOAD optimized upload completed in ${(elapsed/1000).toFixed(1)}s`);
     onAIProgress?.('completed', 100);
 
     return finalDocument;
   } catch (error) {
-    console.error('❌ Optimized upload error:', error);
+    console.error('❌ Optimized single-upload error:', error);
     throw error;
   }
 };

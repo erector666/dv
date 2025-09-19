@@ -464,7 +464,7 @@ export const uploadDocument = async (
 
 /**
  * Upload a document with full AI processing pipeline
- * NEW IMPROVED FLOW: Original file → Temp storage → AI processing → PDF conversion → Final storage
+ * OPTIMIZED FLOW: File → PDF conversion → Single upload → AI processing on permanent URL
  */
 export const uploadDocumentWithAI = async (
   file: File,
@@ -475,124 +475,16 @@ export const uploadDocumentWithAI = async (
   onProgress?: (progress: DocumentUploadProgress) => void,
   onAIProgress?: (stage: string, progress: number) => void
 ): Promise<Document> => {
-  let tempStorageRef: any = null;
-
-  // Helper function to clean up temp files
-  const cleanupTempFile = async (storageRef: any): Promise<boolean> => {
-    if (!storageRef) return false;
-    try {
-      console.log('🧹 Cleaning up temp file...');
-      await deleteObject(storageRef);
-      console.log('✅ Temp file cleaned up successfully');
-      return true;
-    } catch (cleanupError: any) {
-      // Silently ignore not-found; treat as already cleaned
-      if (cleanupError?.code === 'storage/object-not-found') {
-        console.log('ℹ️ Temp file already deleted');
-        return true;
-      }
-      console.warn('⚠️ Failed to clean up temp file:', cleanupError);
-      return false;
-    }
-  };
-
   try {
-    console.log('🚀 Starting AI-enhanced document upload for:', file.name);
-
-    // Step 1: Upload ORIGINAL file to temp folder for AI processing
-    onAIProgress?.('uploading_for_ai', 10);
-    console.log(
-      '📤 Uploading original file to temp folder for AI processing...'
-    );
-
-    tempStorageRef = ref(storage, `temp/${userId}/${Date.now()}_${file.name}`);
-
-    const tempUploadTask = uploadBytesResumable(tempStorageRef, file);
-
-    // Wait for temp upload to complete
+    console.log('🚀 Starting optimized AI-enhanced document upload for:', file.name);
     let currentProgress = 0;
-    const tempUploadURL = await new Promise<string>((resolve, reject) => {
-      tempUploadTask.on(
-        'state_changed',
-        snapshot => {
-          const uploadProgress =
-            (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          // Smooth progress: 0-20% for temp upload
-          const newProgress = uploadProgress * 0.2;
-          if (onProgress && newProgress > currentProgress) {
-            currentProgress = Math.max(currentProgress, newProgress);
-            onProgress({ progress: currentProgress, snapshot });
-          }
-        },
-        error => reject(error),
-        async () => {
-          try {
-            const downloadURL = await getDownloadURL(
-              tempUploadTask.snapshot.ref
-            );
-            currentProgress = Math.max(currentProgress, 20); // Ensure we're at 20%
-            resolve(downloadURL);
-          } catch (error) {
-            reject(error);
-          }
-        }
-      );
-    });
 
-    console.log('✅ Original file uploaded to temp storage:', tempUploadURL);
-
-    let originalType = file.type;
-    let tempFilePath = tempStorageRef.fullPath;
-
-    // Step 2: AI Processing on ORIGINAL file (not converted PDF!)
-    onAIProgress?.('processing_ai', 30);
-    console.log('🤖 Starting AI processing on original file...');
-
-    // Create temporary document object for AI processing
-    const tempDocument: Document = {
-      name: file.name,
-      type: originalType, // Use original file type for AI processing
-      size: file.size,
-      url: tempUploadURL, // Use temp URL for AI processing
-      path: tempFilePath,
-      userId,
-      category,
-      tags,
-      uploadedAt: new Date(),
-      metadata: initialMetadata,
-    };
-
-    // Process document with AI using the ORIGINAL file (with timeout and retry)
-    // Ensure progress updates during AI processing
-    currentProgress = Math.max(currentProgress, 25); // AI processing starts at 25%
-    if (onProgress) {
-      onProgress({ progress: currentProgress, snapshot: null });
-    }
-    
-    const processedDocument = await processDocumentWithRetry(
-      tempDocument,
-      3,
-      onAIProgress
-    );
-    console.log('✅ AI processing completed successfully');
-    
-    // Update progress after AI completion
-    currentProgress = Math.max(currentProgress, 55); // AI completes at 55%
-    if (onProgress) {
-      onProgress({ progress: currentProgress, snapshot: null });
-    }
-
-    // Step 3: Convert to PDF AFTER AI processing
-    onAIProgress?.('converting_to_pdf', 60);
-    console.log('🔄 Converting to PDF after AI processing...');
-    
-    // Update progress for PDF conversion phase
-    currentProgress = Math.max(currentProgress, 58); // PDF conversion starts at 58%
-    if (onProgress) {
-      onProgress({ progress: currentProgress, snapshot: null });
-    }
+    // Step 1: Convert to PDF first (if needed) - before upload
+    onAIProgress?.('converting_to_pdf', 10);
+    console.log('🔄 Converting to PDF before upload...');
 
     let pdfFile: File;
+    const originalType = file.type;
 
     if (file.type === 'application/pdf') {
       pdfFile = file;
@@ -600,7 +492,6 @@ export const uploadDocumentWithAI = async (
     } else {
       // Convert non-PDF files to PDF using a conversion service
       try {
-        // For images, we'll create a simple PDF conversion
         if (file.type.startsWith('image/')) {
           pdfFile = await convertImageToPdf(file);
         } else if (
@@ -621,33 +512,33 @@ export const uploadDocumentWithAI = async (
         pdfFile = file;
       }
     }
-    
+
     // Update progress after PDF conversion
-    currentProgress = Math.max(currentProgress, 60); // PDF conversion completes at 60%
+    currentProgress = Math.max(currentProgress, 15);
     if (onProgress) {
       onProgress({ progress: currentProgress, snapshot: null });
     }
 
-    // Step 4: Upload final PDF to permanent storage
-    onAIProgress?.('uploading_final', 80);
-    console.log('☁️ Uploading final PDF to permanent storage...');
+    // Step 2: Single upload to permanent storage
+    onAIProgress?.('uploading', 20);
+    console.log('☁️ Uploading to permanent storage...');
 
-    const finalStorageRef = ref(
+    const storageRef = ref(
       storage,
       `documents/${userId}/${Date.now()}_${pdfFile.name}`
     );
 
-    const finalUploadTask = uploadBytesResumable(finalStorageRef, pdfFile);
+    const uploadTask = uploadBytesResumable(storageRef, pdfFile);
 
-    // Wait for final upload to complete with smooth progress
-    const finalDownloadURL = await new Promise<string>((resolve, reject) => {
-      finalUploadTask.on(
+    // Wait for upload to complete with progress tracking
+    const downloadURL = await new Promise<string>((resolve, reject) => {
+      uploadTask.on(
         'state_changed',
         snapshot => {
           const uploadProgress =
             (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          // Smooth progress: 60-90% for final upload, ensuring no backward jumps
-          const newProgress = 60 + (uploadProgress * 0.3);
+          // Smooth progress: 20-60% for upload
+          const newProgress = 20 + (uploadProgress * 0.4);
           if (onProgress && newProgress > currentProgress) {
             currentProgress = Math.max(currentProgress, newProgress);
             onProgress({ progress: currentProgress, snapshot });
@@ -656,11 +547,9 @@ export const uploadDocumentWithAI = async (
         error => reject(error),
         async () => {
           try {
-            const downloadURL = await getDownloadURL(
-              finalUploadTask.snapshot.ref
-            );
-            currentProgress = Math.max(currentProgress, 90); // Ensure we're at 90%
-            resolve(downloadURL);
+            const url = await getDownloadURL(uploadTask.snapshot.ref);
+            currentProgress = Math.max(currentProgress, 60); // Ensure we're at 60%
+            resolve(url);
           } catch (error) {
             reject(error);
           }
@@ -668,51 +557,119 @@ export const uploadDocumentWithAI = async (
       );
     });
 
-    console.log(
-      '✅ Final PDF uploaded to permanent storage:',
-      finalDownloadURL
-    );
+    console.log('✅ File uploaded to permanent storage:', downloadURL);
 
-    // This old document creation is no longer needed - we have finalDocument from AI processing
+    // Step 3: Create initial document record in Firestore (before AI processing)
+    onAIProgress?.('creating_record', 65);
+    console.log('💾 Creating initial document record...');
 
-    // Step 6: Clean up temp file (once)
-    onAIProgress?.('cleaning_up', 95);
-    let tempCleaned = await cleanupTempFile(tempStorageRef);
+    const initialDocument: Omit<Document, 'id'> = {
+      name: pdfFile.name,
+      type: pdfFile.type,
+      size: pdfFile.size,
+      url: downloadURL,
+      path: storageRef.fullPath,
+      userId,
+      category: category || 'uncategorized',
+      tags: tags || [],
+      uploadedAt: new Date(),
+      lastModified: new Date(),
+      status: 'processing', // Mark as processing while AI runs
+      metadata: {
+        ...initialMetadata,
+        originalFileType: originalType,
+        convertedToPdf: originalType !== 'application/pdf',
+        originalFileName: file.name,
+        aiProcessed: false,
+      },
+    };
 
-    // Step 7: Create final document with AI results and PDF details
-    onAIProgress?.('saving_to_database', 98);
-    console.log('💾 Creating final document with AI results...');
+    // Save initial document to Firestore
+    const docRef = await saveDocumentWithRetry(initialDocument);
+    const documentId = docRef.id;
 
-    // Create final document object with AI processing results and final PDF URL
+    // Update progress after initial save
+    currentProgress = Math.max(currentProgress, 70);
+    if (onProgress) {
+      onProgress({ progress: currentProgress, snapshot: null });
+    }
+
+    // Step 4: AI Processing using the permanent URL (asynchronous)
+    onAIProgress?.('processing_ai', 75);
+    console.log('🤖 Starting AI processing on uploaded file...');
+
+    // Create document object for AI processing using permanent URL
+    const documentForAI: Document = {
+      id: documentId,
+      firestoreId: documentId,
+      name: pdfFile.name,
+      type: originalType, // Use original file type for better AI processing
+      size: file.size,
+      url: downloadURL, // Use permanent URL
+      path: storageRef.fullPath,
+      userId,
+      category: category || 'uncategorized',
+      tags: tags || [],
+      uploadedAt: new Date(),
+      metadata: initialMetadata,
+    };
+
+    // Process document with AI using the permanent URL
+    let processedDocument: Document;
+    try {
+      processedDocument = await processDocumentWithRetry(
+        documentForAI,
+        3,
+        onAIProgress
+      );
+      console.log('✅ AI processing completed successfully');
+      
+      // Update progress after AI completion
+      currentProgress = Math.max(currentProgress, 90);
+      if (onProgress) {
+        onProgress({ progress: currentProgress, snapshot: null });
+      }
+    } catch (aiError) {
+      console.warn('⚠️ AI processing failed, using basic document:', aiError);
+      // Continue with basic document if AI fails
+      processedDocument = documentForAI;
+      
+      currentProgress = Math.max(currentProgress, 90);
+      if (onProgress) {
+        onProgress({ progress: currentProgress, snapshot: null });
+      }
+    }
+
+    // Step 5: Update document with AI results
+    onAIProgress?.('updating_metadata', 95);
+    console.log('💾 Updating document with AI results...');
+
+    // Create AI-suggested name if available
     const aiSuggestedName =
       processedDocument.suggestedName ||
       processedDocument.metadata?.suggestedName;
-    // Preserve Unicode in suggested names; sanitize only forbidden filename characters
     const sanitizeFileName = (name: string) =>
       name.replace(/[\\/:*?"<>|]/g, '').trim();
     const finalName = aiSuggestedName
       ? `${sanitizeFileName(aiSuggestedName)}.pdf`
       : pdfFile.name;
 
-    const finalDocument: Omit<Document, 'id'> = {
-      name: finalName, // Use AI-suggested name or fallback to PDF filename
-      type: pdfFile.type, // Use PDF type for storage
-      size: pdfFile.size, // Use PDF size
-      url: finalDownloadURL, // Use final PDF URL
-      path: finalStorageRef.fullPath, // Use final PDF path
-      userId,
-      category: processedDocument.category || category, // Use AI-detected category
+    // Prepare update data with AI results
+    const updateData: Partial<Document> = {
+      name: finalName,
+      status: 'ready',
+      category: processedDocument.category || category || 'uncategorized',
       tags: Array.from(
         new Set([
-          ...(processedDocument.tags || []), 
-          ...(tags || []), 
+          ...(processedDocument.tags || []),
+          ...(tags || []),
           processedDocument.language ? `lang:${processedDocument.language}` : '',
           // Add useful time-based tags
           new Date().getFullYear().toString(),
           'this-year',
           // Add content-based tags based on processing results
           processedDocument.metadata?.textExtraction?.wordCount > 500 ? 'text-heavy' : '',
-          file.type?.includes('image/') ? 'image-only' : '',
+          originalType?.includes('image/') ? 'image-only' : '',
           // Add confidence-based tags
           processedDocument.metadata?.classificationConfidence > 0.8 ? 'high-confidence' : '',
           processedDocument.metadata?.classificationConfidence < 0.6 ? 'low-confidence' : '',
@@ -721,28 +678,30 @@ export const uploadDocumentWithAI = async (
           'ai-enhanced'
         ])
       ).filter(Boolean) as string[],
-      uploadedAt: new Date(),
-      lastModified: new Date(),
       metadata: {
         ...initialMetadata,
-        ...processedDocument.metadata, // Include all AI processing results
-        originalFileType: originalType, // Remember original file type
-        tempProcessingUrl: tempUploadURL, // For debugging if needed
+        ...processedDocument.metadata,
+        originalFileType: originalType,
         convertedToPdf: originalType !== 'application/pdf',
         originalFileName: file.name,
         aiProcessingCompleted: new Date(),
+        aiProcessed: true,
       },
-      // Promote language to top-level for quick card display/filters
-      ...(processedDocument as any).language ? { language: (processedDocument as any).language } : {},
+      // Promote language to top-level for quick filtering
+      ...(processedDocument.language ? { language: processedDocument.language } : {}),
     };
 
-    // Save the document to Firestore with AI results (with retry)
-    const finalDocRef = await saveDocumentWithRetry(finalDocument);
+    // Update the document in Firestore with AI results
+    await updateDocument(documentId, updateData);
 
-    const savedDocument: Document = {
-      ...finalDocument,
-      id: finalDocRef.id,
-      firestoreId: finalDocRef.id,
+    // Create final document object
+    const finalDocument: Document = {
+      ...initialDocument,
+      ...updateData,
+      id: documentId,
+      firestoreId: documentId,
+      uploadedAt: initialDocument.uploadedAt,
+      lastModified: new Date(),
     };
 
     // Final progress update
@@ -750,19 +709,15 @@ export const uploadDocumentWithAI = async (
     if (onProgress) {
       onProgress({ progress: currentProgress, snapshot: null });
     }
-    
+
     onAIProgress?.('completed', 100);
-    console.log('🎉 AI-enhanced document upload completed successfully!');
+    console.log('🎉 Optimized AI-enhanced document upload completed successfully!');
 
-    return savedDocument;
+    return finalDocument;
   } catch (error) {
-    console.error('❌ Error in AI-enhanced upload:', error);
+    console.error('❌ Error in optimized AI-enhanced upload:', error);
 
-    // Clean up temp file before handling error
-    await cleanupTempFile(tempStorageRef);
-
-    // If AI processing fails, still return the basic document
-    // but log the error for debugging
+    // If everything fails, try basic upload as fallback
     try {
       const basicDocument = await uploadDocument(
         file,
@@ -781,9 +736,6 @@ export const uploadDocumentWithAI = async (
       console.error('❌ Basic upload also failed:', uploadError);
       throw uploadError;
     }
-  } finally {
-    // Ensure temp file cleanup happens only once
-    await cleanupTempFile(tempStorageRef);
   }
 };
 

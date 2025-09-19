@@ -322,7 +322,9 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
           // Map stage to user-friendly message - DETAILED PROGRESS FEEDBACK
           const stageMessages: { [key: string]: string } = {
             // Upload stages
-            uploading_for_ai: 'Uploading original file for AI analysis...',
+            converting_to_pdf: 'Converting to PDF format...',
+            uploading: 'Uploading file to storage...',
+            creating_record: 'Creating document record...',
             processing_ai: 'Starting AI analysis...',
 
             // AI processing stages
@@ -347,9 +349,9 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
             retrying_in_6s: 'Retrying in 6 seconds...',
             retrying_in_10s: 'Retrying in 10 seconds...',
 
-            // Conversion stages
-            converting_to_pdf: 'Converting to PDF format...',
-            uploading_pdf: 'Uploading final PDF...',
+            // Metadata stages
+            updating_metadata: 'Updating document with AI results...',
+            saving_to_database: 'Saving to database...',
 
             // Legacy stages
             detecting_language: 'Detecting document language...',
