@@ -47,31 +47,104 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile = false, onClose }) => {
     }
   );
 
-  // Get document counts by category
+  // Get document counts by category (matching the DocumentList filtering logic)
   const getCategoryCount = (category: string) => {
     if (!documents) return 0;
     
-    // Handle the bills/financial mapping
-    if (category === 'financial') {
-      return documents.filter(doc => doc.category === 'financial' || doc.category === 'bills').length;
+    const filterCategory = category.toLowerCase();
+    
+    // Handle personal category
+    if (filterCategory === 'personal') {
+      return documents.filter(doc => {
+        const docCategory = doc.category?.toLowerCase();
+        return !docCategory || docCategory === 'document';
+      }).length;
     }
     
-    // For predefined categories, count exact matches
-    if (['personal', 'medical', 'insurance', 'other'].includes(category)) {
-      return documents.filter(doc => doc.category === category).length;
+    // Handle financial category mapping
+    if (filterCategory === 'financial') {
+      return documents.filter(doc => {
+        const docCategory = doc.category?.toLowerCase();
+        return docCategory === 'financial' || 
+               docCategory === 'finance' || 
+               docCategory === 'bills' ||
+               (docCategory && docCategory.includes('bill')) ||
+               (docCategory && docCategory.includes('financial'));
+      }).length;
     }
     
-    // For 'bills' category, also count documents with financial-related categories
-    if (category === 'bills') {
-      return documents.filter(doc => 
-        doc.category === 'bills' || 
-        doc.category === 'financial' ||
-        (doc.category && doc.category.toLowerCase().includes('bill')) ||
-        (doc.category && doc.category.toLowerCase().includes('financial'))
-      ).length;
+    // Handle bills category mapping
+    if (filterCategory === 'bills') {
+      return documents.filter(doc => {
+        const docCategory = doc.category?.toLowerCase();
+        return docCategory === 'bills' || 
+               docCategory === 'financial' || 
+               docCategory === 'finance' ||
+               (docCategory && docCategory.includes('bill')) ||
+               (docCategory && docCategory.includes('financial'));
+      }).length;
     }
     
-    return documents.filter(doc => doc.category === category).length;
+    // Handle education category mapping
+    if (filterCategory === 'education') {
+      return documents.filter(doc => {
+        const docCategory = doc.category?.toLowerCase();
+        return docCategory === 'education' || 
+               docCategory === 'educational' ||
+               docCategory === 'school' ||
+               docCategory === 'university' ||
+               docCategory === 'academic';
+      }).length;
+    }
+    
+    // Handle legal category mapping
+    if (filterCategory === 'legal') {
+      return documents.filter(doc => {
+        const docCategory = doc.category?.toLowerCase();
+        return docCategory === 'legal' || 
+               docCategory === 'law' ||
+               docCategory === 'contract' ||
+               docCategory === 'agreement';
+      }).length;
+    }
+    
+    // Handle medical category mapping
+    if (filterCategory === 'medical') {
+      return documents.filter(doc => {
+        const docCategory = doc.category?.toLowerCase();
+        return docCategory === 'medical' || 
+               docCategory === 'health' ||
+               docCategory === 'healthcare' ||
+               docCategory === 'doctor' ||
+               docCategory === 'hospital';
+      }).length;
+    }
+    
+    // Handle insurance category mapping
+    if (filterCategory === 'insurance') {
+      return documents.filter(doc => {
+        const docCategory = doc.category?.toLowerCase();
+        return docCategory === 'insurance' || 
+               docCategory === 'insure';
+      }).length;
+    }
+    
+    // Handle government category mapping
+    if (filterCategory === 'government') {
+      return documents.filter(doc => {
+        const docCategory = doc.category?.toLowerCase();
+        return docCategory === 'government' || 
+               docCategory === 'gov' ||
+               docCategory === 'official' ||
+               docCategory === 'public';
+      }).length;
+    }
+    
+    // Default exact match (case insensitive)
+    return documents.filter(doc => {
+      const docCategory = doc.category?.toLowerCase();
+      return docCategory === filterCategory;
+    }).length;
   };
 
   // Get count of documents with custom categories (not in predefined list)
