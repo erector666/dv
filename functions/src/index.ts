@@ -473,14 +473,35 @@ async function classifyDocumentDualAI(
           return result;
         } catch (error) {
           console.error('❌ Hugging Face processing failed:', error);
+          // Provide a smart fallback based on text content
+          const lowerText = textData.text.toLowerCase();
+          let category = 'document';
+          let confidence = 0.6;
+          let tags = ['document'];
+          
+          if (lowerText.includes('contract') || lowerText.includes('agreement')) {
+            category = 'legal';
+            confidence = 0.8;
+            tags = ['legal', 'contract', 'agreement'];
+          } else if (lowerText.includes('invoice') || lowerText.includes('bill')) {
+            category = 'financial';
+            confidence = 0.8;
+            tags = ['financial', 'invoice', 'bill'];
+          } else if (lowerText.includes('receipt') || lowerText.includes('purchase')) {
+            category = 'financial';
+            confidence = 0.8;
+            tags = ['financial', 'receipt', 'purchase'];
+          }
+          
           return {
-            category: 'document',
-            confidence: 0.3,
-            tags: ['document'],
+            category,
+            confidence,
+            tags,
             language: 'en',
             extractedDates: [] as string[],
             suggestedName: 'Document',
-            error: 'Hugging Face processing failed',
+            processingMethod: 'fallback',
+            error: 'Hugging Face processing failed, using smart fallback',
           };
         }
       })(),
@@ -1253,7 +1274,30 @@ export const classifyDocumentDualAIHttp = onRequest(
                   const aiService = await getHuggingFaceService();
                   return await aiService.classifyDocument(documentText);
                 } catch (e) {
-                  return { category: 'document', confidence: 0.3, tags: ['document'], language: 'en' };
+                  console.error('❌ Hugging Face failed, using smart fallback:', e);
+                  // Smart fallback based on text content
+                  const lowerText = documentText.toLowerCase();
+                  let category = 'document';
+                  let confidence = 0.6;
+                  let tags = ['document'];
+                  
+                  if (lowerText.includes('contract') || lowerText.includes('agreement')) {
+                    category = 'legal';
+                    confidence = 0.8;
+                    tags = ['legal', 'contract', 'agreement'];
+                  } else if (lowerText.includes('invoice') || lowerText.includes('bill')) {
+                    category = 'financial';
+                    confidence = 0.8;
+                    tags = ['financial', 'invoice', 'bill'];
+                  }
+                  
+                  return { 
+                    category, 
+                    confidence, 
+                    tags, 
+                    language: 'en',
+                    processingMethod: 'fallback'
+                  };
                 }
               })(),
               (async () => {
@@ -1289,12 +1333,19 @@ export const classifyDocumentDualAIHttp = onRequest(
               const sampleText = 'This is a sample contract agreement between John Doe and Jane Smith for the purchase of a house. The total amount is $500,000 and the closing date is December 31, 2024.';
               const [huggingFaceResult, deepSeekResult] = await Promise.all([
                 (async () => {
-                  try {
-                    const aiService = await getHuggingFaceService();
-                    return await aiService.classifyDocument(sampleText);
-                  } catch (e) {
-                    return { category: 'contract', confidence: 0.8, tags: ['contract', 'legal'], language: 'en' };
-                  }
+                try {
+                  const aiService = await getHuggingFaceService();
+                  return await aiService.classifyDocument(sampleText);
+                } catch (e) {
+                  console.error('❌ Hugging Face failed, using smart fallback:', e);
+                  return { 
+                    category: 'legal', 
+                    confidence: 0.8, 
+                    tags: ['legal', 'contract', 'agreement'], 
+                    language: 'en',
+                    processingMethod: 'fallback'
+                  };
+                }
                 })(),
                 (async () => {
                   try {
@@ -1331,8 +1382,35 @@ export const classifyDocumentDualAIHttp = onRequest(
           // Run only Hugging Face
           const hfResult = documentText
             ? await (async () => {
-                const aiService = await getHuggingFaceService();
-                return aiService.classifyDocument(documentText);
+                try {
+                  const aiService = await getHuggingFaceService();
+                  return await aiService.classifyDocument(documentText);
+                } catch (error) {
+                  console.error('❌ Hugging Face failed, using smart fallback:', error);
+                  // Smart fallback based on text content
+                  const lowerText = documentText.toLowerCase();
+                  let category = 'document';
+                  let confidence = 0.6;
+                  let tags = ['document'];
+                  
+                  if (lowerText.includes('contract') || lowerText.includes('agreement')) {
+                    category = 'legal';
+                    confidence = 0.8;
+                    tags = ['legal', 'contract', 'agreement'];
+                  } else if (lowerText.includes('invoice') || lowerText.includes('bill')) {
+                    category = 'financial';
+                    confidence = 0.8;
+                    tags = ['financial', 'invoice', 'bill'];
+                  }
+                  
+                  return { 
+                    category, 
+                    confidence, 
+                    tags, 
+                    language: 'en',
+                    processingMethod: 'fallback'
+                  };
+                }
               })()
             : await classifyDocumentInternal(documentUrl);
           result = {
