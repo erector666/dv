@@ -106,6 +106,118 @@ async function getChatbotService(): Promise<DorianChatbotService> {
   return chatbotService;
 }
 
+// Local AI classification function for fallback
+async function classifyDocumentLocalAI(text: string): Promise<any> {
+  console.log('🏠 Using local AI classification for fallback...');
+  
+  try {
+    // Basic text analysis for classification
+    const lowerText = text.toLowerCase();
+    
+    // Document type classification based on keywords
+    let category = 'document';
+    let confidence = 0.6;
+    let tags = ['document'];
+    let suggestedName = 'Document';
+    
+    // Contract detection
+    if (lowerText.includes('contract') || lowerText.includes('agreement') || 
+        lowerText.includes('terms') || lowerText.includes('conditions')) {
+      category = 'contract';
+      confidence = 0.8;
+      tags = ['contract', 'legal', 'agreement'];
+      suggestedName = 'Contract Document';
+    }
+    // Invoice detection
+    else if (lowerText.includes('invoice') || lowerText.includes('bill') || 
+             lowerText.includes('payment') || lowerText.includes('amount')) {
+      category = 'invoice';
+      confidence = 0.8;
+      tags = ['invoice', 'financial', 'payment'];
+      suggestedName = 'Invoice';
+    }
+    // Receipt detection
+    else if (lowerText.includes('receipt') || lowerText.includes('purchase') || 
+             lowerText.includes('total') || lowerText.includes('subtotal')) {
+      category = 'receipt';
+      confidence = 0.8;
+      tags = ['receipt', 'financial', 'purchase'];
+      suggestedName = 'Receipt';
+    }
+    // ID/Personal document detection
+    else if (lowerText.includes('passport') || lowerText.includes('license') || 
+             lowerText.includes('id') || lowerText.includes('identification')) {
+      category = 'personal';
+      confidence = 0.8;
+      tags = ['personal', 'identification', 'id'];
+      suggestedName = 'Personal Document';
+    }
+    // Medical document detection
+    else if (lowerText.includes('medical') || lowerText.includes('doctor') || 
+             lowerText.includes('prescription') || lowerText.includes('health')) {
+      category = 'medical';
+      confidence = 0.8;
+      tags = ['medical', 'health', 'prescription'];
+      suggestedName = 'Medical Document';
+    }
+    // Email detection
+    else if (lowerText.includes('dear') || lowerText.includes('sincerely') || 
+             lowerText.includes('regards') || lowerText.includes('best regards') ||
+             lowerText.includes('yours truly') || lowerText.includes('thank you')) {
+      category = 'email';
+      confidence = 0.8;
+      tags = ['email', 'communication', 'message'];
+      suggestedName = 'Email';
+    }
+    
+    // Language detection (basic)
+    let language = 'en';
+    if (lowerText.includes('le ') || lowerText.includes('la ') || lowerText.includes('de ')) {
+      language = 'fr';
+    } else if (lowerText.includes('der ') || lowerText.includes('die ') || lowerText.includes('und ')) {
+      language = 'de';
+    } else if (lowerText.includes('el ') || lowerText.includes('la ') || lowerText.includes('y ')) {
+      language = 'es';
+    }
+    
+    // Extract dates (basic regex)
+    const dateRegex = /\b(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}|\d{4}[\/\-\.]\d{1,2}[\/\-\.]\d{1,2})\b/g;
+    const extractedDates = text.match(dateRegex) || [];
+    
+    // Generate summary
+    const words = text.split(/\s+/).slice(0, 20);
+    const summary = words.join(' ') + (text.split(/\s+/).length > 20 ? '...' : '');
+    
+    return {
+      category,
+      confidence,
+      tags,
+      language,
+      extractedDates,
+      suggestedName,
+      summary,
+      reasoning: 'Local AI classification based on keyword analysis',
+      processingMethod: 'local_ai',
+      aiType: 'local',
+    };
+  } catch (error) {
+    console.error('❌ Local AI classification failed:', error);
+    // Ultimate fallback
+    return {
+      category: 'document',
+      confidence: 0.5,
+      tags: ['document'],
+      language: 'en',
+      extractedDates: [],
+      suggestedName: 'Document',
+      summary: 'Document processed with basic classification',
+      reasoning: 'Basic fallback classification',
+      processingMethod: 'fallback',
+      aiType: 'fallback',
+    };
+  }
+}
+
 // Helpers
 const assertAuthenticated = (context: functions.https.CallableContext) => {
   if (!context.auth) {
@@ -460,9 +572,9 @@ async function classifyDocumentDualAI(
     console.log('🤖 Starting PARALLEL dual AI processing...');
     const startTime = Date.now();
 
-    // Step 2: Run both AIs in parallel
+    // Step 2: Run both AIs in parallel with proper local AI fallbacks
     const [huggingFaceResult, deepSeekResult] = await Promise.all([
-      // Hugging Face AI
+      // Hugging Face AI with local fallback
       (async () => {
         try {
           console.log('🤗 Processing with Hugging Face...');
@@ -471,35 +583,35 @@ async function classifyDocumentDualAI(
           console.log('✅ Hugging Face completed');
           return result;
         } catch (error) {
-          console.error('❌ Hugging Face processing failed:', error);
-          return {
-            category: 'personal',
-            confidence: 0.2,
-            tags: ['document'],
-            language: 'en',
-            extractedDates: [] as string[],
-            suggestedName: 'Document',
-            error: 'Hugging Face processing failed',
-          };
+          console.error('❌ Hugging Face processing failed, using local AI fallback:', error);
+          // Use local AI classification as fallback
+          return await classifyDocumentLocalAI(textData.text);
         }
       })(),
 
-      // FAST FALLBACK: Skip DeepSeek for main upload to prevent timeouts
+      // DeepSeek AI with local fallback
       (async () => {
-        console.log(
-          '⚡ Using fast fallback instead of DeepSeek to prevent timeouts'
-        );
-        return {
-          category: 'document',
-          confidence: 0.8,
-          tags: ['document', 'uploaded'],
-          language: 'en',
-          extractedDates: [] as string[],
-          suggestedName: 'Document',
-          summary: 'Document processed with fast fallback',
-          reasoning: 'Using fast processing to prevent DeepSeek timeouts',
-          processingMethod: 'fast_fallback',
-        };
+        try {
+          console.log('🧠 Processing with DeepSeek...');
+          const enhancedProcessor = getEnhancedDocumentProcessor();
+          const result = await enhancedProcessor.processText(textData.text);
+          console.log('✅ DeepSeek completed');
+          return {
+            category: result.category || 'document',
+            confidence: result.classificationConfidence || 0.7,
+            tags: result.tags || ['document'],
+            language: result.language || 'en',
+            extractedDates: result.keyDates?.map(d => d.date) || [],
+            suggestedName: result.suggestedName || 'Document',
+            summary: result.summary || 'Document processed with DeepSeek',
+            reasoning: result.classificationReasoning || 'AI-powered classification',
+            processingMethod: 'deepseek',
+          };
+        } catch (error) {
+          console.error('❌ DeepSeek processing failed, using local AI fallback:', error);
+          // Use local AI classification as fallback
+          return await classifyDocumentLocalAI(textData.text);
+        }
       })(),
     ]);
 
@@ -527,12 +639,12 @@ async function classifyDocumentDualAI(
       huggingFaceResult: {
         ...huggingFaceResult,
         processingTime: processingTime,
-        aiType: 'huggingface',
+        aiType: huggingFaceResult.aiType || 'huggingface',
       },
       deepSeekResult: {
         ...deepSeekResult,
-        processingTime: 0, // Fast fallback
-        aiType: 'fast_fallback',
+        processingTime: processingTime,
+        aiType: deepSeekResult.aiType || 'deepseek',
       },
       extractedText: textData,
     };
@@ -1235,7 +1347,8 @@ export const classifyDocumentDualAIHttp = onRequest(
                   const aiService = await getHuggingFaceService();
                   return await aiService.classifyDocument(documentText);
                 } catch (e) {
-                  return { category: 'document', confidence: 0.3, tags: ['document'], language: 'en' };
+                  console.error('❌ Hugging Face failed, using local AI fallback:', e);
+                  return await classifyDocumentLocalAI(documentText);
                 }
               })(),
               (async () => {
@@ -1251,7 +1364,8 @@ export const classifyDocumentDualAIHttp = onRequest(
                     summary: ds.summary,
                   };
                 } catch (e) {
-                  return { category: 'document', confidence: 0.4, tags: ['document'], language: 'en' };
+                  console.error('❌ DeepSeek failed, using local AI fallback:', e);
+                  return await classifyDocumentLocalAI(documentText);
                 }
               })(),
             ]);
@@ -1260,11 +1374,16 @@ export const classifyDocumentDualAIHttp = onRequest(
             result = await classifyDocumentDualAI(documentUrl);
           }
         } else if (mode === 'huggingface') {
-          // Run only Hugging Face
+          // Run only Hugging Face with local fallback
           const hfResult = documentText
             ? await (async () => {
-                const aiService = await getHuggingFaceService();
-                return aiService.classifyDocument(documentText);
+                try {
+                  const aiService = await getHuggingFaceService();
+                  return await aiService.classifyDocument(documentText);
+                } catch (error) {
+                  console.error('❌ Hugging Face failed, using local AI fallback:', error);
+                  return await classifyDocumentLocalAI(documentText);
+                }
               })()
             : await classifyDocumentInternal(documentUrl);
           result = {
@@ -1273,11 +1392,39 @@ export const classifyDocumentDualAIHttp = onRequest(
             selectedAI: 'huggingface',
           };
         } else if (mode === 'deepseek') {
-          // Run only DeepSeek
-          const enhancedProcessor = getEnhancedDocumentProcessor();
+          // Run only DeepSeek with local fallback
           const dsResult = documentText
-            ? await enhancedProcessor.processText(documentText)
-            : await enhancedProcessor.processDocument(documentUrl);
+            ? await (async () => {
+                try {
+                  const enhancedProcessor = getEnhancedDocumentProcessor();
+                  const result = await enhancedProcessor.processText(documentText);
+                  return {
+                    category: result.category || 'document',
+                    confidence: result.classificationConfidence || 0.7,
+                    tags: result.tags || ['document'],
+                    language: result.language || 'en',
+                    extractedDates: result.keyDates?.map(d => d.date) || [],
+                    suggestedName: result.suggestedName || 'Document',
+                    summary: result.summary || 'Document processed with DeepSeek',
+                    reasoning: result.classificationReasoning || 'AI-powered classification',
+                    processingMethod: 'deepseek',
+                  };
+                } catch (error) {
+                  console.error('❌ DeepSeek failed, using local AI fallback:', error);
+                  return await classifyDocumentLocalAI(documentText);
+                }
+              })()
+            : await (async () => {
+                try {
+                  const enhancedProcessor = getEnhancedDocumentProcessor();
+                  return await enhancedProcessor.processDocument(documentUrl);
+                } catch (error) {
+                  console.error('❌ DeepSeek failed, using local AI fallback:', error);
+                  // Extract text first, then classify locally
+                  const textData = await extractTextInternal(documentUrl);
+                  return await classifyDocumentLocalAI(textData.text);
+                }
+              })();
           result = {
             huggingFaceResult: null,
             deepSeekResult: dsResult,
