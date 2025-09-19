@@ -468,6 +468,12 @@ const DocumentList: React.FC<DocumentListProps> = ({
       const results = await detailedAIDiagnostic();
       console.log('🔬 Detailed Diagnostic Results:', results);
       
+      // Check if results is an error response
+      if ('error' in results) {
+        alert(`❌ Diagnostic failed: ${results.error}\n\nRecommendations:\n${results.recommendations?.join('\n') || 'Check console for more details'}`);
+        return;
+      }
+      
       // Generate detailed report
       let report = '🔬 AI Service Diagnostic Report:\n\n';
       
