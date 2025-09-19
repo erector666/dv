@@ -448,8 +448,10 @@ const DocumentViewerMobile: React.FC<DocumentViewerProps> = ({
                   <h3 className="font-semibold text-gray-900 mb-3">Actions</h3>
                   <button
                     onClick={() => {
-                      navigator.clipboard.writeText(document.metadata.extractedText);
-                      // You could add a toast notification here
+                      if (document.metadata?.extractedText) {
+                        navigator.clipboard.writeText(document.metadata.extractedText);
+                        // You could add a toast notification here
+                      }
                     }}
                     className="w-full flex items-center justify-center space-x-2 p-3 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors"
                   >
