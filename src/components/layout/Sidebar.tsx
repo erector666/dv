@@ -3,7 +3,6 @@ import { NavLink } from 'react-router-dom';
 import { useQuery } from 'react-query';
 import { useLanguage } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
-import { getStorageUsage } from '../../services/storageService';
 import { getDocuments } from '../../services/documentService';
 import {
   LayoutDashboard,
@@ -15,7 +14,6 @@ import {
   Heart,
   Shield,
   FolderOpen,
-  HardDrive,
   Settings,
 } from 'lucide-react';
 
@@ -37,39 +35,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile = false, onClose }) => {
   const { translate } = useLanguage();
   const { currentUser } = useAuth();
 
-  // Fetch real storage usage data with error handling
-  const {
-    data: storageData,
-    isLoading,
-    error,
-  } = useQuery('storageUsage', () => getStorageUsage(currentUser?.uid || ''), {
-    enabled: !!currentUser?.uid,
-    refetchInterval: 60000, // Refetch every 60 seconds (reduced from 30s)
-    staleTime: 30000, // Consider data stale after 30 seconds
-    retry: (failureCount, error) => {
-      // Don't retry on authentication errors
-      if (
-        error instanceof Error &&
-        error.message.includes('permission-denied')
-      ) {
-        return false;
-      }
-      // Retry up to 3 times for network errors
-      return failureCount < 3;
-    },
-    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
-    onError: error => {
-      // Reduce error logging spam for network issues
-      if (error instanceof Error && error.message.includes('QUIC')) {
-        // Silent handling for QUIC errors to reduce console spam
-        return;
-      }
-      console.warn('Storage usage query failed:', error);
-    },
-  });
 
-  // Fetch documents for category counts
-  const { data: documents } = useQuery(
+  // Fetch documents for category counts and stats
+  const { data: documents, isLoading: documentsLoading } = useQuery(
     ['documents', currentUser?.uid],
     () => getDocuments(currentUser?.uid || ''),
     {
@@ -115,10 +83,39 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile = false, onClose }) => {
     ).length;
   };
 
-  const totalStorage = 10 * 1024 * 1024 * 1024; // 10 GB in bytes
-  const usedStorage = storageData?.totalSize ?? 0;
-  const usagePercentage =
-    totalStorage > 0 ? (usedStorage / totalStorage) * 100 : 0;
+  // Helper functions for the new stats section
+  const getUniqueCategories = () => {
+    if (!documents) return [];
+    const categories = documents
+      .map(doc => doc.category)
+      .filter(Boolean)
+      .filter((category, index, arr) => arr.indexOf(category) === index);
+    return categories;
+  };
+
+  const getRecentDocuments = () => {
+    if (!documents) return [];
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    return documents.filter(doc => {
+      const uploadDate = doc.uploadedAt?.toDate ? doc.uploadedAt.toDate() : new Date(doc.uploadedAt);
+      return uploadDate >= oneWeekAgo;
+    });
+  };
+
+  const getProcessingDocuments = () => {
+    if (!documents) return [];
+    return documents.filter(doc => doc.status === 'processing');
+  };
+
+  const getLowConfidenceDocuments = () => {
+    if (!documents) return [];
+    return documents.filter(doc => 
+      doc.metadata?.classificationConfidence && 
+      doc.metadata.classificationConfidence < 0.6
+    );
+  };
+
 
   const handleLinkClick = () => {
     if (isMobile && onClose) {
@@ -387,60 +384,55 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile = false, onClose }) => {
 
       {/* Bottom Section */}
       <div className="p-4 border-t border-gray-200 dark:border-gray-700 mt-auto">
-        {/* Storage Indicator */}
+        {/* Document Statistics */}
         <div className="mb-4">
           <div className="flex items-center mb-2">
-            <HardDrive className="h-6 w-6 mr-2 text-gray-500 dark:text-gray-400" />
-            <span className="text-sm font-medium">Storage</span>
+            <LayoutDashboard className="h-6 w-6 mr-2 text-gray-500 dark:text-gray-400" />
+            <span className="text-sm font-medium">Quick Stats</span>
           </div>
           <div>
-            {isLoading ? (
+            {documentsLoading ? (
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                Loading storage...
+                Loading stats...
               </p>
-            ) : error ? (
-              <div>
-                <p className="text-xs text-yellow-600 dark:text-yellow-400 mb-1">
-                  Storage info temporarily unavailable
-                </p>
-                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mb-1">
-                  <div
-                    className="bg-gray-400 h-2 rounded-full"
-                    style={{ width: '0%' }}
-                  ></div>
-                </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  0 Bytes / {formatBytes(10 * 1024 * 1024 * 1024)} used
-                </p>
-                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                  Network connectivity issue. Will retry automatically.
-                </p>
-              </div>
-            ) : storageData ? (
+            ) : documents ? (
               <>
-                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mb-1">
-                  <div
-                    className="bg-primary-600 h-2 rounded-full"
-                    style={{ width: `${usagePercentage}%` }}
-                  ></div>
-                </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {formatBytes(usedStorage)} / {formatBytes(totalStorage)} used
-                </p>
-                {storageData.documentCount === 0 && (
-                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                    No documents uploaded yet. Upload a file to see storage
-                    usage.
+                <div className="space-y-1">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    📄 {documents.length} total documents
                   </p>
-                )}
-                {storageData.documentCount > 0 && (
+                  {getUniqueCategories().length > 0 && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      📁 {getUniqueCategories().length} categories
+                    </p>
+                  )}
+                  {getRecentDocuments().length > 0 && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      🕒 {getRecentDocuments().length} uploaded this week
+                    </p>
+                  )}
+                  {getProcessingDocuments().length > 0 && (
+                    <p className="text-xs text-blue-600 dark:text-blue-400">
+                      ⚡ {getProcessingDocuments().length} being processed
+                    </p>
+                  )}
+                  {getLowConfidenceDocuments().length > 0 && (
+                    <p className="text-xs text-yellow-600 dark:text-yellow-400">
+                      ⚠️ {getLowConfidenceDocuments().length} need review
+                    </p>
+                  )}
+                </div>
+                {documents.length === 0 && (
                   <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                    {storageData.documentCount} document
-                    {storageData.documentCount !== 1 ? 's' : ''}
+                    No documents yet. Upload your first file to get started!
                   </p>
                 )}
               </>
-            ) : null}
+            ) : (
+              <p className="text-xs text-gray-400 dark:text-gray-500">
+                Unable to load document stats
+              </p>
+            )}
           </div>
         </div>
 
