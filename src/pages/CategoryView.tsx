@@ -128,6 +128,18 @@ const CategoryView: React.FC = () => {
 
   const categoryDocuments = filterDocumentsByCategory(documents || [], categoryId || '');
 
+  // Debug logging to understand the mismatch
+  console.log('🔍 CategoryView Debug:', {
+    categoryId,
+    totalDocuments: documents?.length || 0,
+    filteredDocuments: categoryDocuments.length,
+    sampleDocuments: documents?.slice(0, 3).map(doc => ({
+      name: doc.name,
+      category: doc.category,
+      hasCategory: !!doc.category
+    }))
+  });
+
   const handleUploadComplete = () => {
     console.log(
       '🔄 Upload completed in CategoryView, invalidating documents cache...'

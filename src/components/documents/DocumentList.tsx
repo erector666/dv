@@ -207,7 +207,18 @@ const DocumentList: React.FC<DocumentListProps> = ({
     return false;
   });
 
-  // Removed debug logging to reduce console spam
+  // Debug logging to understand filtering
+  console.log('🔍 DocumentList Debug:', {
+    category,
+    totalDocuments: documents?.length || 0,
+    filteredDocuments: filteredDocuments?.length || 0,
+    searchTerm,
+    sampleDocuments: documents?.slice(0, 3).map(doc => ({
+      name: doc.name,
+      category: doc.category,
+      hasCategory: !!doc.category
+    }))
+  });
 
   // Removed debug logging to reduce console spam
 
