@@ -149,7 +149,6 @@ export const classifyDocument = async (
   extractedText?: string
 ): Promise<ClassificationResult> => {
   try {
-    console.log('🔍 Starting AI document classification for:', documentId);
 
     // Get the current user's ID token for authentication
     const auth = getAuth();

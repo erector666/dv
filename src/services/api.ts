@@ -8,7 +8,6 @@ const getAuthToken = async (): Promise<string | null> => {
     if (!user) return null;
     return await user.getIdToken();
   } catch (error) {
-    console.error('Error getting auth token:', error);
     return null;
   }
 };
@@ -18,7 +17,6 @@ export const getStorageUsage = async () => {
   try {
     const token = await getAuthToken();
     if (!token) {
-      console.warn('No auth token available');
       return { totalSize: 0 };
     }
 
@@ -39,7 +37,6 @@ export const getStorageUsage = async () => {
     const result = await response.json();
     return result.data as { totalSize: number };
   } catch (error) {
-    console.error('Error calling getStorageUsage function:', error);
     // Return a fallback value
     return { totalSize: 0 };
   }

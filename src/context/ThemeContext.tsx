@@ -38,7 +38,6 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
         }
       } catch (error) {
         // Fallback to light theme if matchMedia fails
-        console.warn('matchMedia not supported, defaulting to light theme');
       }
     }
 

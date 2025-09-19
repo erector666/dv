@@ -32,7 +32,7 @@ const db = (FirestoreMod as any).initializeFirestore
 const storage = getStorage(app);
 const functions = getFunctions(app);
 
-// Basic Firestore connection - no optimization bullshit that breaks
+// Basic Firestore connection configuration
 
 // Handle network connectivity issues and QUIC protocol errors
 let networkRetryAttempts = 0;
@@ -47,25 +47,17 @@ const handleNetworkError = async (error: any) => {
 
   if (isQuicError && networkRetryAttempts < MAX_NETWORK_RETRIES) {
     networkRetryAttempts++;
-    console.warn(
-      `🔄 QUIC Protocol Error detected, recovery attempt ${networkRetryAttempts}/${MAX_NETWORK_RETRIES}`
-    );
 
     try {
-      // Simple delay-based recovery for QUIC issues - NO FAKE EMULATOR SHIT!
+      // Simple delay-based recovery for QUIC issues
       await new Promise(resolve => setTimeout(resolve, 3000)); // Wait 3 seconds for network recovery
 
-      console.log('✅ Network recovery delay completed');
       networkRetryAttempts = 0; // Reset on success
       return true;
     } catch (recoveryError) {
-      console.error('❌ Network recovery failed:', recoveryError);
 
       // Final fallback - manual intervention required
       if (networkRetryAttempts >= MAX_NETWORK_RETRIES) {
-        console.error(
-          '🚨 All network recovery attempts failed. Manual intervention required.'
-        );
       }
     }
   }

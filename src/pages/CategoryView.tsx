@@ -52,22 +52,8 @@ const CategoryView: React.FC = () => {
   // Let DocumentList handle all filtering logic to avoid mismatches
   // We'll get the count from DocumentList's filtered results
   
-  // Debug logging to see what's being passed to DocumentList
-  console.log('🔍 CategoryView Debug:', {
-    categoryId,
-    categoryDisplayName,
-    totalDocuments: documents?.length || 0,
-    sampleDocuments: documents?.slice(0, 3).map(doc => ({
-      name: doc.name,
-      category: doc.category,
-      hasCategory: !!doc.category
-    }))
-  });
 
   const handleUploadComplete = () => {
-    console.log(
-      '🔄 Upload completed in CategoryView, invalidating documents cache...'
-    );
 
     // Invalidate and refetch the documents query to show the new document
     queryClient.invalidateQueries(['documents']);

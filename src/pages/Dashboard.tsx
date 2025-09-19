@@ -89,12 +89,6 @@ const Dashboard: React.FC = () => {
                   // Ensure we have a valid key for React
                   const docKey =
                     doc.id || `recent-doc-${index}-${doc.name || 'unnamed'}`;
-                  console.log(`Rendering recent document ${index}:`, {
-                    id: doc.id,
-                    firestoreId: doc.firestoreId,
-                    name: doc.name,
-                    key: docKey,
-                  });
 
                   return (
                     <div

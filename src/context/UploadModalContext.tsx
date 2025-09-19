@@ -34,7 +34,6 @@ export const UploadModalProvider: React.FC<UploadModalProviderProps> = ({
   const closeModal = () => setIsOpen(false);
 
   const handleUploadComplete = () => {
-    console.log('🔄 Upload completed, invalidating documents cache...');
 
     // Debounce cache invalidation to prevent excessive re-renders during batch uploads
     setTimeout(() => {

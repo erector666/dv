@@ -27,7 +27,6 @@ export const uploadDocumentOptimized = async (
   onAIProgress?: (stage: string, progress: number) => void
 ): Promise<Document> => {
   try {
-    console.log('🚀 Starting SINGLE-UPLOAD optimized upload for:', file.name);
     const startTime = Date.now();
     let currentProgress = 0;
 
@@ -81,7 +80,6 @@ export const uploadDocumentOptimized = async (
       );
     });
 
-    console.log('✅ File uploaded to permanent storage:', downloadURL);
 
     // Step 3: Create initial document record
     onAIProgress?.('creating_record', 65);
@@ -146,7 +144,6 @@ export const uploadDocumentOptimized = async (
         onProgress({ progress: currentProgress, snapshot: null });
       }
     } catch (aiError) {
-      console.warn('⚠️ Fast AI processing failed, using basic document:', aiError);
       // Continue without AI enhancement
       currentProgress = Math.max(currentProgress, 85);
       if (onProgress) {
@@ -206,12 +203,10 @@ export const uploadDocumentOptimized = async (
     }
 
     const elapsed = Date.now() - startTime;
-    console.log(`✅ SINGLE-UPLOAD optimized upload completed in ${(elapsed/1000).toFixed(1)}s`);
     onAIProgress?.('completed', 100);
 
     return finalDocument;
   } catch (error) {
-    console.error('❌ Optimized single-upload error:', error);
     throw error;
   }
 };

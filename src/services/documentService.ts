@@ -33,10 +33,6 @@ const processDocumentWithRetry = async (
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      console.log(
-        `🤖 AI processing attempt ${attempt}/${maxRetries} for:`,
-        document.name
-      );
       onProgress?.(`ai_attempt_${attempt}`, 30 + attempt * 5); // Show retry progress
 
       // Create detailed progress tracking
@@ -91,15 +87,10 @@ const processDocumentWithRetry = async (
         timeoutPromise,
       ]);
 
-      console.log(`✅ AI processing successful on attempt ${attempt}`);
       onProgress?.('ai_completed', 55);
       return processedDocument;
     } catch (error: any) {
       lastError = error;
-      console.warn(
-        `❌ AI processing failed on attempt ${attempt}:`,
-        error.message
-      );
       onProgress?.(`ai_failed_attempt_${attempt}`, 30 + attempt * 2);
 
       // Check if it's a network error and try to recover
@@ -107,7 +98,6 @@ const processDocumentWithRetry = async (
         error.message?.includes('QUIC') ||
         error.message?.includes('network')
       ) {
-        console.log('🔄 Attempting network recovery...');
         onProgress?.('network_recovery', 28);
         await recoverFromNetworkError(error);
       }
@@ -115,7 +105,6 @@ const processDocumentWithRetry = async (
       // If this isn't the last attempt, wait before retrying
       if (attempt < maxRetries) {
         const delay = Math.min(2000 * attempt, 10000); // Exponential backoff, max 10s
-        console.log(`⏳ Waiting ${delay}ms before retry...`);
         onProgress?.(
           `retrying_in_${Math.round(delay / 1000)}s`,
           30 + attempt * 3
@@ -126,7 +115,6 @@ const processDocumentWithRetry = async (
   }
 
   // If all retries failed, throw the last error
-  console.error(`🚨 All ${maxRetries} AI processing attempts failed`);
   throw new Error(
     `AI processing failed after ${maxRetries} attempts: ${lastError?.message}`
   );
@@ -141,21 +129,15 @@ const saveDocumentWithRetry = async (
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      console.log(`💾 Firestore save attempt ${attempt}/${maxRetries}`);
 
       const docRef = await addDoc(
         collection(db, 'documents'),
         omitUndefinedDeep(documentData)
       );
 
-      console.log(`✅ Firestore save successful on attempt ${attempt}`);
       return docRef;
     } catch (error: any) {
       lastError = error;
-      console.warn(
-        `❌ Firestore save failed on attempt ${attempt}:`,
-        error.message
-      );
 
       // Check if it's a network error and try to recover
       if (
@@ -163,21 +145,18 @@ const saveDocumentWithRetry = async (
         error.message?.includes('network') ||
         error.code?.includes('unavailable')
       ) {
-        console.log('🔄 Attempting network recovery for Firestore...');
         await recoverFromNetworkError(error);
       }
 
       // If this isn't the last attempt, wait before retrying
       if (attempt < maxRetries) {
         const delay = Math.min(1000 * attempt, 5000); // Exponential backoff, max 5s
-        console.log(`⏳ Waiting ${delay}ms before Firestore retry...`);
         await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
   }
 
   // If all retries failed, throw the last error
-  console.error(`🚨 All ${maxRetries} Firestore save attempts failed`);
   throw new Error(
     `Firestore save failed after ${maxRetries} attempts: ${lastError?.message}`
   );
@@ -234,7 +213,6 @@ const convertImageToPdf = async (imageFile: File): Promise<File> => {
 
         resolve(pdfFile);
       } catch (error) {
-        console.error('Error converting image to PDF:', error);
         reject(error);
       }
     };
@@ -288,7 +266,6 @@ const convertDocumentToPdf = async (docFile: File): Promise<File> => {
     // For other types, return original file
     return docFile;
   } catch (error) {
-    console.error('Error converting document to PDF:', error);
     return docFile;
   }
 };
@@ -328,7 +305,6 @@ const createBasicPdfWrapper = async (file: File): Promise<File> => {
 
     return pdfFile;
   } catch (error) {
-    console.error('Error creating PDF wrapper:', error);
     return file;
   }
 };
@@ -457,7 +433,6 @@ export const uploadDocument = async (
       );
     });
   } catch (error) {
-    console.error('Error uploading document:', error);
     throw error;
   }
 };
@@ -476,19 +451,16 @@ export const uploadDocumentWithAI = async (
   onAIProgress?: (stage: string, progress: number) => void
 ): Promise<Document> => {
   try {
-    console.log('🚀 Starting optimized AI-enhanced document upload for:', file.name);
     let currentProgress = 0;
 
     // Step 1: Convert to PDF first (if needed) - before upload
     onAIProgress?.('converting_to_pdf', 10);
-    console.log('🔄 Converting to PDF before upload...');
 
     let pdfFile: File;
     const originalType = file.type;
 
     if (file.type === 'application/pdf') {
       pdfFile = file;
-      console.log('✅ File is already PDF, skipping conversion');
     } else {
       // Convert non-PDF files to PDF using a conversion service
       try {
@@ -503,12 +475,7 @@ export const uploadDocumentWithAI = async (
           // For other file types, create a basic PDF wrapper
           pdfFile = await createBasicPdfWrapper(file);
         }
-        console.log('✅ File converted to PDF successfully');
       } catch (conversionError) {
-        console.warn(
-          '⚠️ PDF conversion failed, using original file:',
-          conversionError
-        );
         pdfFile = file;
       }
     }
@@ -521,7 +488,6 @@ export const uploadDocumentWithAI = async (
 
     // Step 2: Single upload to permanent storage
     onAIProgress?.('uploading', 20);
-    console.log('☁️ Uploading to permanent storage...');
 
     const storageRef = ref(
       storage,
@@ -557,11 +523,9 @@ export const uploadDocumentWithAI = async (
       );
     });
 
-    console.log('✅ File uploaded to permanent storage:', downloadURL);
 
     // Step 3: Create initial document record in Firestore (before AI processing)
     onAIProgress?.('creating_record', 65);
-    console.log('💾 Creating initial document record...');
 
     const initialDocument: Omit<Document, 'id'> = {
       name: pdfFile.name,
@@ -596,7 +560,6 @@ export const uploadDocumentWithAI = async (
 
     // Step 4: AI Processing using the permanent URL (asynchronous)
     onAIProgress?.('processing_ai', 75);
-    console.log('🤖 Starting AI processing on uploaded file...');
 
     // Create document object for AI processing using permanent URL
     const documentForAI: Document = {
@@ -622,7 +585,6 @@ export const uploadDocumentWithAI = async (
         3,
         onAIProgress
       );
-      console.log('✅ AI processing completed successfully');
       
       // Update progress after AI completion
       currentProgress = Math.max(currentProgress, 90);
@@ -630,7 +592,6 @@ export const uploadDocumentWithAI = async (
         onProgress({ progress: currentProgress, snapshot: null });
       }
     } catch (aiError) {
-      console.warn('⚠️ AI processing failed, using basic document:', aiError);
       // Continue with basic document if AI fails
       processedDocument = documentForAI;
       
@@ -642,7 +603,6 @@ export const uploadDocumentWithAI = async (
 
     // Step 5: Update document with AI results
     onAIProgress?.('updating_metadata', 95);
-    console.log('💾 Updating document with AI results...');
 
     // Create AI-suggested name if available
     const aiSuggestedName =
@@ -711,11 +671,9 @@ export const uploadDocumentWithAI = async (
     }
 
     onAIProgress?.('completed', 100);
-    console.log('🎉 Optimized AI-enhanced document upload completed successfully!');
 
     return finalDocument;
   } catch (error) {
-    console.error('❌ Error in optimized AI-enhanced upload:', error);
 
     // If everything fails, try basic upload as fallback
     try {
@@ -727,13 +685,8 @@ export const uploadDocumentWithAI = async (
         initialMetadata,
         onProgress
       );
-      console.warn(
-        '⚠️ AI processing failed, returning basic document:',
-        basicDocument.name
-      );
       return basicDocument;
     } catch (uploadError) {
-      console.error('❌ Basic upload also failed:', uploadError);
       throw uploadError;
     }
   }
@@ -758,7 +711,6 @@ export const getDocument = async (
       return null;
     }
   } catch (error) {
-    console.error('Error getting document:', error);
     throw error;
   }
 };
@@ -773,13 +725,8 @@ export const getUserDocuments = async (
   orderDirection: 'asc' | 'desc' = 'desc'
 ): Promise<Document[]> => {
   try {
-    console.log('=== getUserDocuments DEBUG ===');
-    console.log('User ID:', userId);
-    console.log('Category:', category);
-    console.log('Order by:', orderByField, orderDirection);
 
     if (!userId) {
-      console.warn('⚠️ No userId provided, returning empty array');
       return [];
     }
 
@@ -798,21 +745,15 @@ export const getUserDocuments = async (
       );
     }
 
-    console.log('Executing Firestore query...');
     const querySnapshot = await getDocs(q);
-    console.log('Query result:', querySnapshot);
-    console.log('Query size:', querySnapshot.size);
 
     const documents: Document[] = [];
 
     querySnapshot.forEach(doc => {
       const data = doc.data();
-      console.log('Document data:', { id: doc.id, ...data });
 
       // Check if this document has a proper Firestore ID
       if (!doc.id) {
-        console.warn('⚠️ Document missing Firestore ID:', data);
-        // Skip documents without proper IDs for now
         return;
       }
 
@@ -824,17 +765,9 @@ export const getUserDocuments = async (
       } as Document);
     });
 
-    console.log('Final documents array:', documents);
-    console.log('Returning', documents.length, 'documents');
 
     return documents;
   } catch (error) {
-    console.error('❌ Error getting user documents:', error);
-    console.error('Error details:', {
-      message: error instanceof Error ? error.message : 'Unknown error',
-      code: (error as any)?.code || 'No code',
-      stack: error instanceof Error ? error.stack : 'No stack',
-    });
     throw error;
   }
 };
@@ -846,14 +779,7 @@ export const reprocessDocumentsWithNewAI = async (
   documents: Document[]
 ): Promise<any> => {
   try {
-    console.log(`🔄 Reprocessing ${documents.length} documents with new AI...`);
-    console.log(
-      'Documents to reprocess:',
-      documents.map(doc => ({ name: doc.name, url: doc.url }))
-    );
-
     const documentUrls = documents.map(doc => doc.url);
-    console.log('Document URLs:', documentUrls);
 
     const response = await fetch(
       'https://us-central1-gpt1-77ce0.cloudfunctions.net/reprocessDocuments',
@@ -868,15 +794,9 @@ export const reprocessDocumentsWithNewAI = async (
       }
     );
 
-    console.log(
-      'Reprocessing response status:',
-      response.status,
-      response.statusText
-    );
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Reprocessing error response:', errorText);
       try {
         const errorData = JSON.parse(errorText);
         throw new Error(
@@ -890,19 +810,7 @@ export const reprocessDocumentsWithNewAI = async (
     }
 
     const result = await response.json();
-    console.log('✅ Batch reprocessing completed:', result);
 
-    // Log individual classification results for debugging
-    result.results?.forEach((r: any, index: number) => {
-      console.log(`Classification result ${index}:`, {
-        success: r.success,
-        documentUrl: r.documentUrl,
-        category: r.classification?.category,
-        suggestedName: r.classification?.suggestedName,
-        extractedDates: r.classification?.extractedDates,
-        tags: r.classification?.tags,
-      });
-    });
 
     // Update Firestore documents with new classifications
     const updatePromises = result.results
@@ -934,23 +842,13 @@ export const reprocessDocumentsWithNewAI = async (
               r.classification.extractedDates;
           }
 
-          console.log('Updating document with data:', updateData);
           await updateDoc(docRef, updateData);
-          console.log(
-            `✅ Updated Firestore for: ${document.name} -> ${r.classification.category}`
-          );
         }
       });
 
     await Promise.all(updatePromises);
     return result;
   } catch (error) {
-    console.error('❌ Error reprocessing documents:', error);
-    console.error('Error details:', {
-      message: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : 'No stack trace',
-      name: error instanceof Error ? error.name : 'Unknown error type',
-    });
     throw error;
   }
 };
@@ -974,12 +872,9 @@ export const updateDocument = async (
       lastModified: serverTimestamp(),
     };
 
-    console.log('🧹 Cleaned updates for Firestore:', updatedData);
 
     await updateDoc(docRef, updatedData);
-    console.log('✅ Document updated successfully:', documentId);
   } catch (error) {
-    console.error('❌ Error updating document:', error);
     throw error;
   }
 };
@@ -994,35 +889,21 @@ export const deleteDocument = async (
   try {
     // Validate that we have a proper Firestore document ID
     if (!firestoreId || firestoreId === '') {
-      console.error('❌ Cannot delete document: Missing or empty Firestore ID');
       throw new Error(
         'Cannot delete document: Missing document ID in database'
       );
     }
 
-    console.log(
-      '🗑️ Starting document deletion for ID:',
-      documentId,
-      'Firestore ID:',
-      firestoreId
-    );
 
     // Get document data to get the storage path
     const docRef = doc(db, `documents/${firestoreId}`);
     const docSnap = await getDoc(docRef);
 
     if (!docSnap.exists()) {
-      console.warn('⚠️ Document not found in Firestore:', documentId);
       throw new Error('Document not found');
     }
 
     const documentData = docSnap.data() as Document;
-    console.log('📄 Document data for deletion:', {
-      id: documentId,
-      name: documentData.name,
-      path: documentData.path,
-      userId: documentData.userId,
-    });
 
     // Try to delete from Storage first, but don't fail if it's already gone
     if (documentData.path) {
@@ -1030,13 +911,9 @@ export const deleteDocument = async (
         // Use the stored path first
         let storageRef = ref(storage, documentData.path);
         await deleteObject(storageRef);
-        console.log('✅ Storage object deleted successfully using stored path');
       } catch (storageError: any) {
         // If the stored path fails, try to construct the path from the document name and userId
         if (storageError?.code === 'storage/object-not-found') {
-          console.warn(
-            '⚠️ Storage object not found at stored path, trying alternative path construction'
-          );
 
           try {
             // Try to construct the path based on the expected structure
@@ -1047,45 +924,23 @@ export const deleteDocument = async (
 
             const alternativeRef = ref(storage, alternativePath);
             await deleteObject(alternativeRef);
-            console.log(
-              '✅ Storage object deleted successfully using alternative path:',
-              alternativePath
-            );
           } catch (alternativeError: any) {
-            console.warn(
-              '⚠️ Alternative path also failed, continuing with Firestore cleanup:',
-              alternativeError
-            );
           }
         } else if (storageError?.code === 'storage/unauthorized') {
-          console.warn(
-            '⚠️ Unauthorized to delete Storage object, continuing with Firestore cleanup'
-          );
         } else {
-          console.warn(
-            '⚠️ Storage deletion failed, but continuing with Firestore cleanup:',
-            storageError
-          );
         }
         // Don't throw the error - continue with Firestore deletion
       }
     } else {
-      console.warn(
-        '⚠️ No storage path found for document, skipping Storage deletion'
-      );
     }
 
     // Delete from Firestore
     await deleteDoc(docRef);
-    console.log('✅ Firestore document deleted successfully');
 
     // Clear storage cache to reflect deletion
     clearStorageCache(documentData.userId);
-    console.log('✅ Storage cache cleared');
 
-    console.log('🎉 Document deletion completed successfully');
   } catch (error) {
-    console.error('❌ Error deleting document:', error);
     throw error;
   }
 };
@@ -1122,23 +977,15 @@ export const getDocuments = async (userId: string): Promise<Document[]> => {
       return documents;
     } catch (error) {
       lastError = error as Error;
-      console.warn(
-        `📄 getDocuments attempt ${attempt}/${maxRetries} failed:`,
-        error
-      );
 
       // Try to recover from network errors
       const recovered = await recoverFromNetworkError(error);
       if (recovered && attempt < maxRetries) {
-        console.log(
-          `✅ Network recovered, retrying getDocuments (attempt ${attempt + 1})`
-        );
         continue;
       }
 
       // If this is the last attempt or recovery failed, throw the error
       if (attempt === maxRetries) {
-        console.error('❌ getDocuments failed after all retry attempts');
         throw lastError;
       }
 
@@ -1194,7 +1041,6 @@ export const searchDocuments = async (
 
     return documents;
   } catch (error) {
-    console.error('Error searching documents:', error);
     throw error;
   }
 };
@@ -1220,7 +1066,6 @@ export const getDocumentCategories = async (
 
     return Array.from(categories);
   } catch (error) {
-    console.error('Error getting document categories:', error);
     throw error;
   }
 };
@@ -1244,7 +1089,6 @@ export const getDocumentTags = async (userId: string): Promise<string[]> => {
 
     return Array.from(tags);
   } catch (error) {
-    console.error('Error getting document tags:', error);
     throw error;
   }
 };
@@ -1265,36 +1109,26 @@ export const cleanupOrphanedTempFiles = async (
   };
 
   try {
-    console.log(
-      `🧹 Starting cleanup of orphaned temp files for user: ${userId}`
-    );
 
     // List all files in the temp folder for this user
     const tempRef = ref(storage, `temp/${userId}`);
     const listResult = await listAll(tempRef);
 
-    console.log(`📁 Found ${listResult.items.length} temp files to check`);
 
     // Delete each temp file
     for (const itemRef of listResult.items) {
       try {
         await deleteObject(itemRef);
         result.deletedCount++;
-        console.log(`✅ Deleted temp file: ${itemRef.name}`);
       } catch (deleteError: any) {
         const errorMsg = `Failed to delete ${itemRef.name}: ${deleteError.message}`;
         result.errors.push(errorMsg);
-        console.warn(`⚠️ ${errorMsg}`);
       }
     }
 
-    console.log(
-      `🎉 Cleanup completed: ${result.deletedCount} files deleted, ${result.errors.length} errors`
-    );
   } catch (error: any) {
     const errorMsg = `Failed to list temp files: ${error.message}`;
     result.errors.push(errorMsg);
-    console.error(`❌ ${errorMsg}`);
   }
 
   return result;
@@ -1314,34 +1148,26 @@ export const cleanupAllOrphanedTempFiles = async (): Promise<{
   };
 
   try {
-    console.log('🧹 Starting cleanup of ALL orphaned temp files');
 
     // List all files in the temp folder
     const tempRef = ref(storage, 'temp');
     const listResult = await listAll(tempRef);
 
-    console.log(`📁 Found ${listResult.items.length} temp files to check`);
 
     // Delete each temp file
     for (const itemRef of listResult.items) {
       try {
         await deleteObject(itemRef);
         result.deletedCount++;
-        console.log(`✅ Deleted temp file: ${itemRef.name}`);
       } catch (deleteError: any) {
         const errorMsg = `Failed to delete ${itemRef.name}: ${deleteError.message}`;
         result.errors.push(errorMsg);
-        console.warn(`⚠️ ${errorMsg}`);
       }
     }
 
-    console.log(
-      `🎉 Global cleanup completed: ${result.deletedCount} files deleted, ${result.errors.length} errors`
-    );
   } catch (error: any) {
     const errorMsg = `Failed to list temp files: ${error.message}`;
     result.errors.push(errorMsg);
-    console.error(`❌ ${errorMsg}`);
   }
 
   return result;
@@ -1366,11 +1192,9 @@ export const improveDocumentCategories = async (
   };
 
   try {
-    console.log('🔧 Starting category improvement for user:', userId);
 
     // Get all documents for the user
     const documents = await getUserDocuments(userId);
-    console.log(`📄 Found ${documents.length} documents to check`);
 
     // Enhanced category normalization function (same as in classificationService)
     const normalizeCategory = (
@@ -1467,7 +1291,6 @@ export const improveDocumentCategories = async (
           currentCategory === '';
 
         if (!needsImprovement) {
-          console.log(`✅ Document "${doc.name}" already has good category: ${doc.category}`);
           continue;
         }
 
@@ -1517,7 +1340,6 @@ export const improveDocumentCategories = async (
 
         // Only update if we got a better category or better tags
         if (improvedCategory !== doc.category || improvedTags.length > (doc.tags?.length || 0)) {
-          console.log(`🔄 Improving category and tags for "${doc.name}": ${doc.category} → ${improvedCategory}`);
           
           // Update the document in Firestore
           if (doc.firestoreId) {
@@ -1534,12 +1356,9 @@ export const improveDocumentCategories = async (
               },
             });
             result.improved++;
-            console.log(`✅ Updated category and tags for "${doc.name}" to: ${improvedCategory}`);
           } else {
-            console.warn(`⚠️ Document "${doc.name}" missing Firestore ID, skipping update`);
           }
         } else {
-          console.log(`ℹ️ No improvement needed for "${doc.name}" (category: ${improvedCategory})`);
         }
 
         // Small delay to avoid overwhelming the database
@@ -1548,18 +1367,13 @@ export const improveDocumentCategories = async (
       } catch (error: any) {
         const errorMsg = `Failed to improve category for "${doc.name}": ${error.message}`;
         result.errors.push(errorMsg);
-        console.error(`❌ ${errorMsg}`);
       }
     }
 
-    console.log(
-      `🎉 Category improvement completed: ${result.improved}/${result.processed} documents improved, ${result.errors.length} errors`
-    );
 
   } catch (error: any) {
     const errorMsg = `Category improvement failed: ${error.message}`;
     result.errors.push(errorMsg);
-    console.error(`❌ ${errorMsg}`);
   }
 
   return result;

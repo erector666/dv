@@ -55,14 +55,9 @@ class ChatbotService {
     conversationId?: string
   ): Promise<ChatbotResponse> {
     try {
-      console.log('🤖 Sending message to Dorian:', {
-        messageLength: message.length,
-        language: context.language,
-      });
 
       // Try Firebase Callable Function first
       try {
-        console.log('🔄 Trying Firebase Callable Function...');
 
         const result = await this.chatbotFunction({
           message: message.trim(),
@@ -84,24 +79,14 @@ class ChatbotService {
           throw new Error('Chatbot service returned error');
         }
 
-        console.log('✅ Dorian response received (Firebase Callable):', {
-          confidence: data.response.confidence,
-          hasActions: !!data.response.suggestedActions?.length,
-          hasReferences: !!data.response.documentReferences?.length,
-        });
 
         return data.response;
       } catch (firebaseError) {
-        console.warn(
-          '⚠️ Firebase callable function failed, trying HTTP endpoint:',
-          firebaseError
-        );
 
         // Fallback to HTTP endpoint with CORS
         return await this.sendMessageHTTP(message, context, conversationId);
       }
     } catch (error) {
-      console.error('❌ All Dorian services failed:', error);
 
       // Return fallback response based on language
       return this.getFallbackResponse(context.language);
@@ -121,7 +106,6 @@ class ChatbotService {
       const functionsURL =
         'https://us-central1-gpt1-77ce0.cloudfunctions.net/chatbotHttp';
 
-      console.log('🔄 Trying HTTP endpoint:', functionsURL);
 
       const response = await fetch(functionsURL, {
         method: 'POST',
@@ -151,14 +135,9 @@ class ChatbotService {
         throw new Error('HTTP chatbot service returned error');
       }
 
-      console.log('✅ Dorian response received (HTTP):', {
-        confidence: data.response.confidence,
-        hasActions: !!data.response.suggestedActions?.length,
-      });
 
       return data.response;
     } catch (error) {
-      console.error('❌ HTTP chatbot service error:', error);
       throw error;
     }
   }

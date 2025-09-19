@@ -13,7 +13,6 @@ export const processDocumentFast = async (
   document: Document
 ): Promise<Document> => {
   try {
-    console.log('⚡ Fast AI processing for:', document.name);
     
     // Use local heuristics for quick classification
     const quickClassification = classifyByHeuristics(document);
