@@ -15,7 +15,7 @@ import {
 import { DocumentViewer, DocumentViewerMobile } from '../viewer';
 import { formatFileSize, formatDate, formatDateWithFallback } from '../../utils/formatters';
 import { ReprocessModal } from '../ai';
-import { reprocessDocumentsEnhanced, checkAIServiceHealth, testDualAIProcessing } from '../../services/dualAIService';
+import { reprocessDocumentsEnhanced, checkAIServiceHealth, testDualAIProcessing, detailedAIDiagnostic } from '../../services/dualAIService';
 import { ContextMenu, ContextMenuItem, ContextMenuSection, ContextMenuSeparator } from '../ui/ContextMenu';
 import { useContextMenu } from '../../hooks/useContextMenu';
 
@@ -458,6 +458,102 @@ const DocumentList: React.FC<DocumentListProps> = ({
     
     // Use the existing enhanced reprocess function with 'both' mode
     await handleEnhancedReprocess('both');
+  };
+
+  // Detailed AI diagnostic function
+  const runDetailedDiagnostic = async () => {
+    console.log('🔬 Starting detailed AI diagnostic...');
+    
+    try {
+      const results = await detailedAIDiagnostic();
+      console.log('🔬 Detailed Diagnostic Results:', results);
+      
+      // Generate detailed report
+      let report = '🔬 AI Service Diagnostic Report:\n\n';
+      
+      // Network Connectivity
+      report += `🌐 Network: ${results.networkConnectivity?.success ? '✅ OK' : '❌ Failed'}\n`;
+      if (results.networkConnectivity?.responseTime) {
+        report += `   Response Time: ${results.networkConnectivity.responseTime}ms\n`;
+      }
+      if (results.networkConnectivity?.message) {
+        report += `   ${results.networkConnectivity.message}\n`;
+      }
+      
+      // Firebase Functions
+      report += `\n🔥 Firebase Functions: ${results.firebaseFunctions?.success ? '✅ OK' : '❌ Failed'}\n`;
+      if (results.firebaseFunctions?.status) {
+        report += `   Status: ${results.firebaseFunctions.status} ${results.firebaseFunctions.statusText}\n`;
+      }
+      if (results.firebaseFunctions?.responseTime) {
+        report += `   Response Time: ${results.firebaseFunctions.responseTime}ms\n`;
+      }
+      if (results.firebaseFunctions?.message) {
+        report += `   ${results.firebaseFunctions.message}\n`;
+      }
+      if (results.firebaseFunctions?.errorText) {
+        report += `   Error: ${results.firebaseFunctions.errorText.substring(0, 200)}...\n`;
+      }
+      
+      // Hugging Face
+      report += `\n🤗 Hugging Face: ${results.huggingFace?.success ? '✅ OK' : '❌ Failed'}\n`;
+      if (results.huggingFace?.status) {
+        report += `   Status: ${results.huggingFace.status} ${results.huggingFace.statusText}\n`;
+      }
+      if (results.huggingFace?.responseTime) {
+        report += `   Response Time: ${results.huggingFace.responseTime}ms\n`;
+      }
+      if (results.huggingFace?.message) {
+        report += `   ${results.huggingFace.message}\n`;
+      }
+      if (results.huggingFace?.errorText) {
+        report += `   Error: ${results.huggingFace.errorText.substring(0, 200)}...\n`;
+      }
+      
+      // DeepSeek
+      report += `\n🧠 DeepSeek: ${results.deepSeek?.success ? '✅ OK' : '❌ Failed'}\n`;
+      if (results.deepSeek?.status) {
+        report += `   Status: ${results.deepSeek.status} ${results.deepSeek.statusText}\n`;
+      }
+      if (results.deepSeek?.responseTime) {
+        report += `   Response Time: ${results.deepSeek.responseTime}ms\n`;
+      }
+      if (results.deepSeek?.message) {
+        report += `   ${results.deepSeek.message}\n`;
+      }
+      if (results.deepSeek?.errorText) {
+        report += `   Error: ${results.deepSeek.errorText.substring(0, 200)}...\n`;
+      }
+      
+      // Batch Reprocessing
+      report += `\n📦 Batch Reprocessing: ${results.batchReprocessing?.success ? '✅ OK' : '❌ Failed'}\n`;
+      if (results.batchReprocessing?.status) {
+        report += `   Status: ${results.batchReprocessing.status} ${results.batchReprocessing.statusText}\n`;
+      }
+      if (results.batchReprocessing?.responseTime) {
+        report += `   Response Time: ${results.batchReprocessing.responseTime}ms\n`;
+      }
+      if (results.batchReprocessing?.message) {
+        report += `   ${results.batchReprocessing.message}\n`;
+      }
+      if (results.batchReprocessing?.errorText) {
+        report += `   Error: ${results.batchReprocessing.errorText.substring(0, 200)}...\n`;
+      }
+      
+      // Recommendations
+      if (results.recommendations && results.recommendations.length > 0) {
+        report += `\n💡 Recommendations:\n`;
+        results.recommendations.forEach((rec, index) => {
+          report += `${index + 1}. ${rec}\n`;
+        });
+      }
+      
+      alert(report);
+      
+    } catch (error) {
+      console.error('❌ Detailed diagnostic failed:', error);
+      alert(`❌ Diagnostic failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
   };
 
   // Comprehensive AI service testing function
@@ -1081,35 +1177,67 @@ const DocumentList: React.FC<DocumentListProps> = ({
       {/* AI Reprocessing and Category Improvement Buttons */}
       {!isBatchMode && documents && documents.length > 0 && (
         <div className="mb-6 space-y-4">
-          {/* AI Service Test Button */}
-          <div>
-            <button
-              onClick={testAIServices}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-2"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
+          {/* AI Service Test Buttons */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div>
+              <button
+                onClick={testAIServices}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-2"
               >
-                <path d="M9 12l2 2 4-4"></path>
-                <path d="M21 12c-1 0-3-1-3-3s2-3 3-3 3 1 3 3-2 3-3 3"></path>
-                <path d="M3 12c1 0 3-1 3-3s-2-3-3-3-3 1-3 3 2 3 3 3"></path>
-                <path d="M13 12h3a2 2 0 0 1 2 2v1"></path>
-                <path d="M13 12H9a2 2 0 0 0-2 2v1"></path>
-                <path d="M13 12v-1a2 2 0 0 1 2-2h1"></path>
-                <path d="M13 12v-1a2 2 0 0 0-2-2H9"></path>
-              </svg>
-              <span>Test AI Services</span>
-            </button>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              Test both AI services to check availability and functionality.
-            </p>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M9 12l2 2 4-4"></path>
+                  <path d="M21 12c-1 0-3-1-3-3s2-3 3-3 3 1 3 3-2 3-3 3"></path>
+                  <path d="M3 12c1 0 3-1 3-3s-2-3-3-3-3 1-3 3 2 3 3 3"></path>
+                  <path d="M13 12h3a2 2 0 0 1 2 2v1"></path>
+                  <path d="M13 12H9a2 2 0 0 0-2 2v1"></path>
+                  <path d="M13 12v-1a2 2 0 0 1 2-2h1"></path>
+                  <path d="M13 12v-1a2 2 0 0 0-2-2H9"></path>
+                </svg>
+                <span>Quick Test</span>
+              </button>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Quick AI service availability check.
+              </p>
+            </div>
+
+            <div>
+              <button
+                onClick={runDetailedDiagnostic}
+                className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-2"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M9 12l2 2 4-4"></path>
+                  <path d="M21 12c-1 0-3-1-3-3s2-3 3-3 3 1 3 3-2 3-3 3"></path>
+                  <path d="M3 12c1 0 3-1 3-3s-2-3-3-3-3 1-3 3 2 3 3 3"></path>
+                  <path d="M13 12h3a2 2 0 0 1 2 2v1"></path>
+                  <path d="M13 12H9a2 2 0 0 0-2 2v1"></path>
+                  <path d="M13 12v-1a2 2 0 0 1 2-2h1"></path>
+                  <path d="M13 12v-1a2 2 0 0 0-2-2H9"></path>
+                </svg>
+                <span>Detailed Diagnostic</span>
+              </button>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Comprehensive diagnostic with error details and recommendations.
+              </p>
+            </div>
           </div>
 
           {/* AI Reprocessing Button */}

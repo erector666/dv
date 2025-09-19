@@ -446,6 +446,274 @@ export const checkAIServiceHealth = async () => {
 };
 
 /**
+ * Detailed diagnostic test for AI services
+ */
+export const detailedAIDiagnostic = async () => {
+  console.log('🔬 Starting detailed AI diagnostic...');
+  
+  const results = {
+    networkConnectivity: null as any,
+    firebaseFunctions: null as any,
+    huggingFace: null as any,
+    deepSeek: null as any,
+    batchReprocessing: null as any,
+    recommendations: [] as string[]
+  };
+
+  try {
+    // 1. Test basic network connectivity
+    console.log('🌐 Testing network connectivity...');
+    try {
+      const startTime = Date.now();
+      const response = await fetch('https://httpbin.org/get', {
+        method: 'GET',
+        signal: AbortSignal.timeout(5000)
+      });
+      const responseTime = Date.now() - startTime;
+      
+      results.networkConnectivity = {
+        success: response.ok,
+        status: response.status,
+        responseTime,
+        message: response.ok ? 'Network connectivity OK' : 'Network issues detected'
+      };
+    } catch (error: any) {
+      results.networkConnectivity = {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+        message: 'Network connectivity failed'
+      };
+      results.recommendations.push('Check internet connection');
+    }
+
+    // 2. Test Firebase Functions endpoint availability
+    console.log('🔥 Testing Firebase Functions endpoint...');
+    try {
+      const startTime = Date.now();
+      const response = await fetch(
+        'https://us-central1-gpt1-77ce0.cloudfunctions.net/classifyDocumentDualAIHttp',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            documentUrl: 'https://example.com/test.pdf',
+            mode: 'huggingface'
+          }),
+          signal: AbortSignal.timeout(10000)
+        }
+      );
+      const responseTime = Date.now() - startTime;
+      
+      results.firebaseFunctions = {
+        success: response.ok,
+        status: response.status,
+        statusText: response.statusText,
+        responseTime,
+        message: response.ok ? 'Firebase Functions endpoint is accessible' : `Firebase Functions returned ${response.status}`
+      };
+
+      if (!response.ok) {
+        try {
+          const errorText = await response.text();
+          results.firebaseFunctions.errorText = errorText;
+          console.log('Firebase Functions error response:', errorText);
+        } catch (e) {
+          console.log('Could not read error response');
+        }
+      }
+
+      if (response.status === 404) {
+        results.recommendations.push('Firebase Function may not be deployed or URL is incorrect');
+      } else if (response.status === 500) {
+        results.recommendations.push('Firebase Function is deployed but has internal errors');
+      } else if (response.status === 403) {
+        results.recommendations.push('Firebase Function access may be restricted');
+      }
+
+    } catch (error: any) {
+      results.firebaseFunctions = {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+        message: 'Firebase Functions endpoint not accessible'
+      };
+      results.recommendations.push('Firebase Functions may be down or misconfigured');
+    }
+
+    // 3. Test Hugging Face with detailed response
+    console.log('🤗 Testing Hugging Face with detailed analysis...');
+    try {
+      const startTime = Date.now();
+      const response = await fetch(
+        'https://us-central1-gpt1-77ce0.cloudfunctions.net/classifyDocumentDualAIHttp',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            documentUrl: 'https://example.com/test.pdf',
+            mode: 'huggingface'
+          }),
+          signal: AbortSignal.timeout(15000)
+        }
+      );
+      const responseTime = Date.now() - startTime;
+      
+      results.huggingFace = {
+        success: response.ok,
+        status: response.status,
+        statusText: response.statusText,
+        responseTime
+      };
+
+      if (response.ok) {
+        try {
+          const result = await response.json();
+          results.huggingFace.result = result;
+          results.huggingFace.message = 'Hugging Face AI working correctly';
+        } catch (e) {
+          results.huggingFace.message = 'Response received but could not parse JSON';
+        }
+      } else {
+        try {
+          const errorText = await response.text();
+          results.huggingFace.errorText = errorText;
+          results.huggingFace.message = `Hugging Face failed with ${response.status}: ${errorText}`;
+        } catch (e) {
+          results.huggingFace.message = `Hugging Face failed with ${response.status}`;
+        }
+      }
+
+    } catch (error: any) {
+      results.huggingFace = {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+        message: 'Hugging Face AI service failed'
+      };
+    }
+
+    // 4. Test DeepSeek with detailed response
+    console.log('🧠 Testing DeepSeek with detailed analysis...');
+    try {
+      const startTime = Date.now();
+      const response = await fetch(
+        'https://us-central1-gpt1-77ce0.cloudfunctions.net/classifyDocumentDualAIHttp',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            documentUrl: 'https://example.com/test.pdf',
+            mode: 'deepseek'
+          }),
+          signal: AbortSignal.timeout(15000)
+        }
+      );
+      const responseTime = Date.now() - startTime;
+      
+      results.deepSeek = {
+        success: response.ok,
+        status: response.status,
+        statusText: response.statusText,
+        responseTime
+      };
+
+      if (response.ok) {
+        try {
+          const result = await response.json();
+          results.deepSeek.result = result;
+          results.deepSeek.message = 'DeepSeek AI working correctly';
+        } catch (e) {
+          results.deepSeek.message = 'Response received but could not parse JSON';
+        }
+      } else {
+        try {
+          const errorText = await response.text();
+          results.deepSeek.errorText = errorText;
+          results.deepSeek.message = `DeepSeek failed with ${response.status}: ${errorText}`;
+        } catch (e) {
+          results.deepSeek.message = `DeepSeek failed with ${response.status}`;
+        }
+      }
+
+    } catch (error: any) {
+      results.deepSeek = {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+        message: 'DeepSeek AI service failed'
+      };
+    }
+
+    // 5. Test Batch Reprocessing
+    console.log('📦 Testing Batch Reprocessing...');
+    try {
+      const startTime = Date.now();
+      const response = await fetch(
+        'https://us-central1-gpt1-77ce0.cloudfunctions.net/reprocessDocuments',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            documentUrls: ['https://example.com/test.pdf'],
+            mode: 'both'
+          }),
+          signal: AbortSignal.timeout(20000)
+        }
+      );
+      const responseTime = Date.now() - startTime;
+      
+      results.batchReprocessing = {
+        success: response.ok,
+        status: response.status,
+        statusText: response.statusText,
+        responseTime
+      };
+
+      if (!response.ok) {
+        try {
+          const errorText = await response.text();
+          results.batchReprocessing.errorText = errorText;
+          results.batchReprocessing.message = `Batch reprocessing failed with ${response.status}: ${errorText}`;
+        } catch (e) {
+          results.batchReprocessing.message = `Batch reprocessing failed with ${response.status}`;
+        }
+      } else {
+        results.batchReprocessing.message = 'Batch reprocessing endpoint accessible';
+      }
+
+    } catch (error: any) {
+      results.batchReprocessing = {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+        message: 'Batch reprocessing service failed'
+      };
+    }
+
+    // Generate recommendations based on results
+    if (!results.networkConnectivity?.success) {
+      results.recommendations.push('Check internet connection and firewall settings');
+    }
+    if (!results.firebaseFunctions?.success) {
+      results.recommendations.push('Verify Firebase Functions deployment and configuration');
+    }
+    if (!results.huggingFace?.success && !results.deepSeek?.success) {
+      results.recommendations.push('Both AI services failing - check Firebase Functions logs');
+      results.recommendations.push('Verify AI service API keys and quotas');
+    }
+    if (results.firebaseFunctions?.status === 500) {
+      results.recommendations.push('Check Firebase Functions logs for internal errors');
+    }
+
+    console.log('📊 Detailed Diagnostic Results:', results);
+    return results;
+
+  } catch (error) {
+    console.error('❌ Detailed diagnostic failed:', error);
+    return { 
+      error: error instanceof Error ? error.message : String(error),
+      recommendations: ['Run diagnostic again or check console for more details']
+    };
+  }
+};
+
+/**
  * Quick test for both AI services
  */
 export const quickTestAIServices = async () => {
