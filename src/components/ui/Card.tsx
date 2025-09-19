@@ -21,45 +21,45 @@ const cardVariants = cva(
         
         // 🔥 MODERN GLASSMORPHISM VARIANTS
         glass:
-          'backdrop-blur-xl bg-white/20 dark:bg-black/20 border-white/30 dark:border-white/20 shadow-2xl hover:bg-white/30 dark:hover:bg-black/30 hover:shadow-3xl hover:scale-[1.03]',
+          'bg-white/20 dark:bg-gray-800/20 border border-white/30 dark:border-gray-700/30 shadow-2xl hover:bg-white/30 dark:hover:bg-gray-800/30 hover:shadow-3xl backdrop-blur-sm',
         glassBlue:
-          'backdrop-blur-xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20 dark:from-blue-600/20 dark:to-cyan-600/20 border-blue-300/40 dark:border-blue-400/30 shadow-2xl hover:from-blue-500/30 hover:to-cyan-500/30 hover:shadow-blue-500/25',
+          'bg-gradient-to-br from-blue-500/20 to-cyan-500/20 dark:from-blue-600/20 dark:to-cyan-600/20 border border-blue-300/40 dark:border-blue-400/30 shadow-2xl hover:from-blue-500/30 hover:to-cyan-500/30 backdrop-blur-sm',
         glassPurple:
-          'backdrop-blur-xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 dark:from-purple-600/20 dark:to-pink-600/20 border-purple-300/40 dark:border-purple-400/30 shadow-2xl hover:from-purple-500/30 hover:to-pink-500/30 hover:shadow-purple-500/25',
+          'bg-gradient-to-br from-purple-500/20 to-pink-500/20 dark:from-purple-600/20 dark:to-pink-600/20 border border-purple-300/40 dark:border-purple-400/30 shadow-2xl hover:from-purple-500/30 hover:to-pink-500/30 backdrop-blur-sm',
         
         // 🌟 NEON GLOW VARIANTS
         neonBlue:
-          'bg-gradient-to-br from-slate-900 to-slate-800 border-2 border-blue-500/50 shadow-[0_0_30px_rgba(59,130,246,0.5)] hover:shadow-[0_0_50px_rgba(59,130,246,0.8)] hover:border-blue-400 text-white hover:scale-[1.03]',
+          'bg-gradient-to-br from-slate-900 to-slate-800 border-2 border-blue-500 shadow-blue-500/50 shadow-2xl hover:shadow-blue-500/75 hover:border-blue-400 text-white',
         neonPurple:
-          'bg-gradient-to-br from-slate-900 to-slate-800 border-2 border-purple-500/50 shadow-[0_0_30px_rgba(168,85,247,0.5)] hover:shadow-[0_0_50px_rgba(168,85,247,0.8)] hover:border-purple-400 text-white hover:scale-[1.03]',
+          'bg-gradient-to-br from-slate-900 to-slate-800 border-2 border-purple-500 shadow-purple-500/50 shadow-2xl hover:shadow-purple-500/75 hover:border-purple-400 text-white',
         neonGreen:
-          'bg-gradient-to-br from-slate-900 to-slate-800 border-2 border-emerald-500/50 shadow-[0_0_30px_rgba(16,185,129,0.5)] hover:shadow-[0_0_50px_rgba(16,185,129,0.8)] hover:border-emerald-400 text-white hover:scale-[1.03]',
+          'bg-gradient-to-br from-slate-900 to-slate-800 border-2 border-emerald-500 shadow-emerald-500/50 shadow-2xl hover:shadow-emerald-500/75 hover:border-emerald-400 text-white',
         
         // 🎨 VIBRANT GRADIENT VARIANTS
         gradientRainbow:
-          'bg-gradient-to-br from-pink-500 via-purple-500 to-indigo-500 border-0 shadow-2xl text-white hover:shadow-3xl hover:from-pink-400 hover:via-purple-400 hover:to-indigo-400 hover:scale-[1.03]',
+          'bg-gradient-to-br from-pink-500 via-purple-500 to-indigo-500 border-0 shadow-2xl text-white hover:shadow-3xl',
         gradientSunset:
-          'bg-gradient-to-br from-orange-400 via-red-500 to-pink-500 border-0 shadow-2xl text-white hover:shadow-3xl hover:from-orange-300 hover:via-red-400 hover:to-pink-400 hover:scale-[1.03]',
+          'bg-gradient-to-br from-orange-400 via-red-500 to-pink-500 border-0 shadow-2xl text-white hover:shadow-3xl',
         gradientOcean:
-          'bg-gradient-to-br from-cyan-400 via-blue-500 to-purple-600 border-0 shadow-2xl text-white hover:shadow-3xl hover:from-cyan-300 hover:via-blue-400 hover:to-purple-500 hover:scale-[1.03]',
+          'bg-gradient-to-br from-cyan-400 via-blue-500 to-purple-600 border-0 shadow-2xl text-white hover:shadow-3xl',
         
         // ⚡ ELECTRIC & ANIMATED VARIANTS
         electric:
-          'bg-gradient-to-br from-yellow-400 via-orange-500 to-red-500 border-2 border-yellow-300 shadow-[0_0_30px_rgba(251,191,36,0.6)] hover:shadow-[0_0_50px_rgba(251,191,36,0.9)] text-white hover:scale-[1.03] animate-pulse',
+          'bg-gradient-to-br from-yellow-400 via-orange-500 to-red-500 border-2 border-yellow-300 shadow-2xl text-white animate-pulse',
         holographic:
-          'bg-gradient-to-br from-cyan-300 via-blue-500 via-purple-500 to-pink-500 border-0 shadow-2xl text-white hover:shadow-3xl hover:scale-[1.03] bg-size-200 hover:bg-pos-0 transition-all duration-500',
+          'bg-gradient-to-br from-cyan-300 via-blue-500 to-pink-500 border-0 shadow-2xl text-white hover:shadow-3xl',
         
         // 🏢 PROFESSIONAL MODERN VARIANTS
         modernDark:
-          'bg-gradient-to-br from-gray-900 to-black border border-gray-700/50 shadow-2xl hover:shadow-gray-900/50 text-white hover:border-gray-600 hover:scale-[1.02]',
+          'bg-gradient-to-br from-gray-900 to-black border border-gray-700 shadow-2xl text-white hover:border-gray-600',
         modernLight:
-          'bg-gradient-to-br from-white to-gray-100 border border-gray-200/80 shadow-xl hover:shadow-2xl hover:border-gray-300 hover:from-gray-50 hover:to-white hover:scale-[1.02]',
+          'bg-gradient-to-br from-white to-gray-100 border border-gray-200 shadow-xl hover:shadow-2xl hover:border-gray-300',
         
         // 🎯 SPECIAL EFFECT VARIANTS
         floating:
-          'bg-white dark:bg-gray-800 border-0 shadow-[0_20px_60px_rgba(0,0,0,0.1)] dark:shadow-[0_20px_60px_rgba(0,0,0,0.3)] hover:shadow-[0_30px_80px_rgba(0,0,0,0.15)] dark:hover:shadow-[0_30px_80px_rgba(0,0,0,0.4)] hover:-translate-y-2 hover:scale-[1.02]',
+          'bg-white dark:bg-gray-800 border-0 shadow-2xl hover:shadow-3xl hover:-translate-y-1',
         neumorphism:
-          'bg-gray-100 dark:bg-gray-800 border-0 shadow-[inset_-8px_-8px_16px_rgba(255,255,255,0.8),inset_8px_8px_16px_rgba(0,0,0,0.1)] dark:shadow-[inset_-8px_-8px_16px_rgba(255,255,255,0.1),inset_8px_8px_16px_rgba(0,0,0,0.3)] hover:shadow-[inset_-12px_-12px_24px_rgba(255,255,255,0.9),inset_12px_12px_24px_rgba(0,0,0,0.15)] dark:hover:shadow-[inset_-12px_-12px_24px_rgba(255,255,255,0.15),inset_12px_12px_24px_rgba(0,0,0,0.4)]',
+          'bg-gray-100 dark:bg-gray-800 border-0 shadow-inner hover:shadow-lg',
         
         // 📊 STATS & DATA VARIANTS
         statsCard:

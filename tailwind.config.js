@@ -119,6 +119,12 @@ module.exports = {
           '0 4px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
         large:
           '0 10px 40px -10px rgba(0, 0, 0, 0.15), 0 2px 10px -2px rgba(0, 0, 0, 0.05)',
+        // Custom shadows for modern cards
+        '3xl': '0 35px 60px -12px rgba(0, 0, 0, 0.25)',
+        'glow-blue': '0 0 30px rgba(59, 130, 246, 0.5)',
+        'glow-purple': '0 0 30px rgba(168, 85, 247, 0.5)',
+        'glow-green': '0 0 30px rgba(16, 185, 129, 0.5)',
+        'glow-yellow': '0 0 30px rgba(251, 191, 36, 0.6)',
       },
       animation: {
         'fade-in': 'fadeIn 0.5s ease-in-out',
@@ -144,8 +150,50 @@ module.exports = {
           '100%': { transform: 'scale(1)', opacity: '1' },
         },
       },
+      // Add backdrop blur support
+      backdropBlur: {
+        xs: '2px',
+        sm: '4px',
+        md: '12px',
+        lg: '16px',
+        xl: '24px',
+        '2xl': '40px',
+        '3xl': '64px',
+      },
+      // Add background size utilities
+      backgroundSize: {
+        'size-200': '200% 200%',
+      },
+      // Add background position utilities  
+      backgroundPosition: {
+        'pos-0': '0% 0%',
+        'pos-100': '100% 100%',
+      },
     },
   },
   plugins: [],
   darkMode: 'class',
+  // Ensure all variants are available
+  safelist: [
+    // Backdrop blur classes
+    'backdrop-blur-xl',
+    'backdrop-blur-2xl', 
+    'backdrop-blur-3xl',
+    // Custom shadow classes
+    'shadow-3xl',
+    'shadow-glow-blue',
+    'shadow-glow-purple', 
+    'shadow-glow-green',
+    'shadow-glow-yellow',
+    // Transform classes
+    'transform-gpu',
+    'hover:scale-[1.02]',
+    'hover:scale-[1.03]',
+    'group-hover:scale-110',
+    // Animation classes
+    'animate-pulse',
+    // Background clip
+    'bg-clip-text',
+    'text-transparent',
+  ],
 };
