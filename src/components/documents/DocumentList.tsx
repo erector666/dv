@@ -860,7 +860,8 @@ const DocumentList: React.FC<DocumentListProps> = ({
                   <div className="mt-1 flex flex-col space-y-0.5 md:space-y-1 text-xs md:text-sm text-gray-500 dark:text-gray-400">
                     <p className="flex items-center gap-1">
                       <span className="hidden md:inline">📄</span>
-                      <span>{formatFileSize(document.size)}</p>
+                      <span>{formatFileSize(document.size)}</span>
+                    </p>
                     <p className="flex items-center gap-1">
                       <span className="hidden md:inline">📅</span>
                       <span>{formatDateWithFallback(document.uploadedAt, 'Recently uploaded')}</span>
