@@ -490,7 +490,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
           console.log('Hugging Face test result:', testResults.huggingFaceTest);
         } catch (error) {
           console.error('Hugging Face test failed:', error);
-          testResults.huggingFaceTest = { success: false, error: error.message };
+          testResults.huggingFaceTest = { success: false, error: error instanceof Error ? error.message : String(error) };
         }
 
         // 4. Test DeepSeek AI
@@ -520,7 +520,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
           }
         } catch (error) {
           console.error('DeepSeek test failed:', error);
-          testResults.deepSeekTest = { success: false, error: error.message };
+          testResults.deepSeekTest = { success: false, error: error instanceof Error ? error.message : String(error) };
         }
 
         // 5. Test Dual AI (both)
@@ -530,7 +530,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
           console.log('Dual AI test result:', testResults.dualAITest);
         } catch (error) {
           console.error('Dual AI test failed:', error);
-          testResults.dualAITest = { success: false, error: error.message };
+          testResults.dualAITest = { success: false, error: error instanceof Error ? error.message : String(error) };
         }
 
         // 6. Test Batch Reprocessing
@@ -540,7 +540,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
           testResults.batchReprocessingTest = { success: true, result: batchResult };
         } catch (error) {
           console.error('Batch reprocessing test failed:', error);
-          testResults.batchReprocessingTest = { success: false, error: error.message };
+          testResults.batchReprocessingTest = { success: false, error: error instanceof Error ? error.message : String(error) };
         }
       } else {
         console.warn('⚠️ No sample document available for testing');
@@ -555,7 +555,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
       
     } catch (error) {
       console.error('❌ AI testing failed:', error);
-      alert(`❌ AI testing failed: ${error.message}`);
+      alert(`❌ AI testing failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
 

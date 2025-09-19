@@ -484,7 +484,7 @@ export const quickTestAIServices = async () => {
         statusText: hfResponse.statusText
       };
     } catch (error: any) {
-      results.huggingFace = { error: error.message };
+      results.huggingFace = { error: error instanceof Error ? error.message : String(error) };
     }
 
     // 3. Test DeepSeek
@@ -507,7 +507,7 @@ export const quickTestAIServices = async () => {
         statusText: dsResponse.statusText
       };
     } catch (error: any) {
-      results.deepSeek = { error: error.message };
+      results.deepSeek = { error: error instanceof Error ? error.message : String(error) };
     }
 
     // 4. Test Batch Reprocessing
@@ -530,7 +530,7 @@ export const quickTestAIServices = async () => {
         statusText: batchResponse.statusText
       };
     } catch (error: any) {
-      results.batchReprocessing = { error: error.message };
+      results.batchReprocessing = { error: error instanceof Error ? error.message : String(error) };
     }
 
     console.log('📊 Quick Test Results:', results);
@@ -538,6 +538,6 @@ export const quickTestAIServices = async () => {
 
   } catch (error) {
     console.error('❌ Quick test failed:', error);
-    return { error: error.message };
+    return { error: error instanceof Error ? error.message : String(error) };
   }
 };
