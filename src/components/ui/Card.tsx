@@ -218,13 +218,13 @@ const StatsCard = React.forwardRef<
     trendValue?: string;
   }
 >(({ className, icon, label, value, trend, trendValue, ...props }, ref) => {
-  const trendColors = {
+  const trendColors: Record<'up' | 'down' | 'neutral', string> = {
     up: 'text-green-600 dark:text-green-400',
     down: 'text-red-600 dark:text-red-400',
     neutral: 'text-gray-600 dark:text-gray-400',
   };
 
-  const trendIcons = {
+  const trendIcons: Record<'up' | 'down' | 'neutral', string> = {
     up: '↗️',
     down: '↘️',
     neutral: '➡️',
@@ -242,8 +242,8 @@ const StatsCard = React.forwardRef<
           {icon}
         </div>
         {trend && trendValue && (
-          <div className={clsx('flex items-center space-x-1 text-sm font-medium', trendColors[trend])}>
-            <span>{trendIcons[trend]}</span>
+          <div className={clsx('flex items-center space-x-1 text-sm font-medium', trendColors[trend as keyof typeof trendColors])}>
+            <span>{trendIcons[trend as keyof typeof trendIcons]}</span>
             <span>{trendValue}</span>
           </div>
         )}
@@ -269,7 +269,7 @@ const FeatureCard = React.forwardRef<
     gradient?: 'blue' | 'purple' | 'green' | 'orange' | 'pink';
   }
 >(({ className, icon, title, description, gradient = 'blue', ...props }, ref) => {
-  const gradientClasses = {
+  const gradientClasses: Record<'blue' | 'purple' | 'green' | 'orange' | 'pink', string> = {
     blue: 'from-blue-500 to-cyan-500',
     purple: 'from-purple-500 to-pink-500',
     green: 'from-green-500 to-emerald-500',
@@ -284,9 +284,9 @@ const FeatureCard = React.forwardRef<
       className={clsx('group cursor-pointer overflow-hidden', className)}
       {...props}
     >
-      <div className={clsx('absolute inset-0 bg-gradient-to-br opacity-0 group-hover:opacity-10 transition-opacity duration-300', gradientClasses[gradient])} />
+      <div className={clsx('absolute inset-0 bg-gradient-to-br opacity-0 group-hover:opacity-10 transition-opacity duration-300', gradientClasses[gradient as keyof typeof gradientClasses])} />
       <div className="relative">
-        <div className={clsx('inline-flex p-3 rounded-xl bg-gradient-to-br text-white mb-4 group-hover:scale-110 transition-transform duration-200', gradientClasses[gradient])}>
+        <div className={clsx('inline-flex p-3 rounded-xl bg-gradient-to-br text-white mb-4 group-hover:scale-110 transition-transform duration-200', gradientClasses[gradient as keyof typeof gradientClasses])}>
           {icon}
         </div>
         <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2 group-hover:text-gray-700 dark:group-hover:text-gray-200 transition-colors">
