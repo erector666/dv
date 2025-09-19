@@ -713,13 +713,13 @@ const DocumentList: React.FC<DocumentListProps> = ({
           const isSelected = docId ? selectedDocuments.has(docId) : false;
 
           return (
-            <div
-              key={documentKey}
-              className={`bg-white dark:bg-gray-800 rounded-xl shadow-sm md:shadow-md overflow-hidden cursor-pointer hover:shadow-lg transition-all duration-200 border border-gray-200 dark:border-gray-700 ${
-                isBatchMode && isSelected
-                  ? 'ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                  : 'hover:border-gray-300 dark:hover:border-gray-600'
-              }`}
+          <div
+            key={documentKey}
+            className={`bg-gradient-to-br from-white via-gray-50 to-white dark:from-gray-800 dark:via-gray-850 dark:to-gray-800 rounded-2xl shadow-md md:shadow-lg overflow-hidden cursor-pointer hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 ease-out border border-gray-200/60 dark:border-gray-700/60 backdrop-blur-sm ${
+              isBatchMode && isSelected
+                ? 'ring-2 ring-blue-400 bg-gradient-to-br from-blue-50 via-blue-100 to-blue-50 dark:from-blue-900/30 dark:via-blue-800/30 dark:to-blue-900/30 shadow-blue-200/50 dark:shadow-blue-900/50'
+                : 'hover:border-gray-300/80 dark:hover:border-gray-600/80 hover:bg-gradient-to-br hover:from-gray-50 hover:via-white hover:to-gray-50 dark:hover:from-gray-750 dark:hover:via-gray-800 dark:hover:to-gray-750'
+            }`}
               onClick={e => {
                 if (isBatchMode && docId) {
                   e.stopPropagation();
@@ -817,15 +817,15 @@ const DocumentList: React.FC<DocumentListProps> = ({
                   </div>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-base md:text-lg font-medium text-gray-900 dark:text-white truncate flex items-center gap-1 md:gap-2">
-                    <span className="truncate">
-                      {(document.metadata?.suggestedName && String(document.metadata.suggestedName)) ||
-                        document.name ||
-                        'Document'}
-                    </span>
+                <h3 className="text-base md:text-lg font-bold text-gray-900 dark:text-white truncate flex items-center gap-1 md:gap-2">
+                  <span className="truncate bg-gradient-to-r from-gray-900 to-gray-700 dark:from-gray-100 dark:to-gray-300 bg-clip-text text-transparent">
+                    {(document.metadata?.suggestedName && String(document.metadata.suggestedName)) ||
+                      document.name ||
+                      'Document'}
+                  </span>
                     {(document.metadata?.language || document.metadata?.languageDetection?.language) && (
                       <span
-                        className="flex-shrink-0 inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] md:text-[10px] font-semibold bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                        className="flex-shrink-0 inline-flex items-center px-2 py-1 rounded-full text-[9px] md:text-[10px] font-bold bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-800 dark:from-blue-900/30 dark:to-indigo-900/30 dark:text-blue-200 border border-blue-200/50 dark:border-blue-700/50 shadow-sm"
                         title="Detected language"
                       >
                         {(document.metadata?.language || document.metadata?.languageDetection?.language || 'N/A')
@@ -838,24 +838,24 @@ const DocumentList: React.FC<DocumentListProps> = ({
                   
                   {/* Prominent Category Display */}
                   <div className="mt-1">
-                    {document.category ? (
-                      <span className="inline-flex items-center px-1.5 py-0.5 md:px-2 md:py-1 rounded-md text-[10px] md:text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                        <span className="hidden md:inline">📁</span>
-                        <span className="md:hidden">📂</span>
-                        {document.category}
-                        {document.metadata?.classificationConfidence && (
-                          <span className="ml-1 text-green-600 dark:text-green-300">
-                            ({Math.round(document.metadata.classificationConfidence * 100)}%)
-                          </span>
-                        )}
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center px-1.5 py-0.5 md:px-2 md:py-1 rounded-md text-[10px] md:text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
-                        <span className="hidden md:inline">📁</span>
-                        <span className="md:hidden">📂</span>
-                        No category
-                      </span>
-                    )}
+                  {document.category ? (
+                    <span className="inline-flex items-center px-2 py-1 md:px-3 md:py-1.5 rounded-full text-[10px] md:text-xs font-semibold bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 dark:from-green-900/30 dark:to-emerald-900/30 dark:text-green-200 border border-green-200/50 dark:border-green-700/50 shadow-sm">
+                      <span className="hidden md:inline">📁</span>
+                      <span className="md:hidden">📂</span>
+                      <span className="ml-1">{document.category}</span>
+                      {document.metadata?.classificationConfidence && (
+                        <span className="ml-1 px-1.5 py-0.5 rounded-full bg-green-200/60 dark:bg-green-800/60 text-green-700 dark:text-green-300 text-[9px] font-medium">
+                          {Math.round(document.metadata.classificationConfidence * 100)}%
+                        </span>
+                      )}
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center px-2 py-1 md:px-3 md:py-1.5 rounded-full text-[10px] md:text-xs font-semibold bg-gradient-to-r from-gray-100 to-gray-200 text-gray-600 dark:from-gray-700/50 dark:to-gray-600/50 dark:text-gray-400 border border-gray-200/50 dark:border-gray-600/50 shadow-sm">
+                      <span className="hidden md:inline">📁</span>
+                      <span className="md:hidden">📂</span>
+                      <span className="ml-1">No category</span>
+                    </span>
+                  )}
                   </div>
                   <div className="mt-1 flex flex-col space-y-0.5 md:space-y-1 text-xs md:text-sm text-gray-500 dark:text-gray-400">
                     <p className="flex items-center gap-1">
@@ -1405,19 +1405,19 @@ const DocumentList: React.FC<DocumentListProps> = ({
                   )}
                 </div>
                 <div className="flex-shrink-0 flex items-center space-x-1 md:space-x-2">
-                  {/* View Button - Primary action for mobile */}
-                  <button
-                    onClick={e => {
-                      e.stopPropagation();
-                      setDocumentToView(document);
-                      setIsViewerModalOpen(true);
-                      if (onViewDocument) {
-                        onViewDocument(document);
-                      }
-                    }}
-                    className="p-2 md:p-1 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 focus:outline-none rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
-                    title="View document"
-                  >
+                {/* View Button - Primary action for mobile */}
+                <button
+                  onClick={e => {
+                    e.stopPropagation();
+                    setDocumentToView(document);
+                    setIsViewerModalOpen(true);
+                    if (onViewDocument) {
+                      onViewDocument(document);
+                    }
+                  }}
+                  className="p-2 md:p-1 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 focus:outline-none rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 dark:from-blue-900/20 dark:to-indigo-900/20 dark:hover:from-blue-800/30 dark:hover:to-indigo-800/30 transition-all duration-200 shadow-sm hover:shadow-md border border-blue-200/50 dark:border-blue-700/50"
+                  title="View document"
+                >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
                       className="h-4 w-4 md:h-5 md:w-5"
@@ -1430,12 +1430,12 @@ const DocumentList: React.FC<DocumentListProps> = ({
                     </svg>
                   </button>
                   
-                  <button
-                    onClick={e => handleReprocessSingleDocument(e, document)}
-                    className="p-2 md:p-1 text-gray-400 hover:text-purple-600 dark:text-gray-500 dark:hover:text-purple-400 focus:outline-none rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors"
-                    title="Reprocess this document"
-                    disabled={!document.url || isReprocessing}
-                  >
+                <button
+                  onClick={e => handleReprocessSingleDocument(e, document)}
+                  className="p-2 md:p-1 text-gray-400 hover:text-purple-600 dark:text-gray-500 dark:hover:text-purple-400 focus:outline-none rounded-xl bg-gradient-to-r from-gray-50 to-gray-100 hover:from-purple-50 hover:to-purple-100 dark:from-gray-800/50 dark:to-gray-700/50 dark:hover:from-purple-900/20 dark:hover:to-purple-800/20 transition-all duration-200 shadow-sm hover:shadow-md border border-gray-200/50 dark:border-gray-600/50 hover:border-purple-200/50 dark:hover:border-purple-700/50"
+                  title="Reprocess this document"
+                  disabled={!document.url || isReprocessing}
+                >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
                       className="h-4 w-4 md:h-5 md:w-5"
@@ -1450,11 +1450,11 @@ const DocumentList: React.FC<DocumentListProps> = ({
                     </svg>
                   </button>
                   {document.firestoreId && document.firestoreId !== '' ? (
-                    <button
-                      onClick={e => handleDeleteClick(e, document)}
-                      className="p-2 md:p-1 text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 focus:outline-none rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                      title="Delete document"
-                    >
+                  <button
+                    onClick={e => handleDeleteClick(e, document)}
+                    className="p-2 md:p-1 text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 focus:outline-none rounded-xl bg-gradient-to-r from-gray-50 to-gray-100 hover:from-red-50 hover:to-red-100 dark:from-gray-800/50 dark:to-gray-700/50 dark:hover:from-red-900/20 dark:hover:to-red-800/20 transition-all duration-200 shadow-sm hover:shadow-md border border-gray-200/50 dark:border-gray-600/50 hover:border-red-200/50 dark:hover:border-red-700/50"
+                    title="Delete document"
+                  >
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
                         className="h-4 w-4 md:h-5 md:w-5"

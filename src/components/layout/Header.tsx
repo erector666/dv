@@ -46,7 +46,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
   };
 
   return (
-    <header className="bg-white dark:bg-gray-800 shadow-md py-2 px-4">
+    <header className="bg-gradient-to-r from-white via-gray-50 to-white dark:from-gray-800 dark:via-gray-850 dark:to-gray-800 shadow-lg border-b border-gray-200/60 dark:border-gray-700/60 backdrop-blur-sm py-3 px-4">
       <div className="flex items-center justify-between">
         {/* Mobile menu button */}
         <button

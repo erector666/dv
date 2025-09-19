@@ -125,14 +125,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile = false, onClose }) => {
 
   return (
     <div
-      className={`h-full bg-white dark:bg-gray-800 shadow-md flex flex-col ${
+      className={`h-full bg-gradient-to-b from-white via-gray-50 to-white dark:from-gray-800 dark:via-gray-850 dark:to-gray-800 shadow-xl border-r border-gray-200/60 dark:border-gray-700/60 backdrop-blur-sm flex flex-col ${
         isMobile
           ? 'fixed inset-y-0 left-0 z-50 w-[85vw] max-w-sm'
           : 'sticky top-0 w-60'
       }`}
     >
       {/* Logo */}
-      <div className="flex items-center p-4 border-b border-gray-200 dark:border-gray-700">
+      <div className="flex items-center p-4 border-b border-gray-200/60 dark:border-gray-700/60 bg-gradient-to-r from-gray-50 to-white dark:from-gray-850 dark:to-gray-800">
         <img
           src="/logo2.png"
           alt="DocVault Logo"
