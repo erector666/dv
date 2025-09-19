@@ -1,17 +1,22 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import { DocumentList } from '../components/documents';
 import { useAuth } from '../context/AuthContext';
 import { useQuery } from 'react-query';
-import { getDocuments } from '../services/documentService';
+import { getDocuments, Document } from '../services/documentService';
 import { FileText, DollarSign, Heart, Shield, FolderOpen } from 'lucide-react';
 import { formatFileSize, formatDate } from '../utils/formatters';
+import { DocumentViewer } from '../components/viewer';
 
 const Dashboard: React.FC = () => {
   const { translate } = useLanguage();
   const navigate = useNavigate();
   const { currentUser } = useAuth();
+  
+  // Document viewer state
+  const [documentToView, setDocumentToView] = useState<Document | null>(null);
+  const [isViewerModalOpen, setIsViewerModalOpen] = useState(false);
 
   // Fetch documents for category counts
   const { data: documents } = useQuery(
@@ -31,6 +36,12 @@ const Dashboard: React.FC = () => {
   // Handle category card click
   const handleCategoryClick = (category: string) => {
     navigate(`/category/${category}`);
+  };
+
+  // Handle document click - open in viewer modal
+  const handleDocumentClick = (document: Document) => {
+    setDocumentToView(document);
+    setIsViewerModalOpen(true);
   };
 
   return (
@@ -89,7 +100,7 @@ const Dashboard: React.FC = () => {
                     <div
                       key={docKey}
                       className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600 hover:border-primary-300 dark:hover:border-primary-600 transition-colors cursor-pointer"
-                      onClick={() => navigate(`/document/${doc.id}`)}
+                      onClick={() => handleDocumentClick(doc)}
                     >
                       <div className="flex items-center space-x-3">
                         <div className="flex-shrink-0">
@@ -214,6 +225,18 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Document Viewer Modal */}
+      {documentToView && (
+        <DocumentViewer
+          document={documentToView}
+          isOpen={isViewerModalOpen}
+          onClose={() => {
+            setIsViewerModalOpen(false);
+            setDocumentToView(null);
+          }}
+        />
+      )}
     </div>
   );
 };
