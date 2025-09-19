@@ -9,13 +9,12 @@ import {
   Document,
   deleteDocument,
   updateDocument,
-  improveDocumentCategories,
   reprocessDocumentsWithNewAI,
 } from '../../services/documentService';
 import { DocumentViewer, DocumentViewerMobile } from '../viewer';
 import { formatFileSize, formatDate, formatDateWithFallback } from '../../utils/formatters';
 import { ReprocessModal } from '../ai';
-import { reprocessDocumentsEnhanced, checkAIServiceHealth, testDualAIProcessing, detailedAIDiagnostic } from '../../services/dualAIService';
+import { reprocessDocumentsEnhanced, checkAIServiceHealth } from '../../services/dualAIService';
 import { ContextMenu, ContextMenuItem, ContextMenuSection, ContextMenuSeparator } from '../ui/ContextMenu';
 import { useContextMenu } from '../../hooks/useContextMenu';
 
@@ -52,12 +51,6 @@ const DocumentList: React.FC<DocumentListProps> = ({
   const [reprocessTarget, setReprocessTarget] = useState<
     { type: 'all' | 'selected' | 'single'; document?: Document }
   | null>(null);
-  const [isImprovingCategories, setIsImprovingCategories] = useState(false);
-  const [categoryImprovementProgress, setCategoryImprovementProgress] = useState<{
-    processed: number;
-    total: number;
-    currentDoc?: string;
-  } | null>(null);
 
   // Context menu state
   const { contextMenu, closeContextMenu, handleContextMenu, handleLongPress } = useContextMenu();
@@ -93,12 +86,6 @@ const DocumentList: React.FC<DocumentListProps> = ({
       const docCategory = doc.category?.toLowerCase();
       const filterCategory = category.toLowerCase();
       
-      // Debug individual document filtering
-      console.log(`🔍 Filtering doc "${doc.name}":`, {
-        docCategory,
-        filterCategory,
-        matches: false // Will be set below
-      });
       
       // Handle special category mappings
       if (filterCategory === 'personal' && (!docCategory || docCategory === 'document')) {
@@ -221,17 +208,6 @@ const DocumentList: React.FC<DocumentListProps> = ({
   });
 
   // Debug logging to understand why no documents are showing
-  console.log('🔍 DocumentList Debug:', {
-    category,
-    totalDocuments: documents?.length || 0,
-    filteredDocuments: filteredDocuments?.length || 0,
-    searchTerm,
-    sampleDocuments: documents?.slice(0, 3).map(doc => ({
-      name: doc.name,
-      category: doc.category,
-      hasCategory: !!doc.category
-    }))
-  });
 
   // Removed debug logging to reduce console spam
 
@@ -460,252 +436,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
     await handleEnhancedReprocess('both');
   };
 
-  // Detailed AI diagnostic function
-  const runDetailedDiagnostic = async () => {
-    console.log('🔬 Starting detailed AI diagnostic...');
-    
-    try {
-      const results = await detailedAIDiagnostic();
-      console.log('🔬 Detailed Diagnostic Results:', results);
-      
-      // Check if results is an error response
-      if ('error' in results) {
-        alert(`❌ Diagnostic failed: ${results.error}\n\nRecommendations:\n${results.recommendations?.join('\n') || 'Check console for more details'}`);
-        return;
-      }
-      
-      // Generate detailed report
-      let report = '🔬 AI Service Diagnostic Report:\n\n';
-      
-      // Network Connectivity
-      report += `🌐 Network: ${results.networkConnectivity?.success ? '✅ OK' : '❌ Failed'}\n`;
-      if (results.networkConnectivity?.responseTime) {
-        report += `   Response Time: ${results.networkConnectivity.responseTime}ms\n`;
-      }
-      if (results.networkConnectivity?.message) {
-        report += `   ${results.networkConnectivity.message}\n`;
-      }
-      
-      // Firebase Functions
-      report += `\n🔥 Firebase Functions: ${results.firebaseFunctions?.success ? '✅ OK' : '❌ Failed'}\n`;
-      if (results.firebaseFunctions?.status) {
-        report += `   Status: ${results.firebaseFunctions.status} ${results.firebaseFunctions.statusText}\n`;
-      }
-      if (results.firebaseFunctions?.responseTime) {
-        report += `   Response Time: ${results.firebaseFunctions.responseTime}ms\n`;
-      }
-      if (results.firebaseFunctions?.message) {
-        report += `   ${results.firebaseFunctions.message}\n`;
-      }
-      if (results.firebaseFunctions?.errorText) {
-        report += `   Error: ${results.firebaseFunctions.errorText.substring(0, 200)}...\n`;
-      }
-      
-      // Hugging Face
-      report += `\n🤗 Hugging Face: ${results.huggingFace?.success ? '✅ OK' : '❌ Failed'}\n`;
-      if (results.huggingFace?.status) {
-        report += `   Status: ${results.huggingFace.status} ${results.huggingFace.statusText}\n`;
-      }
-      if (results.huggingFace?.responseTime) {
-        report += `   Response Time: ${results.huggingFace.responseTime}ms\n`;
-      }
-      if (results.huggingFace?.message) {
-        report += `   ${results.huggingFace.message}\n`;
-      }
-      if (results.huggingFace?.errorText) {
-        report += `   Error: ${results.huggingFace.errorText.substring(0, 200)}...\n`;
-      }
-      
-      // DeepSeek
-      report += `\n🧠 DeepSeek: ${results.deepSeek?.success ? '✅ OK' : '❌ Failed'}\n`;
-      if (results.deepSeek?.status) {
-        report += `   Status: ${results.deepSeek.status} ${results.deepSeek.statusText}\n`;
-      }
-      if (results.deepSeek?.responseTime) {
-        report += `   Response Time: ${results.deepSeek.responseTime}ms\n`;
-      }
-      if (results.deepSeek?.message) {
-        report += `   ${results.deepSeek.message}\n`;
-      }
-      if (results.deepSeek?.errorText) {
-        report += `   Error: ${results.deepSeek.errorText.substring(0, 200)}...\n`;
-      }
-      
-      // Batch Reprocessing
-      report += `\n📦 Batch Reprocessing: ${results.batchReprocessing?.success ? '✅ OK' : '❌ Failed'}\n`;
-      if (results.batchReprocessing?.status) {
-        report += `   Status: ${results.batchReprocessing.status} ${results.batchReprocessing.statusText}\n`;
-      }
-      if (results.batchReprocessing?.responseTime) {
-        report += `   Response Time: ${results.batchReprocessing.responseTime}ms\n`;
-      }
-      if (results.batchReprocessing?.message) {
-        report += `   ${results.batchReprocessing.message}\n`;
-      }
-      if (results.batchReprocessing?.errorText) {
-        report += `   Error: ${results.batchReprocessing.errorText.substring(0, 200)}...\n`;
-      }
-      
-      // Recommendations
-      if (results.recommendations && results.recommendations.length > 0) {
-        report += `\n💡 Recommendations:\n`;
-        results.recommendations.forEach((rec, index) => {
-          report += `${index + 1}. ${rec}\n`;
-        });
-      }
-      
-      alert(report);
-      
-    } catch (error) {
-      console.error('❌ Detailed diagnostic failed:', error);
-      alert(`❌ Diagnostic failed: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  };
 
-  // Comprehensive AI service testing function
-  const testAIServices = async () => {
-    console.log('🧪 Starting comprehensive AI service tests...');
-    
-    const testResults = {
-      healthCheck: null as any,
-      huggingFaceTest: null as any,
-      deepSeekTest: null as any,
-      dualAITest: null as any,
-      batchReprocessingTest: null as any
-    };
-
-    try {
-      // 1. Health Check
-      console.log('🔍 Testing AI service health...');
-      testResults.healthCheck = await checkAIServiceHealth();
-      console.log('Health check result:', testResults.healthCheck);
-
-      // 2. Test with a sample document if available
-      const sampleDocument = documents?.[0];
-      if (sampleDocument?.url) {
-        console.log('📄 Testing with sample document:', sampleDocument.name);
-        
-        // 3. Test Hugging Face AI
-        console.log('🤗 Testing Hugging Face AI...');
-        try {
-          testResults.huggingFaceTest = await testDualAIProcessing(sampleDocument.url);
-          console.log('Hugging Face test result:', testResults.huggingFaceTest);
-        } catch (error) {
-          console.error('Hugging Face test failed:', error);
-          testResults.huggingFaceTest = { success: false, error: error instanceof Error ? error.message : String(error) };
-        }
-
-        // 4. Test DeepSeek AI
-        console.log('🧠 Testing DeepSeek AI...');
-        try {
-          // Test DeepSeek specifically by calling the dual AI with deepseek mode
-          const response = await fetch(
-            'https://us-central1-gpt1-77ce0.cloudfunctions.net/classifyDocumentDualAIHttp',
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                documentUrl: sampleDocument.url,
-                mode: 'deepseek'
-              })
-            }
-          );
-          
-          if (response.ok) {
-            const result = await response.json();
-            testResults.deepSeekTest = { success: true, result };
-          } else {
-            testResults.deepSeekTest = { 
-              success: false, 
-              error: `HTTP ${response.status}: ${response.statusText}` 
-            };
-          }
-        } catch (error) {
-          console.error('DeepSeek test failed:', error);
-          testResults.deepSeekTest = { success: false, error: error instanceof Error ? error.message : String(error) };
-        }
-
-        // 5. Test Dual AI (both)
-        console.log('🔄 Testing Dual AI (both modes)...');
-        try {
-          testResults.dualAITest = await testDualAIProcessing(sampleDocument.url);
-          console.log('Dual AI test result:', testResults.dualAITest);
-        } catch (error) {
-          console.error('Dual AI test failed:', error);
-          testResults.dualAITest = { success: false, error: error instanceof Error ? error.message : String(error) };
-        }
-
-        // 6. Test Batch Reprocessing
-        console.log('📦 Testing batch reprocessing...');
-        try {
-          const batchResult = await reprocessDocumentsEnhanced([sampleDocument.url], 'both');
-          testResults.batchReprocessingTest = { success: true, result: batchResult };
-        } catch (error) {
-          console.error('Batch reprocessing test failed:', error);
-          testResults.batchReprocessingTest = { success: false, error: error instanceof Error ? error.message : String(error) };
-        }
-      } else {
-        console.warn('⚠️ No sample document available for testing');
-      }
-
-      // Generate comprehensive report
-      const report = generateAITestReport(testResults);
-      console.log('📊 AI Service Test Report:', report);
-      
-      // Show results to user
-      alert(`🧪 AI Service Test Results:\n\n${report}`);
-      
-    } catch (error) {
-      console.error('❌ AI testing failed:', error);
-      alert(`❌ AI testing failed: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  };
-
-  // Generate a comprehensive test report
-  const generateAITestReport = (results: any) => {
-    let report = '';
-    
-    // Health Check
-    report += `🏥 Health Check: ${results.healthCheck?.available ? '✅ Available' : '❌ Unavailable'}\n`;
-    if (results.healthCheck?.responseTime) {
-      report += `   Response Time: ${results.healthCheck.responseTime}ms\n`;
-    }
-    if (results.healthCheck?.error) {
-      report += `   Error: ${results.healthCheck.error}\n`;
-    }
-    
-    // Hugging Face
-    report += `\n🤗 Hugging Face AI: ${results.huggingFaceTest?.success ? '✅ Working' : '❌ Failed'}\n`;
-    if (results.huggingFaceTest?.processingTime) {
-      report += `   Processing Time: ${results.huggingFaceTest.processingTime}ms\n`;
-    }
-    if (results.huggingFaceTest?.error) {
-      report += `   Error: ${results.huggingFaceTest.error}\n`;
-    }
-    
-    // DeepSeek
-    report += `\n🧠 DeepSeek AI: ${results.deepSeekTest?.success ? '✅ Working' : '❌ Failed'}\n`;
-    if (results.deepSeekTest?.error) {
-      report += `   Error: ${results.deepSeekTest.error}\n`;
-    }
-    
-    // Dual AI
-    report += `\n🔄 Dual AI (Both): ${results.dualAITest?.success ? '✅ Working' : '❌ Failed'}\n`;
-    if (results.dualAITest?.processingTime) {
-      report += `   Processing Time: ${results.dualAITest.processingTime}ms\n`;
-    }
-    if (results.dualAITest?.error) {
-      report += `   Error: ${results.dualAITest.error}\n`;
-    }
-    
-    // Batch Reprocessing
-    report += `\n📦 Batch Reprocessing: ${results.batchReprocessingTest?.success ? '✅ Working' : '❌ Failed'}\n`;
-    if (results.batchReprocessingTest?.error) {
-      report += `   Error: ${results.batchReprocessingTest.error}\n`;
-    }
-    
-    return report;
-  };
 
   const handleEnhancedReprocess = async (
     mode: 'huggingface' | 'deepseek' | 'both'
@@ -740,41 +471,30 @@ const DocumentList: React.FC<DocumentListProps> = ({
         targetDescription = `${documents.length} documents`;
       }
 
-      console.log(
-        `🚀 Starting enhanced reprocessing with ${mode} for ${targetDescription}`
-      );
-      console.log('Document URLs:', documentUrls);
 
       if (documentUrls.length === 0) {
         throw new Error('No valid document URLs found for reprocessing');
       }
 
       // Check AI service health first
-      console.log('🔍 Checking AI service health...');
       const healthCheck = await checkAIServiceHealth();
       
       if (!healthCheck.available) {
         throw new Error(`AI service is currently unavailable: ${healthCheck.error || 'Unknown error'}`);
       }
-      
-      console.log(`✅ AI service is available (${healthCheck.responseTime}ms response time)`);
 
       // Try the enhanced reprocessing first
       let result;
       try {
         result = await reprocessDocumentsEnhanced(documentUrls, mode);
-        console.log('✅ Enhanced reprocessing completed:', result);
       } catch (enhancedError) {
-        console.warn('⚠️ Enhanced reprocessing failed, trying fallback:', enhancedError);
         
         // Fallback to the older reprocessing method
         const documentsToReprocess = documents.filter(doc => 
           documentUrls.includes(doc.url)
         );
         
-        console.log('🔄 Trying fallback reprocessing method...');
         result = await reprocessDocumentsWithNewAI(documentsToReprocess);
-        console.log('✅ Fallback reprocessing completed:', result);
       }
 
       // Refresh the document list
@@ -820,46 +540,6 @@ const DocumentList: React.FC<DocumentListProps> = ({
     }
   };
 
-  const handleImproveCategories = async () => {
-    if (!currentUser?.uid) return;
-
-    setIsImprovingCategories(true);
-    setCategoryImprovementProgress({ processed: 0, total: 0 });
-
-    try {
-      console.log('🔧 Starting category improvement for user:', currentUser.uid);
-
-      const result = await improveDocumentCategories(
-        currentUser.uid,
-        (processed, total, currentDoc) => {
-          setCategoryImprovementProgress({ processed, total, currentDoc });
-        }
-      );
-
-      console.log('✅ Category improvement completed:', result);
-
-      // Refresh the document list
-      refetch();
-
-      let message = `✅ Category & Tag Improvement Completed!\n`;
-      message += `• Documents processed: ${result.processed}\n`;
-      message += `• Documents improved: ${result.improved}\n`;
-      if (result.errors.length > 0) {
-        message += `• Errors: ${result.errors.length}\n`;
-      }
-      message += `\nYour documents now have better categories and useful tags for easier sorting and searching!`;
-
-      alert(message);
-    } catch (error) {
-      console.error('Error improving categories:', error);
-      alert(
-        `❌ Category improvement failed: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
-    } finally {
-      setIsImprovingCategories(false);
-      setCategoryImprovementProgress(null);
-    }
-  };
 
   // Get document icon based on file type
   const getDocumentIcon = (type: string) => {
@@ -1180,127 +860,6 @@ const DocumentList: React.FC<DocumentListProps> = ({
         </div>
       </div>
 
-      {/* AI Reprocessing and Category Improvement Buttons */}
-      {!isBatchMode && documents && documents.length > 0 && (
-        <div className="mb-6 space-y-4">
-          {/* AI Service Test Buttons */}
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div>
-              <button
-                onClick={testAIServices}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-2"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M9 12l2 2 4-4"></path>
-                  <path d="M21 12c-1 0-3-1-3-3s2-3 3-3 3 1 3 3-2 3-3 3"></path>
-                  <path d="M3 12c1 0 3-1 3-3s-2-3-3-3-3 1-3 3 2 3 3 3"></path>
-                  <path d="M13 12h3a2 2 0 0 1 2 2v1"></path>
-                  <path d="M13 12H9a2 2 0 0 0-2 2v1"></path>
-                  <path d="M13 12v-1a2 2 0 0 1 2-2h1"></path>
-                  <path d="M13 12v-1a2 2 0 0 0-2-2H9"></path>
-                </svg>
-                <span>Quick Test</span>
-              </button>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                Quick AI service availability check.
-              </p>
-            </div>
-
-            <div>
-              <button
-                onClick={runDetailedDiagnostic}
-                className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-2"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M9 12l2 2 4-4"></path>
-                  <path d="M21 12c-1 0-3-1-3-3s2-3 3-3 3 1 3 3-2 3-3 3"></path>
-                  <path d="M3 12c1 0 3-1 3-3s-2-3-3-3-3 1-3 3 2 3 3 3"></path>
-                  <path d="M13 12h3a2 2 0 0 1 2 2v1"></path>
-                  <path d="M13 12H9a2 2 0 0 0-2 2v1"></path>
-                  <path d="M13 12v-1a2 2 0 0 1 2-2h1"></path>
-                  <path d="M13 12v-1a2 2 0 0 0-2-2H9"></path>
-                </svg>
-                <span>Detailed Diagnostic</span>
-              </button>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                Comprehensive diagnostic with error details and recommendations.
-              </p>
-            </div>
-          </div>
-
-          {/* AI Reprocessing Button */}
-          <div>
-            <button
-              onClick={handleReprocessAllDocuments}
-              disabled={isReprocessing}
-              className="bg-purple-600 hover:bg-purple-700 disabled:bg-purple-300 dark:disabled:bg-purple-800 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors disabled:cursor-not-allowed flex items-center space-x-2"
-            >
-              {isReprocessing ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                  <span>Reprocessing with New AI...</span>
-                </>
-              ) : (
-                <>
-                  <span>🚀 Enhanced AI Reprocessing (Choose Your AI)</span>
-                </>
-              )}
-            </button>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              Choose between Hugging Face, DeepSeek, or compare both AIs for
-              optimal results.
-            </p>
-          </div>
-
-          {/* Category Improvement Button */}
-          <div>
-            <button
-              onClick={handleImproveCategories}
-              disabled={isImprovingCategories}
-              className="bg-green-600 hover:bg-green-700 disabled:bg-green-300 dark:disabled:bg-green-800 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors disabled:cursor-not-allowed flex items-center space-x-2"
-            >
-              {isImprovingCategories ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                  <span>
-                    Improving Categories... ({categoryImprovementProgress?.processed || 0}/{categoryImprovementProgress?.total || 0})
-                  </span>
-                </>
-              ) : (
-                <>
-                  <span>🔧 Improve Document Categories</span>
-                </>
-              )}
-            </button>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              Fix documents with generic categories like "Document" by analyzing their content and assigning proper categories like Finance, Legal, Medical, etc. Also adds useful tags for better organization and search.
-            </p>
-            {categoryImprovementProgress?.currentDoc && (
-              <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                Currently processing: {categoryImprovementProgress.currentDoc}
-              </p>
-            )}
-          </div>
-        </div>
-      )}
 
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
         {filteredDocuments.map((document, index) => {
