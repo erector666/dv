@@ -250,9 +250,55 @@ export const classifyDocument = async (
         source: 'huggingface' as const,
       };
 
+    // Generate useful tags based on document characteristics
+    const generateUsefulTags = (category: string, confidence: number, language: string, extractedDates: string[]): string[] => {
+      const tags: string[] = [];
+      
+      // Add language tag
+      if (language && language !== 'en') {
+        tags.push(`lang:${language}`);
+      }
+      
+      // Add confidence-based tags
+      if (confidence > 0.8) {
+        tags.push('high-confidence');
+      } else if (confidence < 0.6) {
+        tags.push('low-confidence');
+      }
+      
+      // Add category-based tags
+      const categoryLower = category.toLowerCase();
+      if (categoryLower.includes('finance') || categoryLower.includes('invoice') || categoryLower.includes('receipt')) {
+        tags.push('financial', 'statement');
+      }
+      if (categoryLower.includes('legal') || categoryLower.includes('contract')) {
+        tags.push('legal', 'contract');
+      }
+      if (categoryLower.includes('medical') || categoryLower.includes('health')) {
+        tags.push('medical', 'health');
+      }
+      if (categoryLower.includes('education') || categoryLower.includes('certificate')) {
+        tags.push('education', 'certificate');
+      }
+      
+      // Add time-based tags
+      const currentYear = new Date().getFullYear();
+      tags.push(currentYear.toString(), 'this-year');
+      
+      // Add processing tags
+      tags.push('processed', 'ai-enhanced');
+      
+      return tags;
+    };
+
     const classification: ClassificationResult = {
       category: best.category || 'personal',
-      tags: best.tags || ['document'],
+      tags: generateUsefulTags(
+        best.category || 'personal',
+        best.confidence || 0.6,
+        best.language || 'en',
+        best.extractedDates || []
+      ),
       summary: best.summary || 'Document processed successfully',
       language: best.language || 'en',
       confidence: typeof best.confidence === 'number' ? best.confidence : 0.6,

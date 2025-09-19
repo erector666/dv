@@ -670,7 +670,23 @@ export const uploadDocumentWithAI = async (
       userId,
       category: processedDocument.category || category, // Use AI-detected category
       tags: Array.from(
-        new Set([...(processedDocument.tags || []), ...(tags || []), processedDocument.language ? `lang:${processedDocument.language}` : ''])
+        new Set([
+          ...(processedDocument.tags || []), 
+          ...(tags || []), 
+          processedDocument.language ? `lang:${processedDocument.language}` : '',
+          // Add useful time-based tags
+          new Date().getFullYear().toString(),
+          'this-year',
+          // Add content-based tags based on processing results
+          processedDocument.metadata?.textExtraction?.wordCount > 500 ? 'text-heavy' : '',
+          document.type?.includes('image/') ? 'image-only' : '',
+          // Add confidence-based tags
+          classification?.confidence > 0.8 ? 'high-confidence' : '',
+          classification?.confidence < 0.6 ? 'low-confidence' : '',
+          // Add processing status tags
+          'processed',
+          'ai-enhanced'
+        ])
       ).filter(Boolean) as string[],
       uploadedAt: new Date(),
       lastModified: new Date(),
@@ -1477,23 +1493,57 @@ export const improveDocumentCategories = async (
           doc.type
         );
 
-        // Only update if we got a better category
-        if (improvedCategory !== doc.category && improvedCategory !== 'Personal') {
-          console.log(`🔄 Improving category for "${doc.name}": ${doc.category} → ${improvedCategory}`);
+        // Generate improved tags
+        const generateImprovedTags = (category: string, fileType: string, extractedText: string): string[] => {
+          const tags: string[] = [];
+          const currentYear = new Date().getFullYear().toString();
+          
+          // Add base tags
+          tags.push(currentYear, 'this-year', 'processed', 'improved');
+          
+          // Add category-based tags
+          const categoryLower = category.toLowerCase();
+          if (categoryLower.includes('finance')) tags.push('financial', 'statement');
+          if (categoryLower.includes('legal')) tags.push('legal', 'contract');
+          if (categoryLower.includes('medical')) tags.push('medical', 'health');
+          if (categoryLower.includes('education')) tags.push('education', 'certificate');
+          if (categoryLower.includes('travel')) tags.push('travel', 'important');
+          if (categoryLower.includes('insurance')) tags.push('insurance', 'important');
+          if (categoryLower.includes('tax')) tags.push('tax', 'important');
+          
+          // Add file type tags
+          if (fileType.includes('image/')) tags.push('image-only');
+          if (fileType.includes('pdf')) tags.push('pdf');
+          
+          // Add content-based tags
+          if (extractedText && extractedText.length > 500) tags.push('text-heavy');
+          if (extractedText && extractedText.length < 100) tags.push('scanned');
+          
+          return tags;
+        };
+
+        const improvedTags = generateImprovedTags(improvedCategory, doc.type, extractedText);
+
+        // Only update if we got a better category or better tags
+        if (improvedCategory !== doc.category || improvedTags.length > (doc.tags?.length || 0)) {
+          console.log(`🔄 Improving category and tags for "${doc.name}": ${doc.category} → ${improvedCategory}`);
           
           // Update the document in Firestore
           if (doc.firestoreId) {
             await updateDocument(doc.firestoreId, {
               category: improvedCategory,
+              tags: improvedTags,
               metadata: {
                 ...doc.metadata,
                 categoryImprovedAt: new Date().toISOString(),
                 originalCategory: doc.category,
                 improvedCategory: improvedCategory,
+                originalTags: doc.tags,
+                improvedTags: improvedTags,
               },
             });
             result.improved++;
-            console.log(`✅ Updated category for "${doc.name}" to: ${improvedCategory}`);
+            console.log(`✅ Updated category and tags for "${doc.name}" to: ${improvedCategory}`);
           } else {
             console.warn(`⚠️ Document "${doc.name}" missing Firestore ID, skipping update`);
           }

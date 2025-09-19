@@ -376,13 +376,13 @@ const DocumentList: React.FC<DocumentListProps> = ({
       // Refresh the document list
       refetch();
 
-      let message = `✅ Category Improvement Completed!\n`;
+      let message = `✅ Category & Tag Improvement Completed!\n`;
       message += `• Documents processed: ${result.processed}\n`;
-      message += `• Categories improved: ${result.improved}\n`;
+      message += `• Documents improved: ${result.improved}\n`;
       if (result.errors.length > 0) {
         message += `• Errors: ${result.errors.length}\n`;
       }
-      message += `\nYour documents now have better categorization for easier sorting!`;
+      message += `\nYour documents now have better categories and useful tags for easier sorting and searching!`;
 
       alert(message);
     } catch (error) {
@@ -691,7 +691,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
               )}
             </button>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              Fix documents with generic categories like "Document" by analyzing their content and assigning proper categories like Finance, Legal, Medical, etc.
+              Fix documents with generic categories like "Document" by analyzing their content and assigning proper categories like Finance, Legal, Medical, etc. Also adds useful tags for better organization and search.
             </p>
             {categoryImprovementProgress?.currentDoc && (
               <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">

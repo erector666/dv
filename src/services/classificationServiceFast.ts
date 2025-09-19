@@ -114,40 +114,44 @@ function classifyByHeuristics(document: Document): {
   const name = document.name.toLowerCase();
   const type = document.type.toLowerCase();
   
+  const currentYear = new Date().getFullYear().toString();
+  const baseTags = [currentYear, 'this-year', 'processed'];
+  
   // Document type detection
   if (type.includes('pdf') || name.endsWith('.pdf')) {
     if (name.includes('invoice') || name.includes('bill')) {
-      return { category: 'financial', tags: ['invoice', 'pdf'] };
+      return { category: 'Finance', tags: [...baseTags, 'financial', 'statement', 'invoice', 'pdf'] };
     }
     if (name.includes('contract') || name.includes('agreement')) {
-      return { category: 'legal', tags: ['contract', 'pdf'] };
+      return { category: 'Legal', tags: [...baseTags, 'legal', 'contract', 'pdf'] };
     }
     if (name.includes('report')) {
-      return { category: 'reports', tags: ['report', 'pdf'] };
+      return { category: 'Reports', tags: [...baseTags, 'report', 'pdf', 'text-heavy'] };
     }
     if (name.includes('certificate') || name.includes('diploma')) {
-      return { category: 'education', tags: ['certificate', 'pdf'] };
+      return { category: 'Education', tags: [...baseTags, 'education', 'certificate', 'pdf'] };
     }
+    return { category: 'Documents', tags: [...baseTags, 'pdf', 'document'] };
   }
   
   // Image detection
   if (type.includes('image')) {
     if (name.includes('receipt')) {
-      return { category: 'financial', tags: ['receipt', 'image'] };
+      return { category: 'Finance', tags: [...baseTags, 'financial', 'receipt', 'image-only'] };
     }
     if (name.includes('id') || name.includes('passport')) {
-      return { category: 'personal', tags: ['identification', 'image'] };
+      return { category: 'Personal', tags: [...baseTags, 'identification', 'image-only', 'important'] };
     }
-    return { category: 'images', tags: ['image'] };
+    return { category: 'Photos', tags: [...baseTags, 'image-only', 'photos'] };
   }
   
   // Text documents
   if (type.includes('text') || name.includes('.txt')) {
-    return { category: 'documents', tags: ['text'] };
+    return { category: 'Documents', tags: [...baseTags, 'text-heavy', 'digital-native'] };
   }
   
   // Default
-  return { category: 'uncategorized', tags: ['document'] };
+  return { category: 'Personal', tags: [...baseTags, 'document'] };
 }
 
 /**
