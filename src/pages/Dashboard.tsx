@@ -58,7 +58,12 @@ const Dashboard: React.FC = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* Recent Uploads Section */}
-        <div className="col-span-full bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
+        <div className="col-span-full relative overflow-hidden rounded-2xl mb-6">
+          {/* Glassmorphism background */}
+          <div className="absolute inset-0 bg-gradient-to-br from-white/80 to-white/60 dark:from-gray-800/80 dark:to-gray-900/60 backdrop-blur-xl border border-white/20 dark:border-gray-700/30 rounded-2xl" />
+          
+          {/* Content */}
+          <div className="relative p-6">
           <h2 className="text-xl font-semibold mb-4">
             {translate('recentUploads')}
           </h2>
@@ -93,27 +98,36 @@ const Dashboard: React.FC = () => {
                   return (
                     <div
                       key={docKey}
-                      className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600 hover:border-primary-300 dark:hover:border-primary-600 transition-colors cursor-pointer"
+                      className="relative group cursor-pointer overflow-hidden rounded-xl transform-gpu transition-all duration-300 hover:scale-[1.02]"
                       onClick={() => handleDocumentClick(doc)}
                     >
-                      <div className="flex items-center space-x-3">
-                        <div className="flex-shrink-0">
-                          <div className="w-10 h-10 bg-primary-100 dark:bg-primary-900 rounded-lg flex items-center justify-center">
-                            <span className="text-primary-600 dark:text-primary-400 text-lg">
-                              📄
-                            </span>
+                      {/* Glassmorphism background */}
+                      <div className="absolute inset-0 bg-gradient-to-br from-white/60 to-gray-50/80 dark:from-gray-800/60 dark:to-gray-900/80 backdrop-blur-sm border border-gray-200/50 dark:border-gray-700/50 rounded-xl" />
+                      
+                      {/* Hover gradient overlay */}
+                      <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" />
+                      
+                      {/* Content */}
+                      <div className="relative p-4">
+                        <div className="flex items-center space-x-3">
+                          <div className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200">
+                            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center shadow-md group-hover:shadow-lg transition-all duration-200">
+                              <span className="text-white text-lg drop-shadow-sm">
+                                📄
+                              </span>
+                            </div>
                           </div>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                            {doc.name}
-                          </p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">
-                            {formatFileSize(doc.size)}
-                          </p>
-                          <p className="text-xs text-gray-400 dark:text-gray-500">
-                            {formatDate(doc.uploadedAt)}
-                          </p>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-gray-900 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-200">
+                              {doc.name}
+                            </p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors duration-200">
+                              {formatFileSize(doc.size)}
+                            </p>
+                            <p className="text-xs text-gray-400 dark:text-gray-500">
+                              {formatDate(doc.uploadedAt)}
+                            </p>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -143,6 +157,7 @@ const Dashboard: React.FC = () => {
                 </div>
               </div>
             )}
+          </div>
           </div>
         </div>
 
@@ -193,26 +208,48 @@ const Dashboard: React.FC = () => {
                 <div
                   key={`category-${categoryKey}`}
                   onClick={() => handleCategoryClick(categoryKey)}
-                  className="bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 border border-gray-100 dark:border-gray-700 cursor-pointer group"
+                  className="relative overflow-hidden rounded-2xl cursor-pointer group transform-gpu"
                 >
-                  <div className="p-6 flex flex-col items-center justify-center h-40">
-                    <div
-                      className={`w-16 h-16 rounded-full bg-gradient-to-br ${color} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-200`}
-                    >
-                      <IconComponent className="w-8 h-8 text-gray-600 dark:text-gray-400" />
+                  {/* Glassmorphism background with subtle gradient */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-white/80 to-white/40 dark:from-gray-800/80 dark:to-gray-900/40 backdrop-blur-xl border border-white/20 dark:border-gray-700/30 rounded-2xl" />
+                  
+                  {/* Animated gradient overlay */}
+                  <div className={`absolute inset-0 bg-gradient-to-br ${color} opacity-0 group-hover:opacity-20 transition-all duration-500 rounded-2xl`} />
+                  
+                  {/* Floating glow effect */}
+                  <div className="absolute inset-0 rounded-2xl shadow-lg group-hover:shadow-2xl group-hover:shadow-blue-500/20 dark:group-hover:shadow-blue-500/10 transition-all duration-300" />
+                  
+                  {/* Content */}
+                  <div className="relative p-6 flex flex-col items-center justify-center h-40 group-hover:scale-[1.02] transition-transform duration-300">
+                    {/* Icon with enhanced styling */}
+                    <div className="relative mb-4 group-hover:scale-110 transition-transform duration-300">
+                      <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${color} flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300`}>
+                        <IconComponent className="w-8 h-8 text-white drop-shadow-sm" />
+                      </div>
+                      {/* Subtle glow behind icon */}
+                      <div className={`absolute inset-0 w-16 h-16 rounded-2xl bg-gradient-to-br ${color} blur-xl opacity-30 group-hover:opacity-50 transition-opacity duration-300 -z-10`} />
                     </div>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                    
+                    {/* Category name with gradient text */}
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2 group-hover:bg-gradient-to-r group-hover:from-blue-600 group-hover:to-purple-600 group-hover:bg-clip-text group-hover:text-transparent transition-all duration-300">
                       {categoryName}
                     </h3>
-                    <div className="text-3xl font-bold text-primary-600 dark:text-primary-400">
+                    
+                    {/* Count with enhanced styling */}
+                    <div className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent group-hover:from-purple-600 group-hover:to-pink-600 transition-all duration-300">
                       {getCategoryCount(categoryKey)}
                     </div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    
+                    {/* Label */}
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors duration-300">
                       {getCategoryCount(categoryKey) === 1
                         ? translate('document')
                         : translate('documents')}
                     </p>
                   </div>
+                  
+                  {/* Subtle border animation */}
+                  <div className="absolute inset-0 rounded-2xl border-2 border-transparent group-hover:border-gradient-to-r group-hover:from-blue-500/50 group-hover:to-purple-500/50 transition-all duration-300" />
                 </div>
               );
             })}

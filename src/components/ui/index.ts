@@ -8,6 +8,10 @@ export {
   CardTitle,
   CardDescription,
   CardContent,
+  TiltCard,
+  StatsCard,
+  FeatureCard,
+  TestimonialCard,
 } from './Card';
 
 // Re-export Lucide Icons for convenience
