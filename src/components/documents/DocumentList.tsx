@@ -278,13 +278,13 @@ const DocumentList: React.FC<DocumentListProps> = ({
   const handleDownloadDocument = (document: Document) => {
     closeContextMenu();
     // Create a temporary link to download the document
-    const link = document.createElement('a');
+    const link = window.document.createElement('a');
     link.href = document.url;
     link.download = document.name;
     link.target = '_blank';
-    document.body.appendChild(link);
+    window.document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
+    window.document.body.removeChild(link);
   };
 
   // Handle document delete
