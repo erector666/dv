@@ -240,7 +240,7 @@ export const classifyDocument = async (
         (a, b) => (b.confidence || 0) - (a.confidence || 0)
       )[0] ||
       candidates[0] || {
-        category: 'document',
+        category: 'personal',
         confidence: 0.5,
         tags: ['document'],
         language: 'en',
@@ -251,7 +251,7 @@ export const classifyDocument = async (
       };
 
     const classification: ClassificationResult = {
-      category: best.category || 'document',
+      category: best.category || 'personal',
       tags: best.tags || ['document'],
       summary: best.summary || 'Document processed successfully',
       language: best.language || 'en',
@@ -262,7 +262,7 @@ export const classifyDocument = async (
       suggestedName: best.suggestedName || 'Document',
       classificationDetails: {
         categories: [
-          { name: best.category || 'document', confidence: best.confidence || 0 },
+          { name: best.category || 'personal', confidence: best.confidence || 0 },
         ],
         entities: [],
         sentiment: { score: 0, magnitude: 0, sentences: [] },
@@ -664,8 +664,14 @@ export const processDocument = async (
       textExtraction.text || ''
     ).catch(error => {
       console.warn('⚠️ Document classification failed:', error);
+      // Try to determine category from filename and content as fallback
+      const fallbackCategory = normalizeCategory(
+        undefined,
+        textExtraction.text || '',
+        document.name
+      );
       return {
-        category: 'personal',
+        category: fallbackCategory,
         confidence: 0.5,
         tags: ['document'],
         language: finalLanguage,
@@ -675,7 +681,7 @@ export const processDocument = async (
         extractedDates: [],
         suggestedName: 'Document',
         classificationDetails: {
-          categories: [{ name: 'personal', confidence: 0.5 }],
+          categories: [{ name: fallbackCategory, confidence: 0.5 }],
           entities: [],
           sentiment: { score: 0, magnitude: 0, sentences: [] },
         },
@@ -702,50 +708,93 @@ export const processDocument = async (
       };
     });
 
+    // Enhanced category normalization with better fallbacks
+    const normalizeCategory = (
+      rawCategory: string | undefined,
+      text: string,
+      fileName?: string
+    ): string => {
+      const t = (text || '').toLowerCase();
+      const f = (fileName || '').toLowerCase();
+      const c = (rawCategory || '').toLowerCase();
+
+      // Enhanced keyword-based categorization
+      if (/invoice|receipt|vat|amount due|facture|reçu|total\s*\$|total\s*€|payment|bill|statement/.test(t)) {
+        return 'Finance';
+      }
+      if (/contract|agreement|terms|signature|law|attorney|legal|clause|settlement|court/.test(t)) {
+        return 'Legal';
+      }
+      if (/hospital|clinic|doctor|prescription|diagnosis|medical|healthcare|medication|health|patient/.test(t)) {
+        return 'Medical';
+      }
+      if (/certificate|certificat|attestation|diploma|universit[eé]|school|course|degree|transcript|graduation/.test(t)) {
+        return 'Education';
+      }
+      if (/passport|visa|boarding pass|itinerary|booking|hotel|flight|travel|trip/.test(t)) {
+        return 'Travel';
+      }
+      if (/insurance|policy|claim|premium|coverage|auto|car|home|life/.test(t)) {
+        return 'Insurance';
+      }
+      if (/tax|irs|income|deduction|return|w2|1099|filing/.test(t)) {
+        return 'Tax';
+      }
+      if (/bank|account|statement|balance|transaction|credit|debit|loan/.test(t)) {
+        return 'Banking';
+      }
+      if (/employment|job|work|resume|cv|application|interview|salary|payroll/.test(t)) {
+        return 'Employment';
+      }
+      if (/utility|electric|water|gas|phone|cable|internet|service/.test(t)) {
+        return 'Utilities';
+      }
+      if (/real estate|property|lease|rent|mortgage|deed|title|house|apartment/.test(t)) {
+        return 'Real Estate';
+      }
+      if (/warranty|manual|instruction|guide|technical|specification/.test(t)) {
+        return 'Technical';
+      }
+      if (/photo|image|picture|scan|screenshot|screenshot/.test(f) || /jpg|jpeg|png|gif|bmp|tiff/.test(f)) {
+        return 'Photos';
+      }
+
+      // Language-specific document detection
+      if (/уверение|certificate|attestation/i.test(t) || /mk_|macedonian|македонски/i.test(f)) {
+        return 'Certificates';
+      }
+      if (/français|francais|french|fr_/i.test(t) || /fr_|francais|français/i.test(f)) {
+        return 'French Documents';
+      }
+
+      // If AI already proposed a meaningful category, keep it (but capitalize properly)
+      if (c && !['document', 'personal', 'unknown', 'other', 'misc', 'miscellaneous'].includes(c)) {
+        return c.charAt(0).toUpperCase() + c.slice(1);
+      }
+
+      // Enhanced fallback based on file type and content
+      if (document.type?.includes('image/')) {
+        return 'Photos';
+      }
+      if (document.type?.includes('pdf') && t.length < 100) {
+        return 'Scanned Documents';
+      }
+      if (t.length > 500) {
+        return 'Text Documents';
+      }
+
+      // Default fallback - use "Personal" instead of generic "document"
+      return 'Personal';
+    };
+
     console.log(
       '✅ SEQUENTIAL AI processing completed! All 4 steps done in optimized order.'
     );
 
-    // Normalize category based on extracted text keywords (post-processing boost)
-    const normalizeCategory = (
-      rawCategory: string | undefined,
-      text: string
-    ): string => {
-      const t = (text || '').toLowerCase();
-      const c = (rawCategory || '').toLowerCase();
-
-      // Strong keyword-based buckets
-      if (/invoice|receipt|vat|amount due|facture|reçu|total\s*\$|total\s*€/.test(t)) {
-        return 'finance';
-      }
-      if (/contract|agreement|terms|signature|law|attorney|legal|clause/.test(t)) {
-        return 'legal';
-      }
-      if (/hospital|clinic|doctor|prescription|diagnosis|medical|healthcare|medication/.test(t)) {
-        return 'medical';
-      }
-      if (/certificate|certificat|attestation|diploma|universit[eé]|school|course/.test(t)) {
-        return 'certificate';
-      }
-      if (/passport|visa|boarding pass|itinerary|booking|hotel/.test(t)) {
-        return 'travel';
-      }
-      if (/insurance|policy|claim|premium|coverage/.test(t)) {
-        return 'insurance';
-      }
-
-      // If AI already proposed a meaningful category, keep it
-      if (c && !['document', 'personal', 'unknown', 'other'].includes(c)) {
-        return c;
-      }
-
-      // Fallback
-      return 'document';
-    };
-
     const normalizedCategory = normalizeCategory(
       classification.category,
-      textExtraction.text || ''
+      textExtraction.text || '',
+      document.name
     );
 
     // FALLBACK NAMING: Generate suggested name from extracted text if classification failed

@@ -1339,3 +1339,187 @@ export const cleanupAllOrphanedTempFiles = async (): Promise<{
 
   return result;
 };
+
+/**
+ * Improve categorization for existing documents with poor categories
+ * This function reprocesses documents that have generic categories like "document" or "personal"
+ */
+export const improveDocumentCategories = async (
+  userId: string,
+  onProgress?: (processed: number, total: number, currentDoc?: string) => void
+): Promise<{
+  processed: number;
+  improved: number;
+  errors: string[];
+}> => {
+  const result = {
+    processed: 0,
+    improved: 0,
+    errors: [] as string[],
+  };
+
+  try {
+    console.log('🔧 Starting category improvement for user:', userId);
+
+    // Get all documents for the user
+    const documents = await getUserDocuments(userId);
+    console.log(`📄 Found ${documents.length} documents to check`);
+
+    // Enhanced category normalization function (same as in classificationService)
+    const normalizeCategory = (
+      rawCategory: string | undefined,
+      text: string,
+      fileName?: string,
+      fileType?: string
+    ): string => {
+      const t = (text || '').toLowerCase();
+      const f = (fileName || '').toLowerCase();
+      const c = (rawCategory || '').toLowerCase();
+
+      // Enhanced keyword-based categorization
+      if (/invoice|receipt|vat|amount due|facture|reçu|total\s*\$|total\s*€|payment|bill|statement/.test(t)) {
+        return 'Finance';
+      }
+      if (/contract|agreement|terms|signature|law|attorney|legal|clause|settlement|court/.test(t)) {
+        return 'Legal';
+      }
+      if (/hospital|clinic|doctor|prescription|diagnosis|medical|healthcare|medication|health|patient/.test(t)) {
+        return 'Medical';
+      }
+      if (/certificate|certificat|attestation|diploma|universit[eé]|school|course|degree|transcript|graduation/.test(t)) {
+        return 'Education';
+      }
+      if (/passport|visa|boarding pass|itinerary|booking|hotel|flight|travel|trip/.test(t)) {
+        return 'Travel';
+      }
+      if (/insurance|policy|claim|premium|coverage|auto|car|home|life/.test(t)) {
+        return 'Insurance';
+      }
+      if (/tax|irs|income|deduction|return|w2|1099|filing/.test(t)) {
+        return 'Tax';
+      }
+      if (/bank|account|statement|balance|transaction|credit|debit|loan/.test(t)) {
+        return 'Banking';
+      }
+      if (/employment|job|work|resume|cv|application|interview|salary|payroll/.test(t)) {
+        return 'Employment';
+      }
+      if (/utility|electric|water|gas|phone|cable|internet|service/.test(t)) {
+        return 'Utilities';
+      }
+      if (/real estate|property|lease|rent|mortgage|deed|title|house|apartment/.test(t)) {
+        return 'Real Estate';
+      }
+      if (/warranty|manual|instruction|guide|technical|specification/.test(t)) {
+        return 'Technical';
+      }
+      if (/photo|image|picture|scan|screenshot|screenshot/.test(f) || /jpg|jpeg|png|gif|bmp|tiff/.test(f)) {
+        return 'Photos';
+      }
+
+      // Language-specific document detection
+      if (/уверение|certificate|attestation/i.test(t) || /mk_|macedonian|македонски/i.test(f)) {
+        return 'Certificates';
+      }
+      if (/français|francais|french|fr_/i.test(t) || /fr_|francais|français/i.test(f)) {
+        return 'French Documents';
+      }
+
+      // If AI already proposed a meaningful category, keep it (but capitalize properly)
+      if (c && !['document', 'personal', 'unknown', 'other', 'misc', 'miscellaneous'].includes(c)) {
+        return c.charAt(0).toUpperCase() + c.slice(1);
+      }
+
+      // Enhanced fallback based on file type and content
+      if (fileType?.includes('image/')) {
+        return 'Photos';
+      }
+      if (fileType?.includes('pdf') && t.length < 100) {
+        return 'Scanned Documents';
+      }
+      if (t.length > 500) {
+        return 'Text Documents';
+      }
+
+      // Default fallback - use "Personal" instead of generic "document"
+      return 'Personal';
+    };
+
+    // Process each document
+    for (const doc of documents) {
+      try {
+        result.processed++;
+        onProgress?.(result.processed, documents.length, doc.name);
+
+        const currentCategory = doc.category?.toLowerCase() || '';
+        
+        // Check if document needs category improvement
+        const needsImprovement = 
+          !doc.category || 
+          ['document', 'personal', 'unknown', 'other', 'misc', 'miscellaneous'].includes(currentCategory) ||
+          currentCategory === '';
+
+        if (!needsImprovement) {
+          console.log(`✅ Document "${doc.name}" already has good category: ${doc.category}`);
+          continue;
+        }
+
+        // Extract text from metadata if available
+        const extractedText = doc.metadata?.textExtraction?.extractedText || 
+                             doc.metadata?.summary || 
+                             '';
+
+        // Apply improved categorization
+        const improvedCategory = normalizeCategory(
+          doc.category,
+          extractedText,
+          doc.name,
+          doc.type
+        );
+
+        // Only update if we got a better category
+        if (improvedCategory !== doc.category && improvedCategory !== 'Personal') {
+          console.log(`🔄 Improving category for "${doc.name}": ${doc.category} → ${improvedCategory}`);
+          
+          // Update the document in Firestore
+          if (doc.firestoreId) {
+            await updateDocument(doc.firestoreId, {
+              category: improvedCategory,
+              metadata: {
+                ...doc.metadata,
+                categoryImprovedAt: new Date().toISOString(),
+                originalCategory: doc.category,
+                improvedCategory: improvedCategory,
+              },
+            });
+            result.improved++;
+            console.log(`✅ Updated category for "${doc.name}" to: ${improvedCategory}`);
+          } else {
+            console.warn(`⚠️ Document "${doc.name}" missing Firestore ID, skipping update`);
+          }
+        } else {
+          console.log(`ℹ️ No improvement needed for "${doc.name}" (category: ${improvedCategory})`);
+        }
+
+        // Small delay to avoid overwhelming the database
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+      } catch (error: any) {
+        const errorMsg = `Failed to improve category for "${doc.name}": ${error.message}`;
+        result.errors.push(errorMsg);
+        console.error(`❌ ${errorMsg}`);
+      }
+    }
+
+    console.log(
+      `🎉 Category improvement completed: ${result.improved}/${result.processed} documents improved, ${result.errors.length} errors`
+    );
+
+  } catch (error: any) {
+    const errorMsg = `Category improvement failed: ${error.message}`;
+    result.errors.push(errorMsg);
+    console.error(`❌ ${errorMsg}`);
+  }
+
+  return result;
+};

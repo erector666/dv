@@ -9,6 +9,7 @@ import {
   Document,
   deleteDocument,
   updateDocument,
+  improveDocumentCategories,
 } from '../../services/documentService';
 import { DocumentViewer } from '../viewer';
 import { formatFileSize, formatDate, formatDateWithFallback } from '../../utils/formatters';
@@ -48,6 +49,12 @@ const DocumentList: React.FC<DocumentListProps> = ({
   const [reprocessTarget, setReprocessTarget] = useState<
     { type: 'all' | 'selected' | 'single'; document?: Document }
   | null>(null);
+  const [isImprovingCategories, setIsImprovingCategories] = useState(false);
+  const [categoryImprovementProgress, setCategoryImprovementProgress] = useState<{
+    processed: number;
+    total: number;
+    currentDoc?: string;
+  } | null>(null);
 
   // Fetch documents using React Query
   const {
@@ -348,6 +355,47 @@ const DocumentList: React.FC<DocumentListProps> = ({
     }
   };
 
+  const handleImproveCategories = async () => {
+    if (!currentUser?.uid) return;
+
+    setIsImprovingCategories(true);
+    setCategoryImprovementProgress({ processed: 0, total: 0 });
+
+    try {
+      console.log('🔧 Starting category improvement for user:', currentUser.uid);
+
+      const result = await improveDocumentCategories(
+        currentUser.uid,
+        (processed, total, currentDoc) => {
+          setCategoryImprovementProgress({ processed, total, currentDoc });
+        }
+      );
+
+      console.log('✅ Category improvement completed:', result);
+
+      // Refresh the document list
+      refetch();
+
+      let message = `✅ Category Improvement Completed!\n`;
+      message += `• Documents processed: ${result.processed}\n`;
+      message += `• Categories improved: ${result.improved}\n`;
+      if (result.errors.length > 0) {
+        message += `• Errors: ${result.errors.length}\n`;
+      }
+      message += `\nYour documents now have better categorization for easier sorting!`;
+
+      alert(message);
+    } catch (error) {
+      console.error('Error improving categories:', error);
+      alert(
+        `❌ Category improvement failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    } finally {
+      setIsImprovingCategories(false);
+      setCategoryImprovementProgress(null);
+    }
+  };
+
   // Get document icon based on file type
   const getDocumentIcon = (type: string) => {
     if (type.startsWith('image/')) {
@@ -595,29 +643,62 @@ const DocumentList: React.FC<DocumentListProps> = ({
         </div>
       </div>
 
-      {/* AI Reprocessing Button */}
+      {/* AI Reprocessing and Category Improvement Buttons */}
       {!isBatchMode && documents && documents.length > 0 && (
-        <div className="mb-6">
-          <button
-            onClick={handleReprocessAllDocuments}
-            disabled={isReprocessing}
-            className="bg-purple-600 hover:bg-purple-700 disabled:bg-purple-300 dark:disabled:bg-purple-800 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors disabled:cursor-not-allowed flex items-center space-x-2"
-          >
-            {isReprocessing ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                <span>Reprocessing with New AI...</span>
-              </>
-            ) : (
-              <>
-                <span>🚀 Enhanced AI Reprocessing (Choose Your AI)</span>
-              </>
+        <div className="mb-6 space-y-4">
+          {/* AI Reprocessing Button */}
+          <div>
+            <button
+              onClick={handleReprocessAllDocuments}
+              disabled={isReprocessing}
+              className="bg-purple-600 hover:bg-purple-700 disabled:bg-purple-300 dark:disabled:bg-purple-800 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors disabled:cursor-not-allowed flex items-center space-x-2"
+            >
+              {isReprocessing ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                  <span>Reprocessing with New AI...</span>
+                </>
+              ) : (
+                <>
+                  <span>🚀 Enhanced AI Reprocessing (Choose Your AI)</span>
+                </>
+              )}
+            </button>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              Choose between Hugging Face, DeepSeek, or compare both AIs for
+              optimal results.
+            </p>
+          </div>
+
+          {/* Category Improvement Button */}
+          <div>
+            <button
+              onClick={handleImproveCategories}
+              disabled={isImprovingCategories}
+              className="bg-green-600 hover:bg-green-700 disabled:bg-green-300 dark:disabled:bg-green-800 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors disabled:cursor-not-allowed flex items-center space-x-2"
+            >
+              {isImprovingCategories ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                  <span>
+                    Improving Categories... ({categoryImprovementProgress?.processed || 0}/{categoryImprovementProgress?.total || 0})
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span>🔧 Improve Document Categories</span>
+                </>
+              )}
+            </button>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              Fix documents with generic categories like "Document" by analyzing their content and assigning proper categories like Finance, Legal, Medical, etc.
+            </p>
+            {categoryImprovementProgress?.currentDoc && (
+              <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                Currently processing: {categoryImprovementProgress.currentDoc}
+              </p>
             )}
-          </button>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            Choose between Hugging Face, DeepSeek, or compare both AIs for
-            optimal results.
-          </p>
+          </div>
         </div>
       )}
 
