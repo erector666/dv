@@ -160,30 +160,74 @@ function classifyByHeuristics(document: Document): {
 function detectLanguageByHeuristics(filename: string): string {
   const name = filename.toLowerCase();
   
-  // Check for language indicators in filename
-  if (name.includes('mk') || name.includes('macedon') || name.includes('мк')) {
+  // Check for explicit language indicators in filename
+  if (name.includes('mk_') || name.includes('macedon') || name.includes('мк')) {
     return 'mk';
   }
-  if (name.includes('fr') || name.includes('french') || name.includes('français')) {
+  if (name.includes('fr_') || name.includes('french') || name.includes('français') || name.includes('francais')) {
     return 'fr';
   }
-  if (name.includes('en') || name.includes('english')) {
+  if (name.includes('en_') || name.includes('english')) {
     return 'en';
   }
-  if (name.includes('ru') || name.includes('russian') || name.includes('русск')) {
+  if (name.includes('sr_') || name.includes('serbian') || name.includes('ср')) {
+    return 'sr';
+  }
+  if (name.includes('ru_') || name.includes('russian') || name.includes('русск')) {
     return 'ru';
   }
   
-  // Check for Cyrillic characters
-  if (/[а-яА-Я]/.test(filename)) {
-    return 'mk'; // Assume Macedonian for Cyrillic
+  // Check for French-specific words and patterns
+  if (name.includes('madame') || name.includes('monsieur') || name.includes('ville de') || 
+      name.includes('lausanne') || name.includes('geneva') || name.includes('paris') ||
+      name.includes('bar') || name.includes('restaurant') || name.includes('hotel')) {
+    return 'fr';
   }
   
-  // Check for French characters
+  // Check for English business/establishment names
+  if (name.includes('kings') || name.includes('bar') || name.includes('restaurant') || 
+      name.includes('hotel') || name.includes('cafe') || name.includes('shop') ||
+      name.includes('store') || name.includes('company') || name.includes('ltd') ||
+      name.includes('inc') || name.includes('corp')) {
+    return 'en';
+  }
+  
+  // Check for Cyrillic characters (be more specific)
+  if (/[а-яА-Я]/.test(filename)) {
+    // Check for Serbian-specific Cyrillic patterns
+    if (/[ђжћш]/i.test(filename)) {
+      return 'sr';
+    }
+    // Check for Macedonian-specific patterns
+    if (/[ќѓ]/i.test(filename)) {
+      return 'mk';
+    }
+    // Default to Serbian for general Cyrillic (more common in your documents)
+    return 'sr';
+  }
+  
+  // Check for French accented characters
   if (/[àâäçéèêëïîôùûüÿ]/i.test(filename)) {
     return 'fr';
   }
   
-  // Default to English
+  // Check for common French words in document names
+  if (name.includes('attestation') || name.includes('certificat') || name.includes('diplome') ||
+      name.includes('contrat') || name.includes('facture') || name.includes('reçu')) {
+    return 'fr';
+  }
+  
+  // Check for common English words in document names
+  if (name.includes('certificate') || name.includes('diploma') || name.includes('contract') ||
+      name.includes('invoice') || name.includes('receipt') || name.includes('statement')) {
+    return 'en';
+  }
+  
+  // Default to English for business documents with Latin script
+  if (/^[a-zA-Z0-9\s\-_.]+$/.test(filename)) {
+    return 'en';
+  }
+  
+  // Final fallback
   return 'en';
 }
