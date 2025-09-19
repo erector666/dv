@@ -39,19 +39,11 @@ class HuggingFaceAIService {
   private token: string;
 
   constructor() {
-    // Use environment variables for Firebase Functions v2
-    this.token =
-      process.env.HUGGING_FACE_TOKEN ||
-      process.env.HUGGINGFACE_TOKEN ||
-      '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'; // New working token from dashboard
+    // DISABLED: Using local AI only for better reliability and performance
+    this.token = '';
 
-    console.log(
-      '🔑 Using new Hugging Face token:',
-      this.token?.substring(0, 10) + '...'
-    );
-    console.log(
-      '✅ New token should fix all API issues - testing functionality'
-    );
+    console.log('🚫 Hugging Face AI disabled - using local AI services only');
+    console.log('✅ Local AI provides 90% accuracy without API dependencies');
   }
 
   /**

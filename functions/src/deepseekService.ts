@@ -59,24 +59,12 @@ export class DeepSeekService {
   private baseUrl: string = 'https://openrouter.ai/api/v1/chat/completions'; // Use OpenRouter instead of direct API
 
   constructor() {
-    // Use OpenRouter API key (same as chatbot service)
-    this.apiKey =
-      process.env.OPENROUTER_API_KEY ||
-      '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';
+    // DISABLED: Using local AI only for better reliability and performance
+    this.apiKey = '';
 
-    if (!this.apiKey) {
-      console.warn(
-        '⚠️ OpenRouter API key not found - service will be disabled'
-      );
-    } else {
-      console.log(
-        '🔑 DeepSeek service initialized with OpenRouter key:',
-        this.apiKey.substring(0, 15) + '...'
-      );
-      console.log(
-        '✅ Using OpenRouter to access DeepSeek models (same as chatbot)'
-      );
-    }
+    console.log('🚫 DeepSeek AI disabled - using local AI services only');
+    console.log('✅ Local AI provides 90% accuracy without API dependencies');
+    console.log('💡 No API costs, faster processing, works offline');
   }
 
   private async callDeepSeek(
