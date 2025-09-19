@@ -444,3 +444,100 @@ export const getDualAIClassification = async (
 export const checkAIServiceHealth = async () => {
   return dualAIService.checkAIServiceHealth();
 };
+
+/**
+ * Quick test for both AI services
+ */
+export const quickTestAIServices = async () => {
+  console.log('🧪 Quick AI Services Test Starting...');
+  
+  const results = {
+    healthCheck: null as any,
+    huggingFace: null as any,
+    deepSeek: null as any,
+    batchReprocessing: null as any
+  };
+
+  try {
+    // 1. Health Check
+    console.log('🔍 Health Check...');
+    results.healthCheck = await dualAIService.checkAIServiceHealth();
+    console.log('Health Check Result:', results.healthCheck);
+
+    // 2. Test Hugging Face
+    console.log('🤗 Testing Hugging Face...');
+    try {
+      const hfResponse = await fetch(
+        'https://us-central1-gpt1-77ce0.cloudfunctions.net/classifyDocumentDualAIHttp',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            documentUrl: 'https://example.com/test.pdf',
+            mode: 'huggingface'
+          })
+        }
+      );
+      results.huggingFace = {
+        status: hfResponse.status,
+        ok: hfResponse.ok,
+        statusText: hfResponse.statusText
+      };
+    } catch (error: any) {
+      results.huggingFace = { error: error.message };
+    }
+
+    // 3. Test DeepSeek
+    console.log('🧠 Testing DeepSeek...');
+    try {
+      const dsResponse = await fetch(
+        'https://us-central1-gpt1-77ce0.cloudfunctions.net/classifyDocumentDualAIHttp',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            documentUrl: 'https://example.com/test.pdf',
+            mode: 'deepseek'
+          })
+        }
+      );
+      results.deepSeek = {
+        status: dsResponse.status,
+        ok: dsResponse.ok,
+        statusText: dsResponse.statusText
+      };
+    } catch (error: any) {
+      results.deepSeek = { error: error.message };
+    }
+
+    // 4. Test Batch Reprocessing
+    console.log('📦 Testing Batch Reprocessing...');
+    try {
+      const batchResponse = await fetch(
+        'https://us-central1-gpt1-77ce0.cloudfunctions.net/reprocessDocuments',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            documentUrls: ['https://example.com/test.pdf'],
+            mode: 'both'
+          })
+        }
+      );
+      results.batchReprocessing = {
+        status: batchResponse.status,
+        ok: batchResponse.ok,
+        statusText: batchResponse.statusText
+      };
+    } catch (error: any) {
+      results.batchReprocessing = { error: error.message };
+    }
+
+    console.log('📊 Quick Test Results:', results);
+    return results;
+
+  } catch (error) {
+    console.error('❌ Quick test failed:', error);
+    return { error: error.message };
+  }
+};

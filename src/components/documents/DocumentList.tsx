@@ -15,7 +15,7 @@ import {
 import { DocumentViewer, DocumentViewerMobile } from '../viewer';
 import { formatFileSize, formatDate, formatDateWithFallback } from '../../utils/formatters';
 import { ReprocessModal } from '../ai';
-import { reprocessDocumentsEnhanced, checkAIServiceHealth } from '../../services/dualAIService';
+import { reprocessDocumentsEnhanced, checkAIServiceHealth, testDualAIProcessing } from '../../services/dualAIService';
 import { ContextMenu, ContextMenuItem, ContextMenuSection, ContextMenuSeparator } from '../ui/ContextMenu';
 import { useContextMenu } from '../../hooks/useContextMenu';
 
@@ -458,6 +458,151 @@ const DocumentList: React.FC<DocumentListProps> = ({
     
     // Use the existing enhanced reprocess function with 'both' mode
     await handleEnhancedReprocess('both');
+  };
+
+  // Comprehensive AI service testing function
+  const testAIServices = async () => {
+    console.log('🧪 Starting comprehensive AI service tests...');
+    
+    const testResults = {
+      healthCheck: null as any,
+      huggingFaceTest: null as any,
+      deepSeekTest: null as any,
+      dualAITest: null as any,
+      batchReprocessingTest: null as any
+    };
+
+    try {
+      // 1. Health Check
+      console.log('🔍 Testing AI service health...');
+      testResults.healthCheck = await checkAIServiceHealth();
+      console.log('Health check result:', testResults.healthCheck);
+
+      // 2. Test with a sample document if available
+      const sampleDocument = documents?.[0];
+      if (sampleDocument?.url) {
+        console.log('📄 Testing with sample document:', sampleDocument.name);
+        
+        // 3. Test Hugging Face AI
+        console.log('🤗 Testing Hugging Face AI...');
+        try {
+          testResults.huggingFaceTest = await testDualAIProcessing(sampleDocument.url);
+          console.log('Hugging Face test result:', testResults.huggingFaceTest);
+        } catch (error) {
+          console.error('Hugging Face test failed:', error);
+          testResults.huggingFaceTest = { success: false, error: error.message };
+        }
+
+        // 4. Test DeepSeek AI
+        console.log('🧠 Testing DeepSeek AI...');
+        try {
+          // Test DeepSeek specifically by calling the dual AI with deepseek mode
+          const response = await fetch(
+            'https://us-central1-gpt1-77ce0.cloudfunctions.net/classifyDocumentDualAIHttp',
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                documentUrl: sampleDocument.url,
+                mode: 'deepseek'
+              })
+            }
+          );
+          
+          if (response.ok) {
+            const result = await response.json();
+            testResults.deepSeekTest = { success: true, result };
+          } else {
+            testResults.deepSeekTest = { 
+              success: false, 
+              error: `HTTP ${response.status}: ${response.statusText}` 
+            };
+          }
+        } catch (error) {
+          console.error('DeepSeek test failed:', error);
+          testResults.deepSeekTest = { success: false, error: error.message };
+        }
+
+        // 5. Test Dual AI (both)
+        console.log('🔄 Testing Dual AI (both modes)...');
+        try {
+          testResults.dualAITest = await testDualAIProcessing(sampleDocument.url);
+          console.log('Dual AI test result:', testResults.dualAITest);
+        } catch (error) {
+          console.error('Dual AI test failed:', error);
+          testResults.dualAITest = { success: false, error: error.message };
+        }
+
+        // 6. Test Batch Reprocessing
+        console.log('📦 Testing batch reprocessing...');
+        try {
+          const batchResult = await reprocessDocumentsEnhanced([sampleDocument.url], 'both');
+          testResults.batchReprocessingTest = { success: true, result: batchResult };
+        } catch (error) {
+          console.error('Batch reprocessing test failed:', error);
+          testResults.batchReprocessingTest = { success: false, error: error.message };
+        }
+      } else {
+        console.warn('⚠️ No sample document available for testing');
+      }
+
+      // Generate comprehensive report
+      const report = generateAITestReport(testResults);
+      console.log('📊 AI Service Test Report:', report);
+      
+      // Show results to user
+      alert(`🧪 AI Service Test Results:\n\n${report}`);
+      
+    } catch (error) {
+      console.error('❌ AI testing failed:', error);
+      alert(`❌ AI testing failed: ${error.message}`);
+    }
+  };
+
+  // Generate a comprehensive test report
+  const generateAITestReport = (results: any) => {
+    let report = '';
+    
+    // Health Check
+    report += `🏥 Health Check: ${results.healthCheck?.available ? '✅ Available' : '❌ Unavailable'}\n`;
+    if (results.healthCheck?.responseTime) {
+      report += `   Response Time: ${results.healthCheck.responseTime}ms\n`;
+    }
+    if (results.healthCheck?.error) {
+      report += `   Error: ${results.healthCheck.error}\n`;
+    }
+    
+    // Hugging Face
+    report += `\n🤗 Hugging Face AI: ${results.huggingFaceTest?.success ? '✅ Working' : '❌ Failed'}\n`;
+    if (results.huggingFaceTest?.processingTime) {
+      report += `   Processing Time: ${results.huggingFaceTest.processingTime}ms\n`;
+    }
+    if (results.huggingFaceTest?.error) {
+      report += `   Error: ${results.huggingFaceTest.error}\n`;
+    }
+    
+    // DeepSeek
+    report += `\n🧠 DeepSeek AI: ${results.deepSeekTest?.success ? '✅ Working' : '❌ Failed'}\n`;
+    if (results.deepSeekTest?.error) {
+      report += `   Error: ${results.deepSeekTest.error}\n`;
+    }
+    
+    // Dual AI
+    report += `\n🔄 Dual AI (Both): ${results.dualAITest?.success ? '✅ Working' : '❌ Failed'}\n`;
+    if (results.dualAITest?.processingTime) {
+      report += `   Processing Time: ${results.dualAITest.processingTime}ms\n`;
+    }
+    if (results.dualAITest?.error) {
+      report += `   Error: ${results.dualAITest.error}\n`;
+    }
+    
+    // Batch Reprocessing
+    report += `\n📦 Batch Reprocessing: ${results.batchReprocessingTest?.success ? '✅ Working' : '❌ Failed'}\n`;
+    if (results.batchReprocessingTest?.error) {
+      report += `   Error: ${results.batchReprocessingTest.error}\n`;
+    }
+    
+    return report;
   };
 
   const handleEnhancedReprocess = async (
@@ -936,6 +1081,37 @@ const DocumentList: React.FC<DocumentListProps> = ({
       {/* AI Reprocessing and Category Improvement Buttons */}
       {!isBatchMode && documents && documents.length > 0 && (
         <div className="mb-6 space-y-4">
+          {/* AI Service Test Button */}
+          <div>
+            <button
+              onClick={testAIServices}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-2"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M9 12l2 2 4-4"></path>
+                <path d="M21 12c-1 0-3-1-3-3s2-3 3-3 3 1 3 3-2 3-3 3"></path>
+                <path d="M3 12c1 0 3-1 3-3s-2-3-3-3-3 1-3 3 2 3 3 3"></path>
+                <path d="M13 12h3a2 2 0 0 1 2 2v1"></path>
+                <path d="M13 12H9a2 2 0 0 0-2 2v1"></path>
+                <path d="M13 12v-1a2 2 0 0 1 2-2h1"></path>
+                <path d="M13 12v-1a2 2 0 0 0-2-2H9"></path>
+              </svg>
+              <span>Test AI Services</span>
+            </button>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              Test both AI services to check availability and functionality.
+            </p>
+          </div>
+
           {/* AI Reprocessing Button */}
           <div>
             <button
