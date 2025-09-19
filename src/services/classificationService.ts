@@ -650,11 +650,11 @@ export const processDocument = async (
       };
     });
 
-    // Improved filename-based language detection
+    // Simple filename-based language detection for fallback only
     const guessLanguageFromFileName = (filename: string): string => {
       const name = filename.toLowerCase();
       
-      // Check for explicit language indicators in filename
+      // Only use explicit language indicators in filename (prefixes like "fr_", "en_", etc.)
       if (name.includes('mk_') || name.includes('macedon') || name.includes('мк')) {
         return 'mk';
       }
@@ -666,21 +666,6 @@ export const processDocument = async (
       }
       if (name.includes('sr_') || name.includes('serbian') || name.includes('ср')) {
         return 'sr';
-      }
-      
-      // Check for French-specific words and patterns
-      if (name.includes('madame') || name.includes('monsieur') || name.includes('ville de') || 
-          name.includes('lausanne') || name.includes('geneva') || name.includes('paris') ||
-          name.includes('bar') || name.includes('restaurant') || name.includes('hotel')) {
-        return 'fr';
-      }
-      
-      // Check for English business/establishment names
-      if (name.includes('kings') || name.includes('bar') || name.includes('restaurant') || 
-          name.includes('hotel') || name.includes('cafe') || name.includes('shop') ||
-          name.includes('store') || name.includes('company') || name.includes('ltd') ||
-          name.includes('inc') || name.includes('corp')) {
-        return 'en';
       }
       
       // Check for Cyrillic characters (be more specific)
@@ -697,33 +682,19 @@ export const processDocument = async (
         return 'sr';
       }
       
-      // Check for French accented characters
+      // Check for French accented characters in filename
       if (/[àâäçéèêëïîôùûüÿ]/i.test(filename)) {
         return 'fr';
       }
       
-      // Check for common French words in document names
-      if (name.includes('attestation') || name.includes('certificat') || name.includes('diplome') ||
-          name.includes('contrat') || name.includes('facture') || name.includes('reçu')) {
-        return 'fr';
-      }
-      
-      // Check for common English words in document names
-      if (name.includes('certificate') || name.includes('diploma') || name.includes('contract') ||
-          name.includes('invoice') || name.includes('receipt') || name.includes('statement')) {
-        return 'en';
-      }
-      
-      // Default to English for business documents with Latin script
-      if (/^[a-zA-Z0-9\s\-_.]+$/.test(filename)) {
-        return 'en';
-      }
+      // Don't make assumptions based on business names in filenames
+      // Let the content-based detection handle that
       
       // Final fallback
       return 'en';
     };
 
-    // Heuristic language guess directly from extracted text (override if stronger)
+    // Enhanced content-based language detection
     const guessLanguageFromText = (
       text: string,
       fileName?: string
@@ -731,6 +702,7 @@ export const processDocument = async (
       if (!text && !fileName) return { language: 'en', confidence: 0 };
       const t = (text || '').toLowerCase();
       const f = (fileName || '').toLowerCase();
+      
       // Cyrillic detection (Macedonian/Serbian/Russian)
       if (/[а-яё]/i.test(text)) {
         if (/уверение|универзитет|информатика|контролен|испит|диплома|сертификат/.test(t)) {
@@ -744,23 +716,34 @@ export const processDocument = async (
         }
         return { language: 'sr', confidence: 0.6 };
       }
-      // French accents and keywords (+ months + filename hints like "francuski", "fr")
+      
+      // Enhanced French detection
       const frMonth = /(janvier|février|fevrier|mars|avril|mai|juin|juillet|août|aout|septembre|octobre|novembre|décembre|decembre)/i;
-      const frKeywords = /(université|attestation|certificat|formation|français|francais|cours|publique|république|republique|adresse)/i;
-      const frFileHints = /(fr_|_fr\b|\bfr\b|francuski|francais|français)/i;
-      if (
-        /[àâäéèêëïîôöùûüÿç]/i.test(text) ||
-        frKeywords.test(t) ||
-        frMonth.test(t) ||
-        frFileHints.test(f)
-      ) {
-        return { language: 'fr', confidence: 0.85 };
+      const frKeywords = /(université|attestation|certificat|formation|français|francais|cours|publique|république|republique|adresse|madame|monsieur|ville|restaurant|bar|hotel|cafe|boulangerie|pharmacie|banque|poste|mairie|préfecture|préfecture)/i;
+      const frBusinessWords = /(société|entreprise|compagnie|établissement|commerce|boutique|magasin|service|département|ministère)/i;
+      const frCommonWords = /(le|la|les|un|une|des|du|de|et|ou|mais|donc|car|ni|que|qui|quoi|où|quand|comment|pourquoi|parce|que|avec|sans|sous|sur|dans|entre|parmi|selon|pendant|depuis|jusqu|vers|chez|contre|malgré|grâce)/i;
+      
+      // Count French indicators
+      let frenchScore = 0;
+      if (/[àâäéèêëïîôöùûüÿç]/i.test(text)) frenchScore += 3; // Accented characters
+      if (frKeywords.test(t)) frenchScore += 2;
+      if (frMonth.test(t)) frenchScore += 2;
+      if (frBusinessWords.test(t)) frenchScore += 1;
+      if (frCommonWords.test(t)) frenchScore += 1;
+      
+      if (frenchScore >= 3) {
+        return { language: 'fr', confidence: Math.min(0.9, 0.5 + (frenchScore * 0.1)) };
       }
-      // English default with indicators
-      if (/invoice|receipt|certificate|university|summary|document/i.test(text)) {
-        return { language: 'en', confidence: 0.7 };
+      
+      // Enhanced English detection
+      const enKeywords = /(invoice|receipt|certificate|university|summary|document|company|business|office|manager|director|department|service|customer|client|order|payment|account|statement|report|meeting|conference|project|team|staff|employee|contract|agreement|terms|conditions|policy|procedure|guideline|instruction|manual|guide|help|support|contact|address|phone|email|website|online|digital|electronic|system|software|application|platform|database|server|network|security|password|login|user|admin|administrator|supervisor|coordinator|assistant|secretary|clerk|operator|technician|engineer|developer|designer|analyst|consultant|advisor|specialist|expert|professional|executive|president|ceo|cto|cfo|vp|vice|president|director|manager|supervisor|lead|head|chief|senior|junior|associate|assistant|coordinator|representative|agent|officer|clerk|operator|technician|engineer|developer|designer|analyst|consultant|advisor|specialist|expert|professional|executive|president|ceo|cto|cfo|vp|vice|president|director|manager|supervisor|lead|head|chief|senior|junior|associate|assistant|coordinator|representative|agent|officer)/i;
+      
+      if (enKeywords.test(t)) {
+        return { language: 'en', confidence: 0.8 };
       }
-      return { language: 'en', confidence: 0.5 };
+      
+      // Default fallback
+      return { language: 'en', confidence: 0.3 };
     };
 
     const heuristicLang = guessLanguageFromText(

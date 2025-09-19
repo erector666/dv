@@ -160,7 +160,7 @@ function classifyByHeuristics(document: Document): {
 function detectLanguageByHeuristics(filename: string): string {
   const name = filename.toLowerCase();
   
-  // Check for explicit language indicators in filename
+  // Only use explicit language indicators in filename (prefixes like "fr_", "en_", etc.)
   if (name.includes('mk_') || name.includes('macedon') || name.includes('мк')) {
     return 'mk';
   }
@@ -177,21 +177,6 @@ function detectLanguageByHeuristics(filename: string): string {
     return 'ru';
   }
   
-  // Check for French-specific words and patterns
-  if (name.includes('madame') || name.includes('monsieur') || name.includes('ville de') || 
-      name.includes('lausanne') || name.includes('geneva') || name.includes('paris') ||
-      name.includes('bar') || name.includes('restaurant') || name.includes('hotel')) {
-    return 'fr';
-  }
-  
-  // Check for English business/establishment names
-  if (name.includes('kings') || name.includes('bar') || name.includes('restaurant') || 
-      name.includes('hotel') || name.includes('cafe') || name.includes('shop') ||
-      name.includes('store') || name.includes('company') || name.includes('ltd') ||
-      name.includes('inc') || name.includes('corp')) {
-    return 'en';
-  }
-  
   // Check for Cyrillic characters (be more specific)
   if (/[а-яА-Я]/.test(filename)) {
     // Check for Serbian-specific Cyrillic patterns
@@ -206,27 +191,13 @@ function detectLanguageByHeuristics(filename: string): string {
     return 'sr';
   }
   
-  // Check for French accented characters
+  // Check for French accented characters in filename
   if (/[àâäçéèêëïîôùûüÿ]/i.test(filename)) {
     return 'fr';
   }
   
-  // Check for common French words in document names
-  if (name.includes('attestation') || name.includes('certificat') || name.includes('diplome') ||
-      name.includes('contrat') || name.includes('facture') || name.includes('reçu')) {
-    return 'fr';
-  }
-  
-  // Check for common English words in document names
-  if (name.includes('certificate') || name.includes('diploma') || name.includes('contract') ||
-      name.includes('invoice') || name.includes('receipt') || name.includes('statement')) {
-    return 'en';
-  }
-  
-  // Default to English for business documents with Latin script
-  if (/^[a-zA-Z0-9\s\-_.]+$/.test(filename)) {
-    return 'en';
-  }
+  // Don't make assumptions based on business names in filenames
+  // Let the content-based detection handle that
   
   // Final fallback
   return 'en';
