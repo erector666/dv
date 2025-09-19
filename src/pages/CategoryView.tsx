@@ -49,96 +49,8 @@ const CategoryView: React.FC = () => {
     }
   );
 
-  // Filter documents by category using the same logic as DocumentList
-  const filterDocumentsByCategory = (docs: any[], category: string) => {
-    if (!category || category === 'all') return docs;
-    
-    const filterCategory = category.toLowerCase();
-    
-    return docs.filter(doc => {
-      const docCategory = doc.category?.toLowerCase();
-      
-      // Handle special category mappings
-      if (filterCategory === 'personal' && (!docCategory || docCategory === 'document')) {
-        return true; // Include documents with no category or generic "document" in personal
-      }
-      
-      // Handle financial category mapping
-      if (filterCategory === 'financial') {
-        return docCategory === 'financial' || 
-               docCategory === 'finance' || 
-               docCategory === 'bills' ||
-               (docCategory && docCategory.includes('bill')) ||
-               (docCategory && docCategory.includes('financial'));
-      }
-      
-      // Handle bills category mapping
-      if (filterCategory === 'bills') {
-        return docCategory === 'bills' || 
-               docCategory === 'financial' || 
-               docCategory === 'finance' ||
-               (docCategory && docCategory.includes('bill')) ||
-               (docCategory && docCategory.includes('financial'));
-      }
-      
-      // Handle education category mapping
-      if (filterCategory === 'education') {
-        return docCategory === 'education' || 
-               docCategory === 'educational' ||
-               docCategory === 'school' ||
-               docCategory === 'university' ||
-               docCategory === 'academic';
-      }
-      
-      // Handle legal category mapping
-      if (filterCategory === 'legal') {
-        return docCategory === 'legal' || 
-               docCategory === 'law' ||
-               docCategory === 'contract' ||
-               docCategory === 'agreement';
-      }
-      
-      // Handle medical category mapping
-      if (filterCategory === 'medical') {
-        return docCategory === 'medical' || 
-               docCategory === 'health' ||
-               docCategory === 'healthcare' ||
-               docCategory === 'doctor' ||
-               docCategory === 'hospital';
-      }
-      
-      // Handle insurance category mapping
-      if (filterCategory === 'insurance') {
-        return docCategory === 'insurance' || 
-               docCategory === 'insure';
-      }
-      
-      // Handle government category mapping
-      if (filterCategory === 'government') {
-        return docCategory === 'government' || 
-               docCategory === 'gov' ||
-               docCategory === 'official' ||
-               docCategory === 'public';
-      }
-      
-      // Default exact match (case insensitive)
-      return docCategory === filterCategory;
-    });
-  };
-
-  const categoryDocuments = filterDocumentsByCategory(documents || [], categoryId || '');
-
-  // Debug logging to understand the mismatch
-  console.log('🔍 CategoryView Debug:', {
-    categoryId,
-    totalDocuments: documents?.length || 0,
-    filteredDocuments: categoryDocuments.length,
-    sampleDocuments: documents?.slice(0, 3).map(doc => ({
-      name: doc.name,
-      category: doc.category,
-      hasCategory: !!doc.category
-    }))
-  });
+  // Let DocumentList handle all filtering logic to avoid mismatches
+  // We'll get the count from DocumentList's filtered results
 
   const handleUploadComplete = () => {
     console.log(
@@ -181,11 +93,7 @@ const CategoryView: React.FC = () => {
               {categoryDisplayName} Documents
             </h1>
             <p className="text-gray-600 dark:text-gray-400 mt-2">
-              {categoryDocuments.length}{' '}
-              {categoryDocuments.length === 1
-                ? translate('document')
-                : translate('documents')}{' '}
-              in this category
+              Documents in this category
             </p>
           </div>
 
@@ -221,27 +129,8 @@ const CategoryView: React.FC = () => {
               Error loading documents. Please try again.
             </p>
           </div>
-        ) : categoryDocuments.length > 0 ? (
-          <DocumentList category={categoryId} />
         ) : (
-          <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-12 text-center">
-            <div className="w-24 h-24 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center mx-auto mb-6">
-              <span className="text-4xl">📄</span>
-            </div>
-            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">
-              No documents in this category yet
-            </h2>
-            <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto">
-              Upload your first document to the {categoryDisplayName} category
-              to get started
-            </p>
-            <button
-              onClick={() => setIsUploadModalOpen(true)}
-              className="bg-primary-600 hover:bg-primary-700 text-white px-6 py-3 rounded-lg transition-colors"
-            >
-              Upload Document
-            </button>
-          </div>
+          <DocumentList category={categoryId} />
         )}
       </div>
       <UploadModal
