@@ -9,6 +9,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useUploadModal } from '../../context/UploadModalContext';
 import { getUserDocuments } from '../../services/documentService';
 import { useSidebarSwipe } from '../../hooks/useSidebarSwipe';
+import { useSimpleSwipe } from '../../hooks/useSimpleSwipe';
 import { MessageCircle } from 'lucide-react';
 
 interface LayoutProps {
@@ -66,7 +67,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     setIsChatOpen(!isChatOpen);
   };
 
-  // Enable swipe gestures for sidebar
+  // Enable swipe gestures for sidebar (using both approaches for testing)
   useSidebarSwipe({
     onSwipeOpen: openMobileSidebar,
     onSwipeClose: closeMobileSidebar,
@@ -74,6 +75,22 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     edgeThreshold: 50, // 50px from left edge to trigger swipe (more lenient)
     minSwipeDistance: 60, // Minimum swipe distance (reduced for easier triggering)
     maxSwipeTime: 800, // Maximum time for swipe gesture (increased)
+  });
+
+  // Simple swipe detection as backup
+  useSimpleSwipe({
+    onSwipeRight: () => {
+      if (!isMobileSidebarOpen) {
+        console.log('📱 Simple swipe opening sidebar');
+        openMobileSidebar();
+      }
+    },
+    onSwipeLeft: () => {
+      if (isMobileSidebarOpen) {
+        console.log('📱 Simple swipe closing sidebar');
+        closeMobileSidebar();
+      }
+    },
   });
 
   const handleChatAction = (action: string, data?: any) => {
