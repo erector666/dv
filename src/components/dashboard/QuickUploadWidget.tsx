@@ -195,12 +195,13 @@ const QuickUploadWidget: React.FC<QuickUploadWidgetProps> = ({ onUpload, classNa
               }`} />
             </div>
             
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-              Quick Upload
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 flex items-center space-x-2">
+              <Upload className="w-5 h-5 text-blue-600" />
+              <span>Quick Upload</span>
             </h3>
             
             <p className="text-gray-500 dark:text-gray-400 mb-4">
-              Drag & drop files here or click to browse
+              Drag & drop files here for instant upload
             </p>
             
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
@@ -213,9 +214,12 @@ const QuickUploadWidget: React.FC<QuickUploadWidgetProps> = ({ onUpload, classNa
               
               <button
                 onClick={() => navigate('/upload')}
-                className="bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-6 py-2 rounded-lg font-medium transition-colors"
+                className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2"
               >
-                Advanced Upload
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+                <span>Advanced Upload</span>
               </button>
             </div>
             

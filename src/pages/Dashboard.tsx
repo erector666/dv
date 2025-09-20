@@ -95,20 +95,12 @@ const Dashboard: React.FC = () => {
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
               <button
-                onClick={() => navigate('/upload')}
+                onClick={() => navigate('/search')}
                 className="bg-white/20 hover:bg-white/30 backdrop-blur-sm border border-white/30 text-white px-4 sm:px-6 py-3 rounded-xl font-semibold transition-all duration-200 hover:scale-105 flex items-center justify-center space-x-2"
               >
-                <Upload className="w-5 h-5" />
-                <span className="hidden sm:inline">Upload Documents</span>
-                <span className="sm:hidden">Upload</span>
-              </button>
-              <button
-                onClick={() => navigate('/search')}
-                className="bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 text-white px-4 sm:px-6 py-3 rounded-xl font-semibold transition-all duration-200 hover:scale-105 flex items-center justify-center space-x-2"
-              >
                 <Search className="w-5 h-5" />
-                <span className="hidden sm:inline">Search</span>
-                <span className="sm:hidden">Find</span>
+                <span className="hidden sm:inline">Search Documents</span>
+                <span className="sm:hidden">Search</span>
               </button>
             </div>
           </div>
@@ -157,7 +149,7 @@ const Dashboard: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8 mb-6 sm:mb-8">
           {/* Sidebar Widgets */}
           <div className="lg:col-span-1 space-y-4 sm:space-y-6 order-2 lg:order-1">
-            {/* Quick Upload Widget */}
+            {/* Quick Upload Widget - Primary upload method */}
             <QuickUploadWidget />
 
             {/* Activity Feed */}
@@ -220,18 +212,11 @@ const Dashboard: React.FC = () => {
                 <div className="flex items-center space-x-2 sm:space-x-3">
                   <button
                     onClick={() => navigate('/search')}
-                    className="flex items-center space-x-1 sm:space-x-2 px-2 sm:px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm sm:text-base"
+                    className="flex items-center space-x-1 sm:space-x-2 px-3 sm:px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm sm:text-base"
                   >
                     <Filter className="w-4 h-4" />
-                    <span className="hidden sm:inline">Filter</span>
-                  </button>
-                  <button
-                    onClick={() => navigate('/upload')}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-2 sm:px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-1 sm:space-x-2 text-sm sm:text-base"
-                  >
-                    <Upload className="w-4 h-4" />
-                    <span className="hidden sm:inline">Upload</span>
-                    <span className="sm:hidden">+</span>
+                    <span className="hidden sm:inline">Advanced Search</span>
+                    <span className="sm:hidden">Search</span>
                   </button>
                 </div>
               </div>
@@ -330,8 +315,15 @@ const Dashboard: React.FC = () => {
         <AnalyticsWidget documents={documents} className="mb-8" />
       </div>
 
-      {/* Mobile Floating Action Button */}
-      <div className="fixed bottom-6 right-6 md:hidden z-50">
+      {/* Mobile Quick Actions */}
+      <div className="fixed bottom-6 right-4 md:hidden z-50 flex flex-col space-y-3">
+        <button
+          onClick={() => navigate('/search')}
+          className="bg-purple-600 hover:bg-purple-700 text-white p-3 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110"
+          aria-label="Search documents"
+        >
+          <Search className="w-5 h-5" />
+        </button>
         <button
           onClick={() => navigate('/upload')}
           className="bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110"
