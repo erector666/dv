@@ -118,7 +118,7 @@ const Dashboard: React.FC = () => {
       <div className="p-6 -mt-6 relative z-10">
         {/* Smart Search Widget */}
         <div className="mb-8">
-          <SmartSearchWidget className="max-w-2xl mx-auto" />
+          <SmartSearchWidget documents={documents} className="max-w-2xl mx-auto" />
         </div>
 
         {/* Quick Stats Overview */}
@@ -128,8 +128,6 @@ const Dashboard: React.FC = () => {
             icon={<FileText className="w-6 h-6 text-blue-600" />}
             label="Total Documents"
             value={getTotalDocuments()}
-            trend="up"
-            trendValue="+12%"
             className="hover:scale-105 transition-transform duration-200"
           />
           <StatsCard
@@ -137,17 +135,13 @@ const Dashboard: React.FC = () => {
             icon={<BarChart3 className="w-6 h-6 text-purple-600" />}
             label="Storage Used"
             value={formatFileSize(getTotalSize())}
-            trend="neutral"
-            trendValue="2.1 GB"
             className="hover:scale-105 transition-transform duration-200"
           />
           <StatsCard
             variant="neonGreen"
             icon={<TrendingUp className="w-6 h-6" />}
-            label="Recent Uploads"
+            label="This Week"
             value={getRecentDocuments()}
-            trend="up"
-            trendValue="This week"
             className="hover:scale-105 transition-transform duration-200"
           />
           <StatsCard
@@ -155,8 +149,6 @@ const Dashboard: React.FC = () => {
             icon={<Activity className="w-6 h-6" />}
             label="Processing"
             value={documents?.filter(d => d.status === 'processing').length || 0}
-            trend="down"
-            trendValue="Active"
             className="hover:scale-105 transition-transform duration-200"
           />
         </div>
@@ -255,15 +247,9 @@ const Dashboard: React.FC = () => {
               <FolderOpen className="w-6 h-6 text-indigo-600" />
               <span>Document Categories</span>
             </h2>
-            <button
-              onClick={() => navigate('/categories')}
-              className="text-indigo-600 hover:text-indigo-700 font-medium flex items-center space-x-2"
-            >
-              <span>Manage Categories</span>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
+            <div className="text-sm text-gray-500 dark:text-gray-400">
+              {documents?.length || 0} documents organized
+            </div>
           </div>
           
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">

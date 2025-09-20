@@ -7,6 +7,7 @@ import { Card } from '../ui';
 interface SmartSearchWidgetProps {
   onSearch?: (query: string, filters: SearchFilters) => void;
   className?: string;
+  documents?: any[];
 }
 
 interface SearchFilters {
@@ -23,7 +24,7 @@ interface SearchSuggestion {
   description?: string;
 }
 
-const SmartSearchWidget: React.FC<SmartSearchWidgetProps> = ({ onSearch, className }) => {
+const SmartSearchWidget: React.FC<SmartSearchWidgetProps> = ({ onSearch, className, documents = [] }) => {
   const [query, setQuery] = useState('');
   const [isExpanded, setIsExpanded] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
@@ -33,45 +34,44 @@ const SmartSearchWidget: React.FC<SmartSearchWidgetProps> = ({ onSearch, classNa
   const navigate = useNavigate();
   const { translate } = useLanguage();
 
-  // Search suggestions based on common document types
-  const mockSuggestions: SearchSuggestion[] = [
-    {
-      type: 'category',
-      value: 'Personal',
-      icon: <FileText className="w-4 h-4 text-blue-500" />,
-      description: 'Category'
-    },
-    {
-      type: 'category',
-      value: 'Bills',
-      icon: <FileText className="w-4 h-4 text-green-500" />,
-      description: 'Category'
-    },
-    {
-      type: 'category',
-      value: 'Medical',
-      icon: <FileText className="w-4 h-4 text-red-500" />,
-      description: 'Category'
-    },
-    {
-      type: 'category',
-      value: 'Insurance',
-      icon: <FileText className="w-4 h-4 text-purple-500" />,
-      description: 'Category'
-    },
-  ];
-
   useEffect(() => {
     if (query.length > 0) {
-      // Filter suggestions based on query
-      const filtered = mockSuggestions.filter(suggestion =>
-        suggestion.value.toLowerCase().includes(query.toLowerCase())
-      );
-      setSuggestions(filtered);
+      // Create suggestions from actual document data
+      const documentSuggestions: SearchSuggestion[] = documents
+        .filter(doc => doc.name.toLowerCase().includes(query.toLowerCase()))
+        .slice(0, 3)
+        .map(doc => ({
+          type: 'document' as const,
+          value: doc.name,
+          icon: <FileText className="w-4 h-4 text-blue-500" />,
+          description: 'Document'
+        }));
+
+      // Add category suggestions
+      const categories = Array.from(new Set(documents.map(d => d.category).filter(Boolean)));
+      const categorySuggestions: SearchSuggestion[] = categories
+        .filter(cat => cat.toLowerCase().includes(query.toLowerCase()))
+        .slice(0, 2)
+        .map(cat => ({
+          type: 'category' as const,
+          value: cat,
+          icon: <FileText className="w-4 h-4 text-purple-500" />,
+          description: 'Category'
+        }));
+
+      setSuggestions([...documentSuggestions, ...categorySuggestions]);
     } else {
-      setSuggestions(mockSuggestions.slice(0, 4));
+      // Show popular categories when no query
+      const categories = Array.from(new Set(documents.map(d => d.category).filter(Boolean)));
+      const categorySuggestions = categories.slice(0, 4).map(cat => ({
+        type: 'category' as const,
+        value: cat,
+        icon: <FileText className="w-4 h-4 text-gray-500" />,
+        description: 'Category'
+      }));
+      setSuggestions(categorySuggestions);
     }
-  }, [query, mockSuggestions]);
+  }, [query, documents]);
 
   const handleSearch = (searchQuery: string = query) => {
     if (searchQuery.trim()) {

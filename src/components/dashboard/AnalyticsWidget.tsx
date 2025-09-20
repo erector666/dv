@@ -113,7 +113,7 @@ const AnalyticsWidget: React.FC<AnalyticsWidgetProps> = ({ documents = [], class
               <span>Document Analytics</span>
             </h3>
             <div className="text-sm text-gray-500 dark:text-gray-400">
-              Last 30 days
+              Overview
             </div>
           </div>
 
