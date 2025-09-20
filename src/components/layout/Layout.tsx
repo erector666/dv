@@ -71,9 +71,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     onSwipeOpen: openMobileSidebar,
     onSwipeClose: closeMobileSidebar,
     isOpen: isMobileSidebarOpen,
-    edgeThreshold: 30, // 30px from left edge to trigger swipe
-    minSwipeDistance: 100, // Minimum swipe distance
-    maxSwipeTime: 500, // Maximum time for swipe gesture
+    edgeThreshold: 50, // 50px from left edge to trigger swipe (more lenient)
+    minSwipeDistance: 60, // Minimum swipe distance (reduced for easier triggering)
+    maxSwipeTime: 800, // Maximum time for swipe gesture (increased)
   });
 
   const handleChatAction = (action: string, data?: any) => {
