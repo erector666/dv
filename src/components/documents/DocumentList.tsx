@@ -6,6 +6,7 @@ import { useLanguage } from '../../context/LanguageContext';
 import { useSearch } from '../../context/SearchContext';
 import {
   getUserDocuments,
+  getDocuments,
   Document,
   deleteDocument,
   updateDocument,
@@ -55,7 +56,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
   // Context menu state
   const { contextMenu, closeContextMenu, handleContextMenu, handleLongPress } = useContextMenu();
 
-  // Fetch documents using React Query
+  // Fetch documents using React Query - get ALL documents and filter client-side
   const {
     data: documents,
     isLoading,
@@ -63,8 +64,8 @@ const DocumentList: React.FC<DocumentListProps> = ({
     error,
     refetch,
   } = useQuery(
-    ['documents', currentUser?.uid, category],
-    () => getUserDocuments(currentUser?.uid || '', category),
+    ['documents', currentUser?.uid], // Remove category from cache key since we fetch all documents
+    () => getDocuments(currentUser?.uid || ''), // Use getDocuments to fetch ALL documents
     {
       enabled: !!currentUser?.uid,
       staleTime: 60000, // 1 minute
