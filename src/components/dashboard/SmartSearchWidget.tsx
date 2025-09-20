@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Filter, X, Clock, FileText, Tag } from 'lucide-react';
+import { Search, Filter, X, FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
 import { Card } from '../ui';
@@ -33,31 +33,31 @@ const SmartSearchWidget: React.FC<SmartSearchWidgetProps> = ({ onSearch, classNa
   const navigate = useNavigate();
   const { translate } = useLanguage();
 
-  // Mock search suggestions (in a real app, these would come from your search service)
+  // Search suggestions based on common document types
   const mockSuggestions: SearchSuggestion[] = [
     {
-      type: 'recent',
-      value: 'medical records',
-      icon: <Clock className="w-4 h-4 text-gray-400" />,
-      description: 'Recent search'
-    },
-    {
       type: 'category',
-      value: 'Bills',
+      value: 'Personal',
       icon: <FileText className="w-4 h-4 text-blue-500" />,
       description: 'Category'
     },
     {
-      type: 'tag',
-      value: 'important',
-      icon: <Tag className="w-4 h-4 text-purple-500" />,
-      description: 'Tag'
+      type: 'category',
+      value: 'Bills',
+      icon: <FileText className="w-4 h-4 text-green-500" />,
+      description: 'Category'
     },
     {
-      type: 'document',
-      value: 'Insurance Policy 2024.pdf',
-      icon: <FileText className="w-4 h-4 text-green-500" />,
-      description: 'Document'
+      type: 'category',
+      value: 'Medical',
+      icon: <FileText className="w-4 h-4 text-red-500" />,
+      description: 'Category'
+    },
+    {
+      type: 'category',
+      value: 'Insurance',
+      icon: <FileText className="w-4 h-4 text-purple-500" />,
+      description: 'Category'
     },
   ];
 

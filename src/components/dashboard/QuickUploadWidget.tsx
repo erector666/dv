@@ -18,7 +18,6 @@ interface UploadFile {
 const QuickUploadWidget: React.FC<QuickUploadWidgetProps> = ({ onUpload, className }) => {
   const [isDragOver, setIsDragOver] = useState(false);
   const [uploadFiles, setUploadFiles] = useState<UploadFile[]>([]);
-  const [isExpanded, setIsExpanded] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
@@ -80,7 +79,6 @@ const QuickUploadWidget: React.FC<QuickUploadWidgetProps> = ({ onUpload, classNa
     }
 
     setUploadFiles(prev => [...prev, ...newUploadFiles]);
-    setIsExpanded(true);
 
     // Start uploading valid files
     newUploadFiles
@@ -171,7 +169,6 @@ const QuickUploadWidget: React.FC<QuickUploadWidgetProps> = ({ onUpload, classNa
 
   const clearAll = () => {
     setUploadFiles([]);
-    setIsExpanded(false);
   };
 
   const hasFiles = uploadFiles.length > 0;

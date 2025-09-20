@@ -12,17 +12,15 @@ import {
   Shield, 
   FolderOpen, 
   TrendingUp,
-  Clock,
   Search,
   Upload,
   BarChart3,
   Filter,
-  Zap,
   Activity
 } from 'lucide-react';
 import { formatFileSize, formatDate } from '../utils/formatters';
 import { DocumentViewer } from '../components/viewer';
-import { Card, StatsCard, FeatureCard } from '../components/ui';
+import { Card, StatsCard } from '../components/ui';
 import { SmartSearchWidget, QuickUploadWidget, AnalyticsWidget } from '../components/dashboard';
 
 const Dashboard: React.FC = () => {
@@ -54,11 +52,6 @@ const Dashboard: React.FC = () => {
     navigate(`/category/${category}`);
   };
 
-  // Handle document click - open in viewer modal
-  const handleDocumentClick = (document: Document) => {
-    setDocumentToView(document);
-    setIsViewerModalOpen(true);
-  };
 
   // Get total document statistics
   const getTotalDocuments = () => documents?.length || 0;
@@ -169,127 +162,11 @@ const Dashboard: React.FC = () => {
         </div>
 
         {/* Main Content Grid */}
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 lg:gap-8 mb-8">
-          {/* Recent Documents - Takes 2/3 width on xl screens */}
-          <div className="xl:col-span-2 order-2 xl:order-1">
-            <Card variant="floating" className="h-full">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center space-x-3">
-                  <Clock className="w-6 h-6 text-blue-600" />
-                  <span>Recent Documents</span>
-                </h2>
-                <button
-                  onClick={() => navigate('/documents')}
-                  className="text-blue-600 hover:text-blue-700 font-medium flex items-center space-x-2"
-                >
-                  <span>View All</span>
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
-              </div>
-              
-              <div className="space-y-4">
-                {documents && documents.length > 0 ? (
-                  documents
-                    .sort((a, b) => {
-                      const dateA = a.uploadedAt?.toDate?.() || new Date(a.uploadedAt || 0);
-                      const dateB = b.uploadedAt?.toDate?.() || new Date(b.uploadedAt || 0);
-                      return dateB.getTime() - dateA.getTime();
-                    })
-                    .slice(0, 5)
-                    .map((doc, index) => (
-                      <div
-                        key={doc.id || index}
-                        onClick={() => handleDocumentClick(doc)}
-                        className="flex items-center space-x-4 p-4 rounded-lg bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors duration-200"
-                      >
-                        <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg flex items-center justify-center text-white text-xl">
-                          📄
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-gray-900 dark:text-white truncate">
-                            {doc.name}
-                          </h3>
-                          <div className="flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400">
-                            <span>{formatFileSize(doc.size)}</span>
-                            <span>•</span>
-                            <span>{formatDate(doc.uploadedAt)}</span>
-                            {doc.category && (
-                              <>
-                                <span>•</span>
-                                <span className="text-blue-600 dark:text-blue-400 font-medium">
-                                  {doc.category}
-                                </span>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                        <div className={`w-3 h-3 rounded-full ${
-                          doc.status === 'ready' ? 'bg-green-400' : 
-                          doc.status === 'processing' ? 'bg-yellow-400 animate-pulse' : 
-                          'bg-red-400'
-                        }`} />
-                      </div>
-                    ))
-                ) : (
-                  <div className="text-center py-12">
-                    <div className="w-16 h-16 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <FileText className="w-8 h-8 text-gray-400" />
-                    </div>
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                      No documents yet
-                    </h3>
-                    <p className="text-gray-500 dark:text-gray-400 mb-4">
-                      Upload your first document to get started
-                    </p>
-                    <button
-                      onClick={() => navigate('/upload')}
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
-                    >
-                      Upload Document
-                    </button>
-                  </div>
-                )}
-              </div>
-            </Card>
-          </div>
-
+        <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 lg:gap-8 mb-8">
           {/* Sidebar Widgets */}
-          <div className="space-y-6 order-1 xl:order-2">
+          <div className="xl:col-span-1 space-y-6">
             {/* Quick Upload Widget */}
             <QuickUploadWidget />
-
-            {/* Quick Actions */}
-            <Card variant="glass" className="p-6">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center space-x-2">
-                <Zap className="w-5 h-5 text-yellow-500" />
-                <span>Quick Actions</span>
-              </h3>
-              <div className="space-y-3">
-                <button
-                  onClick={() => navigate('/upload')}
-                  className="w-full flex items-center space-x-3 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
-                >
-                  <Upload className="w-5 h-5" />
-                  <span className="font-medium">Advanced Upload</span>
-                </button>
-                <button
-                  onClick={() => navigate('/search')}
-                  className="w-full flex items-center space-x-3 p-3 rounded-lg bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/40 transition-colors"
-                >
-                  <Search className="w-5 h-5" />
-                  <span className="font-medium">Advanced Search</span>
-                </button>
-                <button
-                  onClick={() => navigate('/analytics')}
-                  className="w-full flex items-center space-x-3 p-3 rounded-lg bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900/40 transition-colors"
-                >
-                  <BarChart3 className="w-5 h-5" />
-                  <span className="font-medium">Full Analytics</span>
-                </button>
-              </div>
-            </Card>
 
             {/* Activity Feed */}
             <Card variant="floating" className="p-6">
@@ -337,6 +214,36 @@ const Dashboard: React.FC = () => {
                   </div>
                 )}
               </div>
+            </Card>
+          </div>
+
+          {/* Main Document List - Takes 3/4 width */}
+          <div className="xl:col-span-3">
+            <Card variant="floating" className="h-full">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center space-x-3">
+                  <FileText className="w-6 h-6 text-blue-600" />
+                  <span>Your Documents</span>
+                </h2>
+                <div className="flex items-center space-x-3">
+                  <button
+                    onClick={() => navigate('/search')}
+                    className="flex items-center space-x-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                  >
+                    <Filter className="w-4 h-4" />
+                    <span>Filter</span>
+                  </button>
+                  <button
+                    onClick={() => navigate('/upload')}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2"
+                  >
+                    <Upload className="w-4 h-4" />
+                    <span>Upload</span>
+                  </button>
+                </div>
+              </div>
+              
+              <DocumentList />
             </Card>
           </div>
         </div>
@@ -434,61 +341,6 @@ const Dashboard: React.FC = () => {
 
         {/* Analytics Widget */}
         <AnalyticsWidget documents={documents} className="mb-8" />
-
-        {/* Feature Highlights */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <FeatureCard
-            icon={<Search className="w-6 h-6" />}
-            title="Smart Search"
-            description="Find documents instantly with AI-powered search across content, categories, and metadata."
-            gradient="blue"
-            onClick={() => navigate('/search')}
-          />
-          <FeatureCard
-            icon={<Zap className="w-6 h-6" />}
-            title="Auto Processing"
-            description="Documents are automatically processed and categorized using advanced AI technology."
-            gradient="purple"
-            onClick={() => navigate('/processing')}
-          />
-          <FeatureCard
-            icon={<Shield className="w-6 h-6" />}
-            title="Secure Storage"
-            description="Your documents are encrypted and stored securely with enterprise-grade protection."
-            gradient="green"
-            onClick={() => navigate('/security')}
-          />
-        </div>
-
-        {/* Full Document List */}
-        <Card variant="floating" className="mb-8">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center space-x-3">
-              <FileText className="w-6 h-6 text-blue-600" />
-              <span>All Documents</span>
-            </h2>
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={() => navigate('/search')}
-                className="flex items-center space-x-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-              >
-                <Filter className="w-4 h-4" />
-                <span>Filter</span>
-              </button>
-              <button
-                onClick={() => navigate('/documents')}
-                className="text-blue-600 hover:text-blue-700 font-medium flex items-center space-x-2"
-              >
-                <span>View All</span>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-            </div>
-          </div>
-          
-          <DocumentList />
-        </Card>
       </div>
 
       {/* Mobile Floating Action Button */}
