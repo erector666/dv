@@ -130,28 +130,28 @@ const SmartSearchWidget: React.FC<SmartSearchWidgetProps> = ({ onSearch, classNa
                 }
               }}
               placeholder="Search documents, categories, or tags..."
-              className="w-full pl-12 pr-20 py-4 bg-transparent border-0 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-0 text-lg"
+              className="w-full pl-10 sm:pl-12 pr-16 sm:pr-20 py-3 sm:py-4 bg-transparent border-0 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-0 text-base sm:text-lg"
             />
-            <div className="absolute inset-y-0 right-0 flex items-center space-x-2 pr-4">
+            <div className="absolute inset-y-0 right-0 flex items-center space-x-1 sm:space-x-2 pr-3 sm:pr-4">
               {hasActiveFilters && (
                 <button
                   onClick={clearFilters}
                   className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                   title="Clear filters"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-3 h-3 sm:w-4 sm:h-4" />
                 </button>
               )}
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className={`p-2 rounded-lg transition-colors ${
+                className={`p-1.5 sm:p-2 rounded-lg transition-colors ${
                   showFilters || hasActiveFilters
                     ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
                     : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
                 }`}
                 title="Filters"
               >
-                <Filter className="w-4 h-4" />
+                <Filter className="w-3 h-3 sm:w-4 sm:h-4" />
               </button>
             </div>
           </div>

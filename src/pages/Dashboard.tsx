@@ -115,14 +115,14 @@ const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      <div className="p-6 -mt-6 relative z-10">
+      <div className="p-4 sm:p-6 -mt-4 sm:-mt-6 relative z-10">
         {/* Smart Search Widget */}
-        <div className="mb-8">
+        <div className="mb-6 sm:mb-8">
           <SmartSearchWidget documents={documents} className="max-w-2xl mx-auto" />
         </div>
 
         {/* Quick Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6 mb-6 sm:mb-8">
           <StatsCard
             variant="glass"
             icon={<FileText className="w-6 h-6 text-blue-600" />}
@@ -154,9 +154,9 @@ const Dashboard: React.FC = () => {
         </div>
 
         {/* Main Content Grid */}
-        <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 lg:gap-8 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8 mb-6 sm:mb-8">
           {/* Sidebar Widgets */}
-          <div className="xl:col-span-1 space-y-6">
+          <div className="lg:col-span-1 space-y-4 sm:space-y-6 order-2 lg:order-1">
             {/* Quick Upload Widget */}
             <QuickUploadWidget />
 
@@ -210,27 +210,28 @@ const Dashboard: React.FC = () => {
           </div>
 
           {/* Main Document List - Takes 3/4 width */}
-          <div className="xl:col-span-3">
+          <div className="lg:col-span-3 order-1 lg:order-2">
             <Card variant="floating" className="h-full">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center space-x-3">
                   <FileText className="w-6 h-6 text-blue-600" />
                   <span>Your Documents</span>
                 </h2>
-                <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-2 sm:space-x-3">
                   <button
                     onClick={() => navigate('/search')}
-                    className="flex items-center space-x-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                    className="flex items-center space-x-1 sm:space-x-2 px-2 sm:px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm sm:text-base"
                   >
                     <Filter className="w-4 h-4" />
-                    <span>Filter</span>
+                    <span className="hidden sm:inline">Filter</span>
                   </button>
                   <button
                     onClick={() => navigate('/upload')}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2"
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-2 sm:px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-1 sm:space-x-2 text-sm sm:text-base"
                   >
                     <Upload className="w-4 h-4" />
-                    <span>Upload</span>
+                    <span className="hidden sm:inline">Upload</span>
+                    <span className="sm:hidden">+</span>
                   </button>
                 </div>
               </div>
@@ -252,7 +253,7 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
           
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
             {[
               {
                 key: 'personal',
@@ -297,20 +298,20 @@ const Dashboard: React.FC = () => {
                 >
                   <Card
                     variant={variant}
-                    className="h-32 flex flex-col items-center justify-center text-center hover:scale-105 transition-all duration-300"
+                    className="h-24 sm:h-32 flex flex-col items-center justify-center text-center hover:scale-105 transition-all duration-300"
                   >
-                    <div className="mb-3 group-hover:scale-110 transition-transform duration-200">
-                      <IconComponent className="w-8 h-8" />
+                    <div className="mb-2 sm:mb-3 group-hover:scale-110 transition-transform duration-200">
+                      <IconComponent className="w-6 h-6 sm:w-8 sm:h-8" />
                     </div>
                     <div>
-                      <p className={`text-2xl font-bold mb-1 ${
+                      <p className={`text-lg sm:text-2xl font-bold mb-1 ${
                         variant?.includes('neon') || variant?.includes('gradient') 
                           ? 'text-white' 
                           : 'text-gray-900 dark:text-white'
                       }`}>
                         {count}
                       </p>
-                      <p className={`text-sm font-medium ${
+                      <p className={`text-xs sm:text-sm font-medium ${
                         variant?.includes('neon') || variant?.includes('gradient')
                           ? 'text-gray-200'
                           : 'text-gray-600 dark:text-gray-400'

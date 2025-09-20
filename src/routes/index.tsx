@@ -9,6 +9,7 @@ import Layout from '../components/layout/Layout';
 const Dashboard = React.lazy(() => import('../pages/Dashboard'));
 const CategoryView = React.lazy(() => import('../pages/CategoryView'));
 const Settings = React.lazy(() => import('../pages/Settings'));
+const Upload = React.lazy(() => import('../pages/Upload'));
 const Profile = React.lazy(() => import('../components/profile/Profile'));
 const NotFound = React.lazy(() => import('../pages/NotFound'));
 
@@ -73,6 +74,14 @@ const AppRoutes: React.FC = () => {
               <Layout>
                 <CategoryView />
               </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/upload"
+          element={
+            <ProtectedRoute>
+              <Upload />
             </ProtectedRoute>
           }
         />
