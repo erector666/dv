@@ -36,7 +36,6 @@ export const useSidebarSwipe = (options: SidebarSwipeOptions) => {
     const isFromEdge = startX <= edgeThreshold;
     const canSwipe = isFromEdge || isOpen;
     
-    console.log(`🔍 Touch Start - X: ${startX}, Edge: ${isFromEdge}, CanSwipe: ${canSwipe}, IsOpen: ${isOpen}`);
     
     if (canSwipe) {
       touchStart.current = {
@@ -75,17 +74,14 @@ export const useSidebarSwipe = (options: SidebarSwipeOptions) => {
       Math.abs(deltaX) > Math.abs(deltaY) * 2 && // Much more horizontal than vertical
       deltaTime < maxSwipeTime;
 
-    console.log(`🔍 Touch End - DeltaX: ${deltaX}, DeltaY: ${deltaY}, Time: ${deltaTime}ms, Valid: ${isValidSwipe}, EdgeSwipe: ${isEdgeSwipe.current}`);
 
     if (isValidSwipe) {
       // Swipe right to open (from left edge)
       if (deltaX > 0 && isEdgeSwipe.current && !isOpen && onSwipeOpen) {
-        console.log('✅ Opening sidebar via swipe');
         onSwipeOpen();
       }
       // Swipe left to close (when sidebar is open)
       else if (deltaX < 0 && isOpen && onSwipeClose) {
-        console.log('✅ Closing sidebar via swipe');
         onSwipeClose();
       }
     }
@@ -98,36 +94,18 @@ export const useSidebarSwipe = (options: SidebarSwipeOptions) => {
   useEffect(() => {
     // Only enable swipe on mobile devices
     const isMobile = window.innerWidth < 768;
-    console.log(`🔍 Swipe Effect - IsMobile: ${isMobile}, WindowWidth: ${window.innerWidth}`);
     if (!isMobile) return;
 
     const element = document.body;
 
-    const handleTouchStartWrapper = (e: TouchEvent) => {
-      console.log('🔍 Touch start event fired');
-      handleTouchStart(e);
-    };
-
-    const handleTouchMoveWrapper = (e: TouchEvent) => {
-      handleTouchMove(e);
-    };
-
-    const handleTouchEndWrapper = (e: TouchEvent) => {
-      console.log('🔍 Touch end event fired');
-      handleTouchEnd(e);
-    };
-
-    element.addEventListener('touchstart', handleTouchStartWrapper, { passive: true });
-    element.addEventListener('touchmove', handleTouchMoveWrapper, { passive: false });
-    element.addEventListener('touchend', handleTouchEndWrapper, { passive: true });
-
-    console.log('🔍 Touch event listeners added to body');
+    element.addEventListener('touchstart', handleTouchStart, { passive: true });
+    element.addEventListener('touchmove', handleTouchMove, { passive: false });
+    element.addEventListener('touchend', handleTouchEnd, { passive: true });
 
     return () => {
-      element.removeEventListener('touchstart', handleTouchStartWrapper);
-      element.removeEventListener('touchmove', handleTouchMoveWrapper);
-      element.removeEventListener('touchend', handleTouchEndWrapper);
-      console.log('🔍 Touch event listeners removed from body');
+      element.removeEventListener('touchstart', handleTouchStart);
+      element.removeEventListener('touchmove', handleTouchMove);
+      element.removeEventListener('touchend', handleTouchEnd);
     };
   }, [onSwipeOpen, onSwipeClose, isOpen, edgeThreshold, minSwipeDistance, maxSwipeTime]);
 

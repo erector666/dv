@@ -18,7 +18,6 @@ export const useSimpleSwipe = (options: SimpleSwipeOptions) => {
       startX = touch.clientX;
       startY = touch.clientY;
       startTime = Date.now();
-      console.log(`📱 Simple Swipe Start: X=${startX}, Y=${startY}`);
     };
 
     const handleTouchEnd = (e: TouchEvent) => {
@@ -31,7 +30,6 @@ export const useSimpleSwipe = (options: SimpleSwipeOptions) => {
       const deltaY = endY - startY;
       const deltaTime = endTime - startTime;
 
-      console.log(`📱 Simple Swipe End: DeltaX=${deltaX}, DeltaY=${deltaY}, Time=${deltaTime}ms`);
 
       // Check if it's a horizontal swipe
       const isHorizontal = Math.abs(deltaX) > Math.abs(deltaY);
@@ -40,10 +38,8 @@ export const useSimpleSwipe = (options: SimpleSwipeOptions) => {
 
       if (isHorizontal && isQuick && isLongEnough) {
         if (deltaX > 0) {
-          console.log('📱 Swipe RIGHT detected!');
           onSwipeRight?.();
         } else {
-          console.log('📱 Swipe LEFT detected!');
           onSwipeLeft?.();
         }
       }
@@ -53,12 +49,9 @@ export const useSimpleSwipe = (options: SimpleSwipeOptions) => {
     document.addEventListener('touchstart', handleTouchStart, { passive: true });
     document.addEventListener('touchend', handleTouchEnd, { passive: true });
 
-    console.log('📱 Simple swipe listeners added');
-
     return () => {
       document.removeEventListener('touchstart', handleTouchStart);
       document.removeEventListener('touchend', handleTouchEnd);
-      console.log('📱 Simple swipe listeners removed');
     };
   }, [onSwipeRight, onSwipeLeft]);
 };

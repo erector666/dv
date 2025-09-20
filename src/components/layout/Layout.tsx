@@ -81,13 +81,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   useSimpleSwipe({
     onSwipeRight: () => {
       if (!isMobileSidebarOpen) {
-        console.log('📱 Simple swipe opening sidebar');
         openMobileSidebar();
       }
     },
     onSwipeLeft: () => {
       if (isMobileSidebarOpen) {
-        console.log('📱 Simple swipe closing sidebar');
         closeMobileSidebar();
       }
     },
