@@ -64,15 +64,11 @@ const ChatBot: React.FC<ChatBotProps> = ({
       const welcomeMessage: ChatMessage = {
         id: `welcome_${Date.now()}`,
         role: 'assistant',
-        content: `Hi! I'm Dorian, your AI assistant. 😊
+        content: translate('dorian.welcome') || `Hi! I'm Dorian, your AI assistant for DocVault! 😊
 
-I can help you with:
-• 📄 Viewing your uploaded documents
-• 🔍 Finding information about your files
-• 📊 Understanding your document statistics
-• ❓ Answering questions about DocVault features
+I can help you analyze your documents, answer questions about your files, and explain how to use DocVault features.
 
-What would you like to know about your documents?`,
+Try asking me about your last uploaded file, document statistics, or how to organize your documents!`,
         timestamp: new Date(),
       };
 
@@ -96,35 +92,6 @@ What would you like to know about your documents?`,
     setIsTyping(true);
 
     try {
-      // Check for common questions and provide accurate local responses
-      const lowerMessage = userMessage.content.toLowerCase();
-      
-      if (lowerMessage.includes('what can you do') || lowerMessage.includes('capabilities') || lowerMessage.includes('help')) {
-        const localResponse: ChatMessage = {
-          id: `assistant_${Date.now()}`,
-          role: 'assistant',
-          content: `I can help you with your DocVault documents:
-
-📄 **Document Information**: I can tell you about your uploaded files, their categories, and basic details.
-
-🔍 **Search Guidance**: I can help you understand how to search and filter your documents.
-
-📊 **Statistics**: I can provide insights about your document collection.
-
-🆘 **App Help**: I can explain DocVault features and how to use them.
-
-⚠️ **Please note**: I cannot directly organize files, set reminders, or perform actions in the app. I'm here to provide information and guidance about your documents and the DocVault features.
-
-How can I help you today?`,
-          timestamp: new Date(),
-        };
-        
-        setMessages(prev => [...prev, localResponse]);
-        setIsLoading(false);
-        setIsTyping(false);
-        return;
-      }
-
       // Validate message
       const validation = chatbotService.validateMessage(userMessage.content);
       if (!validation.isValid) {
@@ -139,7 +106,7 @@ How can I help you today?`,
         userPreferences: {
           preferredCategories: [],
           language: language,
-          systemNote: "You are Dorian, an AI assistant for DocVault. You can only provide information about documents and explain app features. You CANNOT organize files, set reminders, sync data, or perform actions. Be honest about limitations.",
+          systemNote: "You are Dorian, an AI assistant for DocVault. You can analyze documents, answer questions about files, provide insights about document content and metadata, and explain app features. When asked about capabilities, be specific about what you can actually do with the user's documents. You cannot directly perform actions in the app interface.",
         },
       };
 
@@ -420,7 +387,10 @@ How can I help you today?`,
                       });
                     }, 50);
                   }}
-                  placeholder="Ask about your documents and DocVault features..."
+                  placeholder={
+                    translate('chatbot.placeholder') ||
+                    'Ask Dorian anything about your documents...'
+                  }
                   className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
                   disabled={isLoading}
                 />
@@ -447,7 +417,7 @@ How can I help you today?`,
               </Button>
             </div>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-center">
-              Dorian provides information about your documents and app features. Cannot perform direct actions in the app.
+              Dorian can analyze your documents and provide intelligent insights about your files.
             </p>
           </div>
         </CardContent>
