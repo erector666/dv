@@ -87,8 +87,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
       const docCategory = doc.category?.toLowerCase();
       const filterCategory = category.toLowerCase();
       
-      // DEBUG: Log filtering details
-      console.log(`🔍 Filtering - Category: ${category}, DocCategory: ${doc.category}, FilterCategory: ${filterCategory}, DocCategoryLower: ${docCategory}`);
+      // Filtering logic continues below...
       
       
       // Handle special category mappings
@@ -223,11 +222,16 @@ const DocumentList: React.FC<DocumentListProps> = ({
     return false;
   });
 
-  // DEBUG: Log filtering results
-  console.log(`📊 Documents: Total=${documents?.length || 0}, Filtered=${filteredDocuments?.length || 0}, Category=${category}`);
-  if (documents && documents.length > 0) {
-    console.log(`📋 Sample document categories:`, documents.slice(0, 3).map(d => ({ name: d.name, category: d.category })));
-  }
+  // DEBUG: Prepare debug info for mobile viewing
+  const debugInfo = {
+    totalDocuments: documents?.length || 0,
+    filteredDocuments: filteredDocuments?.length || 0,
+    currentCategory: category || 'none',
+    sampleCategories: documents?.slice(0, 5).map(d => ({ 
+      name: d.name?.substring(0, 20) + '...', 
+      category: d.category || 'no-category' 
+    })) || []
+  };
 
   // Handle document click - Open in new tab for quick viewing
   const handleDocumentClick = (document: Document) => {
@@ -707,6 +711,30 @@ const DocumentList: React.FC<DocumentListProps> = ({
 
   return (
     <>
+      {/* DEBUG PANEL - Mobile Friendly */}
+      <div className="mb-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg p-4">
+        <h3 className="text-sm font-semibold text-yellow-800 dark:text-yellow-200 mb-2">🔍 Debug Info</h3>
+        <div className="text-xs space-y-1 text-yellow-700 dark:text-yellow-300">
+          <div>📊 Total Documents: <strong>{debugInfo.totalDocuments}</strong></div>
+          <div>🎯 Filtered Documents: <strong>{debugInfo.filteredDocuments}</strong></div>
+          <div>📂 Current Category: <strong>{debugInfo.currentCategory}</strong></div>
+          <div className="mt-2">
+            <div className="font-medium">📋 Sample Document Categories:</div>
+            {debugInfo.sampleCategories.length > 0 ? (
+              <div className="mt-1 space-y-1">
+                {debugInfo.sampleCategories.map((doc, idx) => (
+                  <div key={idx} className="pl-2 text-xs">
+                    • {doc.name} → <strong>{doc.category}</strong>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="pl-2 text-xs">No documents found</div>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* Batch Operations Toolbar */}
       <div className="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
         <div className="p-4">
