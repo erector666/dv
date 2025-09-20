@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
 import { useLanguage, LanguageType } from '../../context/LanguageContext';
-import { useUploadModal } from '../../context/UploadModalContext';
 import { useAuth } from '../../context/AuthContext';
 import { useSearch } from '../../context/SearchContext';
 import { Link, useNavigate } from 'react-router-dom';
 import ThemeToggle from '../ui/ThemeToggle';
-import { Upload } from 'lucide-react';
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -13,7 +11,6 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
   const { language, setLanguage, translate } = useLanguage();
-  const { openModal } = useUploadModal();
   const { logOut, currentUser } = useAuth();
   const { searchTerm, setSearchTerm, clearSearch } = useSearch();
   const navigate = useNavigate();
@@ -143,15 +140,6 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
 
         {/* Right side actions */}
         <div className="flex items-center space-x-4">
-          {/* Upload Button */}
-          <button
-            onClick={openModal}
-            className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded-md flex items-center transition-colors"
-            aria-label={translate('upload')}
-          >
-            <Upload className="h-5 w-5 mr-2" />
-            {translate('upload')}
-          </button>
           {/* Theme toggle */}
           <ThemeToggle size="md" />
 

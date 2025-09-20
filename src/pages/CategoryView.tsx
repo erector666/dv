@@ -3,14 +3,12 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQueryClient, useQuery } from 'react-query';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
-import { UploadModal } from '../components/upload';
 import { getDocuments } from '../services/documentService';
 import { DocumentList } from '../components/documents';
 
 const CategoryView: React.FC = () => {
   const { categoryId } = useParams<{ categoryId: string }>();
   const { translate } = useLanguage();
-  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { currentUser } = useAuth();
@@ -53,14 +51,6 @@ const CategoryView: React.FC = () => {
   // We'll get the count from DocumentList's filtered results
   
 
-  const handleUploadComplete = () => {
-
-    // Invalidate and refetch the documents query to show the new document
-    queryClient.invalidateQueries(['documents']);
-
-    // Close the upload modal
-    setIsUploadModalOpen(false);
-  };
 
   return (
     <>
@@ -96,7 +86,7 @@ const CategoryView: React.FC = () => {
           </div>
 
           <button
-            onClick={() => setIsUploadModalOpen(true)}
+            onClick={() => navigate('/upload')}
             className="bg-primary-600 hover:bg-primary-700 text-white px-6 py-3 rounded-lg transition-colors flex items-center space-x-2"
           >
             <svg
@@ -131,11 +121,6 @@ const CategoryView: React.FC = () => {
           <DocumentList category={categoryId} />
         )}
       </div>
-      <UploadModal
-        isOpen={isUploadModalOpen}
-        onClose={() => setIsUploadModalOpen(false)}
-        onUploadComplete={handleUploadComplete}
-      />
     </>
   );
 };

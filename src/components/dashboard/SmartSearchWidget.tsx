@@ -158,7 +158,7 @@ const SmartSearchWidget: React.FC<SmartSearchWidgetProps> = ({ onSearch, classNa
 
           {/* Filters Panel */}
           {showFilters && (
-            <div className="absolute top-full left-0 right-0 mt-2 z-20">
+            <div className="absolute top-full left-0 right-0 mt-2 z-10">
               <Card variant="floating" className="p-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {/* Category Filter */}
@@ -221,7 +221,7 @@ const SmartSearchWidget: React.FC<SmartSearchWidgetProps> = ({ onSearch, classNa
 
           {/* Search Suggestions */}
           {isExpanded && suggestions.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-2 z-10">
+            <div className="absolute top-full left-0 right-0 mt-2 z-0">
               <Card variant="floating" className="py-2">
                 {suggestions.map((suggestion, index) => (
                   <button
@@ -249,10 +249,13 @@ const SmartSearchWidget: React.FC<SmartSearchWidgetProps> = ({ onSearch, classNa
       </Card>
 
       {/* Click outside to close */}
-      {isExpanded && (
+      {(isExpanded || showFilters) && (
         <div
           className="fixed inset-0 z-0"
-          onClick={() => setIsExpanded(false)}
+          onClick={() => {
+            setIsExpanded(false);
+            setShowFilters(false);
+          }}
         />
       )}
     </div>

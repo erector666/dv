@@ -6,7 +6,6 @@ import Header from './Header';
 import ChatBot from '../chat/ChatBot';
 import { Button } from '../ui/Button';
 import { useAuth } from '../../context/AuthContext';
-import { useUploadModal } from '../../context/UploadModalContext';
 import { getUserDocuments } from '../../services/documentService';
 import { useSidebarSwipe } from '../../hooks/useSidebarSwipe';
 import { useSimpleSwipe } from '../../hooks/useSimpleSwipe';
@@ -21,7 +20,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [showSwipeHint, setShowSwipeHint] = useState(false);
   const { currentUser } = useAuth();
-  const { openModal } = useUploadModal();
 
   // Fetch user's documents for chatbot context
   const { data: documents = [] } = useQuery(
@@ -96,7 +94,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
     switch (action) {
       case 'open_upload_modal':
-        openModal();
+        window.location.href = '/upload';
         break;
       case 'search_documents':
         // Navigate to dashboard with search focus
@@ -203,7 +201,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       {currentUser && (
         <Button
           onClick={toggleChat}
-          className="fixed w-14 h-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 z-40"
+          className="fixed w-14 h-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 z-50"
           style={{
             right: '1.25rem',
             bottom: 'calc(1.25rem + var(--safe-bottom, 0px))',
