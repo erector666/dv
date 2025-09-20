@@ -140,6 +140,21 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile = false, onClose }) => {
       }).length;
     }
     
+    // Handle other category mapping - documents that don't fit predefined categories
+    if (filterCategory === 'other') {
+      const predefinedCategories = [
+        'personal', 'financial', 'finance', 'bills', 'education', 'educational', 
+        'school', 'university', 'academic', 'legal', 'law', 'contract', 
+        'agreement', 'medical', 'health', 'healthcare', 'doctor', 'hospital',
+        'insurance', 'insure', 'government', 'gov', 'official', 'public'
+      ];
+      return documents.filter(doc => {
+        const docCategory = doc.category?.toLowerCase();
+        return docCategory === 'other' || 
+               (docCategory && !predefinedCategories.includes(docCategory));
+      }).length;
+    }
+    
     // Default exact match (case insensitive)
     return documents.filter(doc => {
       const docCategory = doc.category?.toLowerCase();

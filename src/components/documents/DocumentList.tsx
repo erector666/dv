@@ -150,6 +150,18 @@ const DocumentList: React.FC<DocumentListProps> = ({
                docCategory === 'public';
       }
       
+      // Handle other category mapping - documents that don't fit predefined categories
+      if (filterCategory === 'other') {
+        const predefinedCategories = [
+          'personal', 'financial', 'finance', 'bills', 'education', 'educational', 
+          'school', 'university', 'academic', 'legal', 'law', 'contract', 
+          'agreement', 'medical', 'health', 'healthcare', 'doctor', 'hospital',
+          'insurance', 'insure', 'government', 'gov', 'official', 'public'
+        ];
+        return docCategory === 'other' || 
+               (docCategory && !predefinedCategories.includes(docCategory));
+      }
+      
       // Default exact match (case insensitive)
       if (docCategory !== filterCategory) {
         return false; // Category doesn't match

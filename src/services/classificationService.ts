@@ -851,7 +851,7 @@ export const processDocument = async (
       
       const financialPattern = new RegExp(financialKeywords.join('|'), 'i');
       if (financialPattern.test(t) || financialPattern.test(f)) {
-        return 'Finance';
+        return 'financial';
       }
       
       // Additional filename-based detection for bills
@@ -864,71 +864,74 @@ export const processDocument = async (
       ];
       
       if (billFilenamePatterns.some(pattern => pattern.test(f))) {
-        return 'Finance';
+        return 'financial';
       }
       if (/contract|agreement|terms|signature|law|attorney|legal|clause|settlement|court/.test(t)) {
-        return 'Legal';
+        return 'legal';
       }
       if (/hospital|clinic|doctor|prescription|diagnosis|medical|healthcare|medication|health|patient/.test(t)) {
-        return 'Medical';
+        return 'medical';
       }
       if (/certificate|certificat|attestation|diploma|universit[eé]|school|course|degree|transcript|graduation/.test(t)) {
-        return 'Education';
+        return 'education';
       }
       if (/passport|visa|boarding pass|itinerary|booking|hotel|flight|travel|trip/.test(t)) {
-        return 'Travel';
+        return 'travel';
       }
       if (/insurance|policy|claim|premium|coverage|auto|car|home|life/.test(t)) {
-        return 'Insurance';
+        return 'insurance';
+      }
+      if (/government|gov|official|public|municipal|federal|state|city|county|passport|visa|license|permit|id|identification/.test(t)) {
+        return 'government';
       }
       if (/tax|irs|income|deduction|return|w2|1099|filing/.test(t)) {
-        return 'Tax';
+        return 'tax';
       }
       if (/bank|account|statement|balance|transaction|credit|debit|loan/.test(t)) {
-        return 'Banking';
+        return 'banking';
       }
       if (/employment|job|work|resume|cv|application|interview|salary|payroll/.test(t)) {
-        return 'Employment';
+        return 'employment';
       }
       if (/utility|electric|water|gas|phone|cable|internet|service/.test(t)) {
-        return 'Utilities';
+        return 'utilities';
       }
       if (/real estate|property|lease|rent|mortgage|deed|title|house|apartment/.test(t)) {
-        return 'Real Estate';
+        return 'real_estate';
       }
       if (/warranty|manual|instruction|guide|technical|specification/.test(t)) {
-        return 'Technical';
+        return 'technical';
       }
       if (/photo|image|picture|scan|screenshot|screenshot/.test(f) || /jpg|jpeg|png|gif|bmp|tiff/.test(f)) {
-        return 'Photos';
+        return 'photos';
       }
 
       // Language-specific document detection
       if (/уверение|certificate|attestation/i.test(t) || /mk_|macedonian|македонски/i.test(f)) {
-        return 'Certificates';
+        return 'certificates';
       }
       if (/français|francais|french|fr_/i.test(t) || /fr_|francais|français/i.test(f)) {
-        return 'French Documents';
+        return 'french_documents';
       }
 
-      // If AI already proposed a meaningful category, keep it (but capitalize properly)
+      // If AI already proposed a meaningful category, keep it (but normalize to lowercase)
       if (c && !['document', 'personal', 'unknown', 'other', 'misc', 'miscellaneous'].includes(c)) {
-        return c.charAt(0).toUpperCase() + c.slice(1);
+        return c.toLowerCase();
       }
 
       // Enhanced fallback based on file type and content
       if (document.type?.includes('image/')) {
-        return 'Photos';
+        return 'photos';
       }
       if (document.type?.includes('pdf') && t.length < 100) {
-        return 'Scanned Documents';
+        return 'scanned_documents';
       }
       if (t.length > 500) {
-        return 'Text Documents';
+        return 'text_documents';
       }
 
-      // Default fallback - use "Personal" instead of generic "document"
-      return 'Personal';
+      // Default fallback - use "personal" instead of generic "document"
+      return 'personal';
     };
 
     console.log(
