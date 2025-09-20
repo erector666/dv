@@ -93,7 +93,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile = false, onClose }) => {
                docCategory === 'educational' ||
                docCategory === 'school' ||
                docCategory === 'university' ||
-               docCategory === 'academic';
+               docCategory === 'academic' ||
+               (docCategory && docCategory.includes('certificate')) ||
+               (docCategory && docCategory.includes('diploma')) ||
+               (docCategory && docCategory.includes('attestation'));
       }).length;
     }
     
