@@ -64,8 +64,15 @@ const ChatBot: React.FC<ChatBotProps> = ({
       const welcomeMessage: ChatMessage = {
         id: `welcome_${Date.now()}`,
         role: 'assistant',
-        content:
-          translate('dorian.welcome') || 'Hi I am Dorian, how can I help? 😊',
+        content: `Hi! I'm Dorian, your AI assistant. 😊
+
+I can help you with:
+• 📄 Viewing your uploaded documents
+• 🔍 Finding information about your files
+• 📊 Understanding your document statistics
+• ❓ Answering questions about DocVault features
+
+What would you like to know about your documents?`,
         timestamp: new Date(),
       };
 
@@ -89,6 +96,35 @@ const ChatBot: React.FC<ChatBotProps> = ({
     setIsTyping(true);
 
     try {
+      // Check for common questions and provide accurate local responses
+      const lowerMessage = userMessage.content.toLowerCase();
+      
+      if (lowerMessage.includes('what can you do') || lowerMessage.includes('capabilities') || lowerMessage.includes('help')) {
+        const localResponse: ChatMessage = {
+          id: `assistant_${Date.now()}`,
+          role: 'assistant',
+          content: `I can help you with your DocVault documents:
+
+📄 **Document Information**: I can tell you about your uploaded files, their categories, and basic details.
+
+🔍 **Search Guidance**: I can help you understand how to search and filter your documents.
+
+📊 **Statistics**: I can provide insights about your document collection.
+
+🆘 **App Help**: I can explain DocVault features and how to use them.
+
+⚠️ **Please note**: I cannot directly organize files, set reminders, or perform actions in the app. I'm here to provide information and guidance about your documents and the DocVault features.
+
+How can I help you today?`,
+          timestamp: new Date(),
+        };
+        
+        setMessages(prev => [...prev, localResponse]);
+        setIsLoading(false);
+        setIsTyping(false);
+        return;
+      }
+
       // Validate message
       const validation = chatbotService.validateMessage(userMessage.content);
       if (!validation.isValid) {
@@ -103,6 +139,7 @@ const ChatBot: React.FC<ChatBotProps> = ({
         userPreferences: {
           preferredCategories: [],
           language: language,
+          systemNote: "You are Dorian, an AI assistant for DocVault. You can only provide information about documents and explain app features. You CANNOT organize files, set reminders, sync data, or perform actions. Be honest about limitations.",
         },
       };
 
@@ -383,10 +420,7 @@ const ChatBot: React.FC<ChatBotProps> = ({
                       });
                     }, 50);
                   }}
-                  placeholder={
-                    translate('chatbot.placeholder') ||
-                    'Ask me anything about your documents...'
-                  }
+                  placeholder="Ask about your documents and DocVault features..."
                   className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
                   disabled={isLoading}
                 />
@@ -412,6 +446,9 @@ const ChatBot: React.FC<ChatBotProps> = ({
                 </svg>
               </Button>
             </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-center">
+              Dorian provides information about your documents and app features. Cannot perform direct actions in the app.
+            </p>
           </div>
         </CardContent>
       </Card>

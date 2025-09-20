@@ -40,6 +40,7 @@ interface ConversationContext {
   userPreferences?: {
     preferredCategories: string[];
     language: string;
+    systemNote?: string;
   };
 }
 
