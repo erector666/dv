@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Filter, X, Clock, FileText, Tag, Calendar } from 'lucide-react';
+import { Search, Filter, X, Clock, FileText, Tag } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
 import { Card } from '../ui';
@@ -71,7 +71,7 @@ const SmartSearchWidget: React.FC<SmartSearchWidgetProps> = ({ onSearch, classNa
     } else {
       setSuggestions(mockSuggestions.slice(0, 4));
     }
-  }, [query]);
+  }, [query, mockSuggestions]);
 
   const handleSearch = (searchQuery: string = query) => {
     if (searchQuery.trim()) {

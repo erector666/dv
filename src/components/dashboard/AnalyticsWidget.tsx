@@ -1,5 +1,5 @@
 import React from 'react';
-import { BarChart3, TrendingUp, PieChart, Calendar, FileText, Clock } from 'lucide-react';
+import { BarChart3, TrendingUp, PieChart, Calendar, FileText } from 'lucide-react';
 import { Card } from '../ui';
 
 interface AnalyticsWidgetProps {

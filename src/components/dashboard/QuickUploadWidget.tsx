@@ -12,7 +12,7 @@ interface UploadFile {
   file: File;
   progress: number;
   status: 'pending' | 'uploading' | 'success' | 'error';
-  error?: string;
+  error?: string | null;
 }
 
 const QuickUploadWidget: React.FC<QuickUploadWidgetProps> = ({ onUpload, className }) => {
@@ -75,7 +75,7 @@ const QuickUploadWidget: React.FC<QuickUploadWidgetProps> = ({ onUpload, classNa
         file,
         progress: 0,
         status: error ? 'error' : 'pending',
-        error,
+        error: error || undefined,
       });
     }
 

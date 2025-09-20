@@ -16,10 +16,7 @@ import {
   Search,
   Upload,
   BarChart3,
-  Users,
-  Calendar,
   Filter,
-  Star,
   Zap,
   Activity
 } from 'lucide-react';
