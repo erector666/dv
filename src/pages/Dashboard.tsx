@@ -13,7 +13,6 @@ import {
   FolderOpen, 
   TrendingUp,
   Search,
-  Upload,
   BarChart3,
   Filter,
   Activity
@@ -315,21 +314,14 @@ const Dashboard: React.FC = () => {
         <AnalyticsWidget documents={documents} className="mb-8" />
       </div>
 
-      {/* Mobile Quick Actions */}
-      <div className="fixed bottom-6 right-4 md:hidden z-50 flex flex-col space-y-3">
+      {/* Mobile Search Action */}
+      <div className="fixed bottom-6 right-4 md:hidden z-50">
         <button
           onClick={() => navigate('/search')}
-          className="bg-purple-600 hover:bg-purple-700 text-white p-3 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110"
+          className="bg-purple-600 hover:bg-purple-700 text-white p-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110"
           aria-label="Search documents"
         >
-          <Search className="w-5 h-5" />
-        </button>
-        <button
-          onClick={() => navigate('/upload')}
-          className="bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110"
-          aria-label="Upload documents"
-        >
-          <Upload className="w-6 h-6" />
+          <Search className="w-6 h-6" />
         </button>
       </div>
 
