@@ -87,6 +87,9 @@ const DocumentList: React.FC<DocumentListProps> = ({
       const docCategory = doc.category?.toLowerCase();
       const filterCategory = category.toLowerCase();
       
+      // DEBUG: Log filtering details
+      console.log(`🔍 Filtering - Category: ${category}, DocCategory: ${doc.category}, FilterCategory: ${filterCategory}, DocCategoryLower: ${docCategory}`);
+      
       
       // Handle special category mappings
       if (filterCategory === 'personal' && (!docCategory || docCategory === 'document')) {
@@ -220,9 +223,11 @@ const DocumentList: React.FC<DocumentListProps> = ({
     return false;
   });
 
-  // Debug logging to understand why no documents are showing
-
-  // Removed debug logging to reduce console spam
+  // DEBUG: Log filtering results
+  console.log(`📊 Documents: Total=${documents?.length || 0}, Filtered=${filteredDocuments?.length || 0}, Category=${category}`);
+  if (documents && documents.length > 0) {
+    console.log(`📋 Sample document categories:`, documents.slice(0, 3).map(d => ({ name: d.name, category: d.category })));
+  }
 
   // Handle document click - Open in new tab for quick viewing
   const handleDocumentClick = (document: Document) => {
