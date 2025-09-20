@@ -8,6 +8,7 @@ import { Button } from '../ui/Button';
 import { useAuth } from '../../context/AuthContext';
 import { useUploadModal } from '../../context/UploadModalContext';
 import { getUserDocuments } from '../../services/documentService';
+import { useSidebarSwipe } from '../../hooks/useSidebarSwipe';
 import { MessageCircle } from 'lucide-react';
 
 interface LayoutProps {
@@ -17,6 +18,7 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [showSwipeHint, setShowSwipeHint] = useState(false);
   const { currentUser } = useAuth();
   const { openModal } = useUploadModal();
 
@@ -56,9 +58,23 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     setIsMobileSidebarOpen(false);
   };
 
+  const openMobileSidebar = () => {
+    setIsMobileSidebarOpen(true);
+  };
+
   const toggleChat = () => {
     setIsChatOpen(!isChatOpen);
   };
+
+  // Enable swipe gestures for sidebar
+  useSidebarSwipe({
+    onSwipeOpen: openMobileSidebar,
+    onSwipeClose: closeMobileSidebar,
+    isOpen: isMobileSidebarOpen,
+    edgeThreshold: 30, // 30px from left edge to trigger swipe
+    minSwipeDistance: 100, // Minimum swipe distance
+    maxSwipeTime: 500, // Maximum time for swipe gesture
+  });
 
   const handleChatAction = (action: string, data?: any) => {
     setIsChatOpen(false); // Close chat after action
@@ -138,6 +154,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+      {/* Swipe Hint for Mobile - only show when sidebar is closed */}
+      {!isMobileSidebarOpen && (
+        <div className="md:hidden fixed left-0 top-1/2 transform -translate-y-1/2 z-30 pointer-events-none">
+          <div className="w-1 h-12 bg-gradient-to-b from-transparent via-primary-500/30 to-transparent rounded-r-full animate-pulse"></div>
+        </div>
+      )}
+
       {/* Desktop Sidebar */}
       <div className="hidden md:block">
         <Sidebar />
