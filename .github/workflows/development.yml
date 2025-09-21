@@ -8,6 +8,8 @@ on:
 
 env:
   NODE_VERSION: '18'
+  VERCEL_ORG_ID: nikolas-projects-8cb9fb29
+  VERCEL_PROJECT_ID: dv
 
 jobs:
   # Development Testing
@@ -88,8 +90,8 @@ jobs:
         uses: amondnet/vercel-action@v25
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-org-id: ${{ env.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ env.VERCEL_PROJECT_ID }}
           vercel-args: '--target=preview'
 
       - name: Comment PR with preview link

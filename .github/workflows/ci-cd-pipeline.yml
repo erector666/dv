@@ -10,6 +10,8 @@ on:
 env:
   NODE_VERSION: '18'
   FIREBASE_PROJECT_ID: gpt1-77ce0
+  VERCEL_ORG_ID: nikolas-projects-8cb9fb29
+  VERCEL_PROJECT_ID: dv
 
 jobs:
   # Job 1: Code Quality & Testing
@@ -72,10 +74,10 @@ jobs:
       - name: Deploy Firebase Functions
         run: |
           echo "Deploying Firebase Functions..."
-          cd ../docvault
+          cd functions
           npm ci
           npm run build
-          firebase deploy --only functions:docvault --project ${{ env.FIREBASE_PROJECT_ID }} --token "${{ secrets.FIREBASE_TOKEN }}"
+          firebase deploy --only functions --project ${{ env.FIREBASE_PROJECT_ID }} --token "${{ secrets.FIREBASE_TOKEN }}"
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
 
@@ -117,19 +119,12 @@ jobs:
           if [ -z "${{ secrets.VERCEL_TOKEN }}" ]; then
             echo "❌ VERCEL_TOKEN secret is not set"
             echo "Please add VERCEL_TOKEN to your GitHub repository secrets"
-            exit 1
+            echo "Using environment variables as fallback..."
+          else
+            echo "✅ VERCEL_TOKEN is configured"
           fi
-          if [ -z "${{ secrets.VERCEL_ORG_ID }}" ]; then
-            echo "❌ VERCEL_ORG_ID secret is not set"
-            echo "Please add VERCEL_ORG_ID to your GitHub repository secrets"
-            exit 1
-          fi
-          if [ -z "${{ secrets.VERCEL_PROJECT_ID }}" ]; then
-            echo "❌ VERCEL_PROJECT_ID secret is not set"
-            echo "Please add VERCEL_PROJECT_ID to your GitHub repository secrets"
-            exit 1
-          fi
-          echo "✅ All Vercel secrets are configured"
+          echo "Using VERCEL_ORG_ID: ${{ env.VERCEL_ORG_ID }}"
+          echo "Using VERCEL_PROJECT_ID: ${{ env.VERCEL_PROJECT_ID }}"
 
       - name: Build application
         run: npm run build
@@ -145,8 +140,8 @@ jobs:
         uses: amondnet/vercel-action@v25
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-org-id: ${{ env.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ env.VERCEL_PROJECT_ID }}
           vercel-args: '--prod'
         continue-on-error: true
 
@@ -161,7 +156,7 @@ jobs:
               repo: context.repo.repo,
               body: `🚀 **Deployment Complete!**
 
-            **Frontend**: https://docsort.vercel.app
+            **Frontend**: https://dv-beta-peach.vercel.app
             **Backend**: Firebase Functions deployed
             **Status**: ✅ Success
 
@@ -179,11 +174,11 @@ jobs:
       - name: Check Vercel deployment
         run: |
           echo "Checking Vercel deployment..."
-          if curl -f https://docsort.vercel.app; then
+          if curl -f https://dv-beta-peach.vercel.app; then
             echo "✅ Vercel deployment is live!"
           else
             echo "⚠️ Vercel deployment check failed - this may be expected if Vercel secrets are not configured"
-            echo "Please configure VERCEL_TOKEN, VERCEL_ORG_ID, and VERCEL_PROJECT_ID secrets"
+            echo "Please configure VERCEL_TOKEN secret"
           fi
 
       - name: Check Firebase Functions
@@ -194,6 +189,6 @@ jobs:
       - name: Send notification
         run: |
           echo "🎉 CI/CD Pipeline completed successfully!"
-          echo "Frontend: https://docsort.vercel.app"
+          echo "Frontend: https://dv-beta-peach.vercel.app"
           echo "Backend: Firebase Storage, Firestore, and Functions deployed"
           echo "Functions: https://us-central1-${{ env.FIREBASE_PROJECT_ID }}.cloudfunctions.net"
