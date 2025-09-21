@@ -130,14 +130,7 @@ const Dashboard: React.FC = () => {
               </p>
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
-              <button
-                onClick={() => navigate('/search')}
-                className="bg-white/20 hover:bg-white/30 backdrop-blur-sm border border-white/30 text-white px-4 sm:px-6 py-3 rounded-xl font-semibold transition-all duration-200 hover:scale-105 flex items-center justify-center space-x-2"
-              >
-                <Search className="w-5 h-5" />
-                <span className="hidden sm:inline">Search Documents</span>
-                <span className="sm:hidden">Search</span>
-              </button>
+              {/* Header search removed - using main SmartSearchWidget below */}
             </div>
           </div>
         </div>
@@ -250,14 +243,7 @@ const Dashboard: React.FC = () => {
                   <span>Your Documents</span>
                 </h2>
                 <div className="flex items-center space-x-2 sm:space-x-3">
-                  <button
-                    onClick={() => navigate('/search')}
-                    className="flex items-center space-x-1 sm:space-x-2 px-3 sm:px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm sm:text-base"
-                  >
-                    <Filter className="w-4 h-4" />
-                    <span className="hidden sm:inline">Advanced Search</span>
-                    <span className="sm:hidden">Search</span>
-                  </button>
+                  {/* Advanced search removed - functionality integrated into SmartSearchWidget */}
                 </div>
               </div>
               
@@ -355,16 +341,7 @@ const Dashboard: React.FC = () => {
         <AnalyticsWidget documents={documents} className="mb-8" />
       </div>
 
-      {/* Mobile Search Action */}
-      <div className="fixed bottom-6 right-4 md:hidden z-50">
-        <button
-          onClick={() => navigate('/search')}
-          className="bg-purple-600 hover:bg-purple-700 text-white p-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110"
-          aria-label="Search documents"
-        >
-          <Search className="w-6 h-6" />
-        </button>
-      </div>
+      {/* Mobile search removed - using main SmartSearchWidget which is mobile-responsive */}
 
       {/* Document Viewer Modal */}
       {documentToView && isViewerModalOpen && (
