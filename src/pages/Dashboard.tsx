@@ -150,7 +150,7 @@ const Dashboard: React.FC = () => {
             label="Total Documents"
             value={documentStats.totalDocuments}
             className="active:scale-95 transition-all duration-200 touch-manipulation"
-            onClick={() => navigate('/documents')}
+            onClick={() => navigate('/search')}
           />
           <StatsCard
             variant="glassPurple"
@@ -158,7 +158,7 @@ const Dashboard: React.FC = () => {
             label="Storage Used"
             value={formatFileSize(documentStats.totalSize)}
             className="active:scale-95 transition-all duration-200 touch-manipulation"
-            onClick={() => navigate('/storage')}
+            onClick={() => navigate('/settings')}
           />
           <StatsCard
             variant="neonGreen"
@@ -166,7 +166,7 @@ const Dashboard: React.FC = () => {
             label="This Week"
             value={documentStats.recentDocuments}
             className="active:scale-95 transition-all duration-200 touch-manipulation"
-            onClick={() => navigate('/recent')}
+            onClick={() => navigate('/search')}
           />
           <StatsCard
             variant="gradientSunset"
@@ -174,7 +174,7 @@ const Dashboard: React.FC = () => {
             label="Processing"
             value={documentStats.processingCount}
             className="active:scale-95 transition-all duration-200 touch-manipulation"
-            onClick={() => navigate('/processing')}
+            onClick={() => navigate('/search')}
           />
         </div>
 
