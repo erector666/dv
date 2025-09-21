@@ -13,6 +13,7 @@ import { SearchProvider } from './context/SearchContext';
 
 // Components
 import ErrorBoundary from './components/ErrorBoundary';
+import PerformanceDashboard from './components/dev/PerformanceDashboard';
 
 // Routes
 import AppRoutes from './routes';
@@ -147,6 +148,7 @@ function App() {
               <UploadModalProvider>
                 <SearchProvider>
                   <RouterProvider router={router} />
+                  <PerformanceDashboard />
                 </SearchProvider>
               </UploadModalProvider>
             </AuthProvider>

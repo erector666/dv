@@ -1,7 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useMemo, useCallback } from 'react';
 import { Search, Filter, X, FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useLanguage } from '../../context/LanguageContext';
 import { Card } from '../ui';
 
 interface SmartSearchWidgetProps {
@@ -24,17 +23,17 @@ interface SearchSuggestion {
   description?: string;
 }
 
-const SmartSearchWidget: React.FC<SmartSearchWidgetProps> = ({ onSearch, className, documents = [] }) => {
+const SmartSearchWidget: React.FC<SmartSearchWidgetProps> = React.memo(({ onSearch, className, documents = [] }) => {
   const [query, setQuery] = useState('');
   const [isExpanded, setIsExpanded] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState<SearchFilters>({});
-  const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
-  const { translate } = useLanguage();
 
-  useEffect(() => {
+  // Memoize suggestions to prevent infinite re-renders
+  const suggestions = useMemo(() => {
     if (query.length > 0) {
       // Create suggestions from actual document data
       const documentSuggestions: SearchSuggestion[] = documents
@@ -59,21 +58,14 @@ const SmartSearchWidget: React.FC<SmartSearchWidgetProps> = ({ onSearch, classNa
           description: 'Category'
         }));
 
-      setSuggestions([...documentSuggestions, ...categorySuggestions]);
+      return [...documentSuggestions, ...categorySuggestions];
     } else {
-      // Show popular categories when no query
-      const categories = Array.from(new Set(documents.map(d => d.category).filter(Boolean)));
-      const categorySuggestions = categories.slice(0, 4).map(cat => ({
-        type: 'category' as const,
-        value: cat,
-        icon: <FileText className="w-4 h-4 text-gray-500" />,
-        description: 'Category'
-      }));
-      setSuggestions(categorySuggestions);
+      // Don't show suggestions when there's no query
+      return [];
     }
   }, [query, documents]);
 
-  const handleSearch = (searchQuery: string = query) => {
+  const handleSearch = useCallback((searchQuery: string = query) => {
     if (searchQuery.trim()) {
       if (onSearch) {
         onSearch(searchQuery, filters);
@@ -91,24 +83,24 @@ const SmartSearchWidget: React.FC<SmartSearchWidgetProps> = ({ onSearch, classNa
       }
     }
     setIsExpanded(false);
-  };
+  }, [query, filters, onSearch, navigate]);
 
-  const handleSuggestionClick = (suggestion: SearchSuggestion) => {
+  const handleSuggestionClick = useCallback((suggestion: SearchSuggestion) => {
     setQuery(suggestion.value);
     handleSearch(suggestion.value);
-  };
+  }, [handleSearch]);
 
-  const clearFilters = () => {
+  const clearFilters = useCallback(() => {
     setFilters({});
-  };
+  }, []);
 
   const hasActiveFilters = Object.values(filters).some(value => 
     value && (Array.isArray(value) ? value.length > 0 : true)
   );
 
   return (
-    <div className={`relative ${className}`}>
-      <Card variant="glass" className="overflow-visible">
+    <div ref={containerRef} className={`relative z-30 ${className}`}>
+      <Card variant="glass" className="overflow-visible relative z-30">
         <div className="relative">
           {/* Search Input */}
           <div className="relative">
@@ -133,6 +125,19 @@ const SmartSearchWidget: React.FC<SmartSearchWidgetProps> = ({ onSearch, classNa
               className="w-full pl-10 sm:pl-12 pr-16 sm:pr-20 py-3 sm:py-4 bg-transparent border-0 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-0 text-base sm:text-lg"
             />
             <div className="absolute inset-y-0 right-0 flex items-center space-x-1 sm:space-x-2 pr-3 sm:pr-4">
+              {query.length > 0 && (
+                <button
+                  onClick={() => {
+                    setQuery('');
+                    setIsExpanded(false);
+                    inputRef.current?.focus();
+                  }}
+                  className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  title="Clear search"
+                >
+                  <X className="w-3 h-3 sm:w-4 sm:h-4" />
+                </button>
+              )}
               {hasActiveFilters && (
                 <button
                   onClick={clearFilters}
@@ -158,7 +163,7 @@ const SmartSearchWidget: React.FC<SmartSearchWidgetProps> = ({ onSearch, classNa
 
           {/* Filters Panel */}
           {showFilters && (
-            <div className="absolute top-full left-0 right-0 mt-2 z-10">
+            <div className="absolute top-full left-0 right-0 mt-2 z-50">
               <Card variant="floating" className="p-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {/* Category Filter */}
@@ -220,8 +225,8 @@ const SmartSearchWidget: React.FC<SmartSearchWidgetProps> = ({ onSearch, classNa
           )}
 
           {/* Search Suggestions */}
-          {isExpanded && suggestions.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-2 z-0">
+          {isExpanded && query.length > 0 && suggestions.length > 0 && (
+            <div className="absolute top-full left-0 right-0 mt-2 z-50">
               <Card variant="floating" className="py-2">
                 {suggestions.map((suggestion, index) => (
                   <button
@@ -251,15 +256,20 @@ const SmartSearchWidget: React.FC<SmartSearchWidgetProps> = ({ onSearch, classNa
       {/* Click outside to close */}
       {(isExpanded || showFilters) && (
         <div
-          className="fixed inset-0 z-0"
-          onClick={() => {
-            setIsExpanded(false);
-            setShowFilters(false);
+          className="fixed inset-0 z-40"
+          onClick={(e) => {
+            // Only close if clicking outside the search widget
+            if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+              setIsExpanded(false);
+              setShowFilters(false);
+            }
           }}
         />
       )}
     </div>
   );
-};
+});
+
+SmartSearchWidget.displayName = 'SmartSearchWidget';
 
 export default SmartSearchWidget;

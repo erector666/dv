@@ -20,13 +20,16 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth();
-// Force long polling to avoid QUIC/WebChannel issues; disable fetch streams
-// Use initializeFirestore if available; otherwise fall back to getFirestore
+// Enhanced Firestore configuration to handle QUIC protocol errors
 const db = (FirestoreMod as any).initializeFirestore
   ? (FirestoreMod as any).initializeFirestore(app, {
-      // Hard-enable long polling to mitigate QUIC/WebChannel flakiness
+      // Force long polling to avoid QUIC/WebChannel issues
       experimentalForceLongPolling: true,
       useFetchStreams: false,
+      // Additional settings for better connection stability
+      ignoreUndefinedProperties: true,
+      // Reduce connection timeout issues
+      maxIdleTime: 30000, // 30 seconds
     })
   : (FirestoreMod.getFirestore as any)(app);
 const storage = getStorage(app);
@@ -39,28 +42,54 @@ let networkRetryAttempts = 0;
 const MAX_NETWORK_RETRIES = 3;
 
 const handleNetworkError = async (error: any) => {
-  // Check for specific QUIC protocol errors
+  // Enhanced QUIC protocol error detection
   const isQuicError =
     error?.message?.includes('QUIC') ||
     error?.code === 'ERR_QUIC_PROTOCOL_ERROR' ||
-    error?.toString()?.includes('webchannel');
+    error?.toString()?.includes('webchannel') ||
+    error?.toString()?.includes('Listen/channel') ||
+    error?.message?.includes('net::ERR_QUIC_PROTOCOL_ERROR') ||
+    error?.message?.includes('gsessionid');
 
-  if (isQuicError && networkRetryAttempts < MAX_NETWORK_RETRIES) {
+  const isConnectionError = 
+    error?.code === 'unavailable' ||
+    error?.code === 'deadline-exceeded' ||
+    error?.message?.includes('network') ||
+    error?.message?.includes('connection');
+
+  if ((isQuicError || isConnectionError) && networkRetryAttempts < MAX_NETWORK_RETRIES) {
     networkRetryAttempts++;
 
-    try {
-      // Simple delay-based recovery for QUIC issues
-      await new Promise(resolve => setTimeout(resolve, 3000)); // Wait 3 seconds for network recovery
+    console.warn(
+      `Firestore connection error detected (attempt ${networkRetryAttempts}/${MAX_NETWORK_RETRIES}):`,
+      error?.message || error
+    );
 
-      networkRetryAttempts = 0; // Reset on success
+    try {
+      // Exponential backoff with jitter for better recovery
+      const baseDelay = Math.pow(2, networkRetryAttempts) * 1000;
+      const jitter = Math.random() * 1000;
+      const delay = Math.min(baseDelay + jitter, 8000); // Max 8 seconds
+      
+      await new Promise(resolve => setTimeout(resolve, delay));
+
+      // Reset on successful recovery
+      if (networkRetryAttempts >= MAX_NETWORK_RETRIES) {
+        networkRetryAttempts = 0;
+      }
+      
       return true;
     } catch (recoveryError) {
-
-      // Final fallback - manual intervention required
+      console.error('Network recovery failed:', recoveryError);
+      
+      // Final fallback - suggest user refresh
       if (networkRetryAttempts >= MAX_NETWORK_RETRIES) {
+        console.error('Max retry attempts reached. Please refresh the page.');
+        // Could dispatch a user notification here
       }
     }
   }
+  
   return false;
 };
 

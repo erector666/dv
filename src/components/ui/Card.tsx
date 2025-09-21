@@ -3,7 +3,7 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { clsx } from 'clsx';
 
 const cardVariants = cva(
-  'rounded-2xl border transition-all duration-300 ease-out hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]',
+  'rounded-2xl border transition-all duration-300 ease-out hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] relative',
   {
     variants: {
       variant: {
@@ -207,7 +207,7 @@ const TiltCard = React.forwardRef<HTMLDivElement, CardProps>(
 );
 TiltCard.displayName = 'TiltCard';
 
-// Animated Stats Card
+// Mobile-Optimized Stats Card
 const StatsCard = React.forwardRef<
   HTMLDivElement,
   CardProps & {
@@ -216,8 +216,9 @@ const StatsCard = React.forwardRef<
     value?: string | number;
     trend?: 'up' | 'down' | 'neutral';
     trendValue?: string;
+    onClick?: () => void;
   }
->(({ className, icon, label, value, trend, trendValue, variant, ...props }, ref) => {
+>(({ className, icon, label, value, trend, trendValue, variant, onClick, ...props }, ref) => {
   const trendColors: Record<'up' | 'down' | 'neutral', string> = {
     up: 'text-green-600 dark:text-green-400',
     down: 'text-red-600 dark:text-red-400',
@@ -234,26 +235,33 @@ const StatsCard = React.forwardRef<
     <Card
       ref={ref}
       variant={variant || "statsCard"}
-      className={clsx('group cursor-pointer', className)}
+      className={clsx(
+        'group cursor-pointer min-h-[100px] sm:min-h-[120px] flex flex-col justify-between',
+        'hover:shadow-lg active:shadow-md transition-all duration-200',
+        'touch-manipulation select-none relative z-10',
+        className
+      )}
+      onClick={onClick}
       {...props}
     >
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-start justify-between mb-3">
         <div className={clsx(
-          'p-3 rounded-xl group-hover:scale-110 transition-transform duration-200',
+          'p-2 sm:p-3 rounded-lg sm:rounded-xl transition-transform duration-200',
+          'group-active:scale-95 group-hover:scale-105',
           variant?.includes('neon') ? 'bg-white/10' : 'bg-indigo-100 dark:bg-indigo-900/50'
         )}>
           {icon}
         </div>
         {trend && trendValue && (
-          <div className={clsx('flex items-center space-x-1 text-sm font-medium', trendColors[trend as keyof typeof trendColors])}>
+          <div className={clsx('flex items-center space-x-1 text-xs sm:text-sm font-medium', trendColors[trend as keyof typeof trendColors])}>
             <span>{trendIcons[trend as keyof typeof trendIcons]}</span>
-            <span>{trendValue}</span>
+            <span className="hidden sm:inline">{trendValue}</span>
           </div>
         )}
       </div>
-      <div>
+      <div className="flex-1 flex flex-col justify-end">
         <p className={clsx(
-          'text-2xl font-bold mb-1 transition-colors',
+          'text-xl sm:text-2xl font-bold mb-1 transition-colors',
           variant?.includes('neon') || variant?.includes('gradient') 
             ? 'text-white' 
             : 'text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400'
@@ -261,11 +269,23 @@ const StatsCard = React.forwardRef<
           {value}
         </p>
         <p className={clsx(
-          'text-sm',
+          'text-xs sm:text-sm font-medium leading-tight',
           variant?.includes('neon') || variant?.includes('gradient')
             ? 'text-gray-200'
             : 'text-gray-600 dark:text-gray-400'
-        )}>{label}</p>
+        )}>
+          {label}
+        </p>
+        {onClick && (
+          <p className={clsx(
+            'text-xs mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200',
+            variant?.includes('neon') || variant?.includes('gradient')
+              ? 'text-gray-300'
+              : 'text-gray-500 dark:text-gray-500'
+          )}>
+            Tap to view →
+          </p>
+        )}
       </div>
     </Card>
   );

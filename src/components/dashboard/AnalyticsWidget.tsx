@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { BarChart3, TrendingUp, PieChart, Calendar, FileText } from 'lucide-react';
 import { Card } from '../ui';
 
@@ -15,93 +15,127 @@ interface ChartData {
 }
 
 const AnalyticsWidget: React.FC<AnalyticsWidgetProps> = ({ documents = [], className }) => {
-  // Calculate analytics data
-  const totalDocuments = documents.length;
-  const totalSize = documents.reduce((sum, doc) => sum + (doc.size || 0), 0);
-  
-  // Documents by category
-  const categoryData: ChartData[] = [
-    {
-      label: 'Personal',
-      value: documents.filter(d => d.category === 'personal').length,
-      color: 'bg-blue-500',
-    },
-    {
-      label: 'Bills',
-      value: documents.filter(d => d.category === 'bills').length,
-      color: 'bg-green-500',
-    },
-    {
-      label: 'Medical',
-      value: documents.filter(d => d.category === 'medical').length,
-      color: 'bg-red-500',
-    },
-    {
-      label: 'Insurance',
-      value: documents.filter(d => d.category === 'insurance').length,
-      color: 'bg-purple-500',
-    },
-    {
-      label: 'Other',
-      value: documents.filter(d => d.category === 'other' || !d.category).length,
-      color: 'bg-gray-500',
-    },
-  ].map(item => ({
-    ...item,
-    percentage: totalDocuments > 0 ? Math.round((item.value / totalDocuments) * 100) : 0,
-  }));
+  // Memoized analytics data calculation - single pass through documents
+  const analyticsData = useMemo(() => {
+    const totalDocuments = documents.length;
+    const totalSize = documents.reduce((sum, doc) => sum + (doc.size || 0), 0);
+    
+    // Single pass to count all categories
+    const categoryCounts = documents.reduce((acc, doc) => {
+      const category = doc.category || 'other';
+      acc[category] = (acc[category] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    // Documents by category with optimized calculation
+    const categoryData: ChartData[] = [
+      {
+        label: 'Personal',
+        value: categoryCounts.personal || 0,
+        color: 'bg-blue-500',
+      },
+      {
+        label: 'Bills',
+        value: categoryCounts.bills || 0,
+        color: 'bg-green-500',
+      },
+      {
+        label: 'Medical',
+        value: categoryCounts.medical || 0,
+        color: 'bg-red-500',
+      },
+      {
+        label: 'Insurance',
+        value: categoryCounts.insurance || 0,
+        color: 'bg-purple-500',
+      },
+      {
+        label: 'Other',
+        value: categoryCounts.other || 0,
+        color: 'bg-gray-500',
+      },
+    ].map(item => ({
+      ...item,
+      percentage: totalDocuments > 0 ? Math.round((item.value / totalDocuments) * 100) : 0,
+    }));
 
-  // Documents uploaded over time (last 7 days)
-  const last7Days = Array.from({ length: 7 }, (_, i) => {
-    const date = new Date();
-    date.setDate(date.getDate() - i);
-    return date;
-  }).reverse();
+    // Documents uploaded over time (last 7 days) - optimized
+    const last7Days = Array.from({ length: 7 }, (_, i) => {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      return date;
+    }).reverse();
 
-  const uploadTrend = last7Days.map(date => {
-    const dayDocuments = documents.filter(doc => {
+    // Single pass to count uploads by day
+    const uploadCounts = documents.reduce((acc, doc) => {
       const uploadDate = doc.uploadedAt?.toDate?.() || new Date(doc.uploadedAt || 0);
-      return uploadDate.toDateString() === date.toDateString();
-    });
+      const dayKey = uploadDate.toDateString();
+      acc[dayKey] = (acc[dayKey] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const uploadTrend = last7Days.map(date => ({
+      label: date.toLocaleDateString('en-US', { weekday: 'short' }),
+      value: uploadCounts[date.toDateString()] || 0,
+      color: 'bg-blue-500',
+    }));
+
+    const maxTrendValue = Math.max(...uploadTrend.map(d => d.value), 1);
+
+    // File type distribution - optimized single pass
+    const typeCounts = documents.reduce((acc, doc) => {
+      const type = doc.type || '';
+      if (type === 'application/pdf') {
+        acc.pdf++;
+      } else if (type.startsWith('image/')) {
+        acc.images++;
+      } else if (type.includes('word') || type.includes('document')) {
+        acc.documents++;
+      }
+      return acc;
+    }, { pdf: 0, images: 0, documents: 0 });
+
+    const typeData: ChartData[] = [
+      {
+        label: 'PDF',
+        value: typeCounts.pdf,
+        color: 'bg-red-500',
+      },
+      {
+        label: 'Images',
+        value: typeCounts.images,
+        color: 'bg-blue-500',
+      },
+      {
+        label: 'Documents',
+        value: typeCounts.documents,
+        color: 'bg-green-500',
+      },
+    ].map(item => ({
+      ...item,
+      percentage: totalDocuments > 0 ? Math.round((item.value / totalDocuments) * 100) : 0,
+    }));
+
+    const formatFileSize = (bytes: number): string => {
+      if (bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+    };
 
     return {
-      label: date.toLocaleDateString('en-US', { weekday: 'short' }),
-      value: dayDocuments.length,
-      color: 'bg-blue-500',
+      totalDocuments,
+      totalSize,
+      categoryData,
+      uploadTrend,
+      maxTrendValue,
+      typeData,
+      formatFileSize
     };
-  });
+  }, [documents]);
 
-  const maxTrendValue = Math.max(...uploadTrend.map(d => d.value), 1);
-
-  // File type distribution
-  const typeData: ChartData[] = [
-    {
-      label: 'PDF',
-      value: documents.filter(d => d.type === 'application/pdf').length,
-      color: 'bg-red-500',
-    },
-    {
-      label: 'Images',
-      value: documents.filter(d => d.type?.startsWith('image/')).length,
-      color: 'bg-blue-500',
-    },
-    {
-      label: 'Documents',
-      value: documents.filter(d => d.type?.includes('word') || d.type?.includes('document')).length,
-      color: 'bg-green-500',
-    },
-  ].map(item => ({
-    ...item,
-    percentage: totalDocuments > 0 ? Math.round((item.value / totalDocuments) * 100) : 0,
-  }));
-
-  const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-  };
+  const { totalDocuments, totalSize, categoryData, uploadTrend, maxTrendValue, typeData, formatFileSize } = analyticsData;
 
   return (
     <div className={className}>

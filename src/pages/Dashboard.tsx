@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import { DocumentList } from '../components/documents';
@@ -40,27 +40,64 @@ const Dashboard: React.FC = () => {
     }
   );
 
-  // Get document counts by category
-  const getCategoryCount = (category: string) => {
-    if (!documents) return 0;
-    return documents.filter(doc => doc.category === category).length;
-  };
+  // Memoized document statistics - calculated once per documents change
+  const documentStats = useMemo(() => {
+    if (!documents) {
+      return {
+        totalDocuments: 0,
+        totalSize: 0,
+        recentDocuments: 0,
+        categoryCounts: {} as Record<string, number>,
+        processingCount: 0
+      };
+    }
 
-  // Handle category card click
-  const handleCategoryClick = (category: string) => {
-    navigate(`/category/${category}`);
-  };
-
-
-  // Get total document statistics
-  const getTotalDocuments = () => documents?.length || 0;
-  const getTotalSize = () => documents?.reduce((total, doc) => total + (doc.size || 0), 0) || 0;
-  const getRecentDocuments = () => documents?.filter(doc => {
-    const uploadDate = doc.uploadedAt?.toDate?.() || new Date(doc.uploadedAt || 0);
     const weekAgo = new Date();
     weekAgo.setDate(weekAgo.getDate() - 7);
-    return uploadDate > weekAgo;
-  }).length || 0;
+
+    const stats = documents.reduce((acc, doc) => {
+      // Total documents
+      acc.totalDocuments++;
+      
+      // Total size
+      acc.totalSize += doc.size || 0;
+      
+      // Recent documents (last 7 days)
+      const uploadDate = doc.uploadedAt?.toDate?.() || new Date(doc.uploadedAt || 0);
+      if (uploadDate > weekAgo) {
+        acc.recentDocuments++;
+      }
+      
+      // Category counts
+      const category = doc.category || 'other';
+      acc.categoryCounts[category] = (acc.categoryCounts[category] || 0) + 1;
+      
+      // Processing count
+      if (doc.status === 'processing') {
+        acc.processingCount++;
+      }
+      
+      return acc;
+    }, {
+      totalDocuments: 0,
+      totalSize: 0,
+      recentDocuments: 0,
+      categoryCounts: {} as Record<string, number>,
+      processingCount: 0
+    });
+
+    return stats;
+  }, [documents]);
+
+  // Memoized category count getter
+  const getCategoryCount = useCallback((category: string) => {
+    return documentStats.categoryCounts[category] || 0;
+  }, [documentStats.categoryCounts]);
+
+  // Memoized category click handler
+  const handleCategoryClick = useCallback((category: string) => {
+    navigate(`/category/${category}`);
+  }, [navigate]);
 
   // Get user's name for personalized greeting
   const getUserName = () => {
@@ -108,46 +145,50 @@ const Dashboard: React.FC = () => {
 
       <div className="p-4 sm:p-6 -mt-4 sm:-mt-6 relative z-10">
         {/* Smart Search Widget */}
-        <div className="mb-6 sm:mb-8">
+        <div className="mb-8 sm:mb-10 relative z-20">
           <SmartSearchWidget documents={documents} className="max-w-2xl mx-auto" />
         </div>
 
-        {/* Quick Stats Overview */}
-        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6 mb-6 sm:mb-8">
+        {/* Mobile-Optimized Stats Overview */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8 relative z-10">
           <StatsCard
             variant="glass"
-            icon={<FileText className="w-6 h-6 text-blue-600" />}
+            icon={<FileText className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />}
             label="Total Documents"
-            value={getTotalDocuments()}
-            className="hover:scale-105 transition-transform duration-200"
+            value={documentStats.totalDocuments}
+            className="active:scale-95 transition-all duration-200 touch-manipulation"
+            onClick={() => navigate('/documents')}
           />
           <StatsCard
             variant="glassPurple"
-            icon={<BarChart3 className="w-6 h-6 text-purple-600" />}
+            icon={<BarChart3 className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" />}
             label="Storage Used"
-            value={formatFileSize(getTotalSize())}
-            className="hover:scale-105 transition-transform duration-200"
+            value={formatFileSize(documentStats.totalSize)}
+            className="active:scale-95 transition-all duration-200 touch-manipulation"
+            onClick={() => navigate('/storage')}
           />
           <StatsCard
             variant="neonGreen"
-            icon={<TrendingUp className="w-6 h-6" />}
+            icon={<TrendingUp className="w-5 h-5 sm:w-6 sm:h-6" />}
             label="This Week"
-            value={getRecentDocuments()}
-            className="hover:scale-105 transition-transform duration-200"
+            value={documentStats.recentDocuments}
+            className="active:scale-95 transition-all duration-200 touch-manipulation"
+            onClick={() => navigate('/recent')}
           />
           <StatsCard
             variant="gradientSunset"
-            icon={<Activity className="w-6 h-6" />}
+            icon={<Activity className="w-5 h-5 sm:w-6 sm:h-6" />}
             label="Processing"
-            value={documents?.filter(d => d.status === 'processing').length || 0}
-            className="hover:scale-105 transition-transform duration-200"
+            value={documentStats.processingCount}
+            className="active:scale-95 transition-all duration-200 touch-manipulation"
+            onClick={() => navigate('/processing')}
           />
         </div>
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8 mb-6 sm:mb-8">
           {/* Sidebar Widgets */}
-          <div className="lg:col-span-1 space-y-4 sm:space-y-6 order-2 lg:order-1">
+          <div className="lg:col-span-1 space-y-4 sm:space-y-6 order-2 lg:order-1 relative z-0">
             {/* Quick Upload Widget - Primary upload method */}
             <QuickUploadWidget />
 
@@ -201,7 +242,7 @@ const Dashboard: React.FC = () => {
           </div>
 
           {/* Main Document List - Takes 3/4 width */}
-          <div className="lg:col-span-3 order-1 lg:order-2">
+          <div className="lg:col-span-3 order-1 lg:order-2 relative z-0">
             <Card variant="floating" className="h-full">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center space-x-3">
@@ -282,20 +323,20 @@ const Dashboard: React.FC = () => {
                 >
                   <Card
                     variant={variant}
-                    className="h-24 sm:h-32 flex flex-col items-center justify-center text-center hover:scale-105 transition-all duration-300"
+                    className="h-24 sm:h-32 flex flex-col items-center justify-center text-center active:scale-95 hover:scale-105 transition-all duration-300 touch-manipulation"
                   >
-                    <div className="mb-2 sm:mb-3 group-hover:scale-110 transition-transform duration-200">
-                      <IconComponent className="w-6 h-6 sm:w-8 sm:h-8" />
+                    <div className="mb-1 sm:mb-2 group-active:scale-95 group-hover:scale-110 transition-transform duration-200">
+                      <IconComponent className="w-5 h-5 sm:w-6 sm:h-6" />
                     </div>
                     <div>
-                      <p className={`text-lg sm:text-2xl font-bold mb-1 ${
+                      <p className={`text-base sm:text-lg font-bold mb-1 ${
                         variant?.includes('neon') || variant?.includes('gradient') 
                           ? 'text-white' 
                           : 'text-gray-900 dark:text-white'
                       }`}>
                         {count}
                       </p>
-                      <p className={`text-xs sm:text-sm font-medium ${
+                      <p className={`text-xs font-medium ${
                         variant?.includes('neon') || variant?.includes('gradient')
                           ? 'text-gray-200'
                           : 'text-gray-600 dark:text-gray-400'
