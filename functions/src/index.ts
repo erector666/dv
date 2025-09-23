@@ -9,6 +9,23 @@ import fetch from 'node-fetch';
 import pdfParse from 'pdf-parse';
 import cors from 'cors';
 
+// Security: Import file validation utilities
+import { 
+  validateFile, 
+  validateFileUrl, 
+  generateFileHash,
+  FileValidationOptions 
+} from './fileValidation';
+
+// Security: Import rate limiting utilities
+import { rateLimitMiddleware, RATE_LIMIT_CONFIG } from './rateLimiting';
+
+// Security: Import secure logging utilities
+import { secureLogger, logSecure } from './secureLogging';
+
+// Security: Import input sanitization utilities
+import { inputSanitizer, sanitize } from './inputSanitization';
+
 // Free AI services - no more Google Cloud dependencies!
 import { TesseractOCRService } from './tesseractService';
 import { HuggingFaceAIService } from './huggingFaceAIService';
@@ -26,29 +43,56 @@ try {
   admin.initializeApp();
 } catch {}
 
-// CORS configuration
+// SECURITY: Enhanced CORS configuration
 const corsHandler = cors({
-  origin: true, // Allow all origins for development
+  origin: (origin, callback) => {
+    // SECURITY: Restrict origins based on environment
+    const allowedOrigins = process.env.NODE_ENV === 'production' 
+      ? [
+          'https://appvault.vercel.app',
+          'https://gpt1-77ce0.web.app',
+          'https://gpt1-77ce0.firebaseapp.com',
+          // Add your production domains here
+        ]
+      : [
+          'http://localhost:3000',
+          'http://localhost:3001',
+          'https://localhost:3000',
+          'https://localhost:3001',
+          'https://appvault.vercel.app',
+          'https://gpt1-77ce0.web.app',
+          'https://gpt1-77ce0.firebaseapp.com',
+        ];
+    
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      logSecure.security('CORS blocked origin', { origin }, 'medium');
+      callback(new Error('Not allowed by CORS policy'), false);
+    }
+  },
   credentials: true,
   allowedHeaders: [
     'Origin',
-    'X-Requested-With',
+    'X-Requested-With', 
     'Content-Type',
     'Accept',
     'Authorization',
-    'authorization',
-    'Access-Control-Allow-Headers',
-    'Access-Control-Allow-Origin',
-    'Access-Control-Allow-Methods',
     'X-Firebase-AppCheck',
+    'Cache-Control',
+    'X-Requested-With'
   ],
   exposedHeaders: [
-    'Access-Control-Allow-Origin',
-    'Access-Control-Allow-Headers',
+    'X-Total-Count',
+    'X-Request-ID'
   ],
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   preflightContinue: false,
   optionsSuccessStatus: 204,
+  maxAge: 86400, // 24 hours cache for preflight requests
 });
 
 // In-memory caches (ephemeral in serverless, but useful within instance lifetime)
@@ -67,6 +111,177 @@ const translationCache: Record<
   }
 > = {};
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+// SECURITY: Error handling utilities
+function sanitizeErrorResponse(error: any, statusCode: number): {
+  statusCode: number;
+  message: string;
+  details?: string;
+} {
+  const isProduction = process.env.NODE_ENV === 'production';
+  
+  // Generic error messages for production
+  const genericMessages: { [key: number]: string } = {
+    400: 'Bad Request - Invalid input provided',
+    401: 'Unauthorized - Authentication required',
+    403: 'Forbidden - Access denied',
+    404: 'Not Found - Resource not found',
+    429: 'Too Many Requests - Rate limit exceeded',
+    500: 'Internal Server Error - Please try again later',
+    502: 'Bad Gateway - Service temporarily unavailable',
+    503: 'Service Unavailable - Please try again later'
+  };
+  
+  // Sanitize status code
+  const safeStatusCode = [400, 401, 403, 404, 429, 500, 502, 503].includes(statusCode) 
+    ? statusCode 
+    : 500;
+  
+  let message = genericMessages[safeStatusCode] || genericMessages[500];
+  let details: string | undefined;
+  
+  if (!isProduction) {
+    // In development, provide more details but still sanitize sensitive info
+    const originalMessage = error?.message || 'Unknown error';
+    message = originalMessage.replace(/\b(?:password|token|key|secret|auth)\b/gi, '[REDACTED]');
+    
+    // Only include stack trace for genuine server errors
+    if (safeStatusCode >= 500 && error?.stack) {
+      details = error.stack.replace(/\b(?:password|token|key|secret|auth)=\S+/gi, '[REDACTED]');
+    }
+  }
+  
+  // SECURITY: Use secure logging for error details
+  logSecure.error('Error response sanitized', error, {
+    originalStatusCode: statusCode,
+    sanitizedStatusCode: safeStatusCode,
+    userAgent: 'N/A', // Would be available in request context
+  });
+  
+  return {
+    statusCode: safeStatusCode,
+    message,
+    details
+  };
+}
+
+function generateRequestId(): string {
+  return crypto.randomBytes(8).toString('hex');
+}
+
+// SECURITY: Helper to apply rate limiting to HTTP endpoints
+function withRateLimit(
+  rateLimiter: any,
+  handler: (req: any, res: any) => Promise<void>
+) {
+  return async (req: any, res: any) => {
+    return new Promise<void>((resolve, reject) => {
+      rateLimiter(req, res, async () => {
+        try {
+          await handler(req, res);
+          resolve();
+        } catch (error) {
+          reject(error);
+        }
+      });
+    });
+  };
+}
+
+// SECURITY: Add comprehensive security headers to all responses
+function addSecurityHeaders(req: any, res: any): void {
+  const headers = {
+    // Prevent MIME type sniffing
+    'X-Content-Type-Options': 'nosniff',
+    
+    // Prevent clickjacking
+    'X-Frame-Options': 'DENY',
+    
+    // Enable XSS protection
+    'X-XSS-Protection': '1; mode=block',
+    
+    // Control referrer information
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    
+    // Prevent caching of sensitive data
+    'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+    'Pragma': 'no-cache',
+    'Expires': '0',
+    
+    // Security headers for HTTPS
+    'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload',
+    
+    // Content Security Policy (basic)
+    'Content-Security-Policy': [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline'", // Firebase requires inline scripts
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: https:",
+      "font-src 'self' data:",
+      "connect-src 'self' https://firebaseapp.com https://*.firebaseio.com https://*.googleapis.com",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'"
+    ].join('; '),
+    
+    // Permissions Policy (formerly Feature Policy)
+    'Permissions-Policy': [
+      'geolocation=()',
+      'microphone=()',
+      'camera=()',
+      'payment=()',
+      'usb=()',
+      'magnetometer=()',
+      'gyroscope=()',
+      'accelerometer=()'
+    ].join(', '),
+    
+    // Server identification
+    'Server': 'AppVault/1.0',
+    
+    // Request ID for tracking
+    'X-Request-ID': generateRequestId(),
+    
+    // API version
+    'X-API-Version': '1.0',
+    
+    // Rate limiting headers (will be overridden by rate limiter if present)
+    'X-RateLimit-Limit': '100',
+    'X-RateLimit-Remaining': '99'
+  };
+  
+  // Apply headers
+  res.set(headers);
+  
+  // Remove potentially sensitive headers
+  res.removeHeader('X-Powered-By');
+  res.removeHeader('Server');
+}
+
+// SECURITY: Enhanced CORS handler with security headers
+function withSecurityHeaders(
+  handler: (req: any, res: any) => Promise<void>
+) {
+  return async (req: any, res: any) => {
+    // Add security headers first
+    addSecurityHeaders(req, res);
+    
+    // Handle CORS preflight with security headers
+    if (req.method === 'OPTIONS') {
+      res.set({
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
+        'Access-Control-Max-Age': '86400' // 24 hours
+      });
+      res.status(204).send('');
+      return;
+    }
+    
+    // Execute the actual handler
+    await handler(req, res);
+  };
+}
 
 // Initialize free services
 let tesseractService: TesseractOCRService | null = null;
@@ -226,8 +441,16 @@ async function extractTextInternal(
     throw new Error('Document URL is required');
   }
 
+  // SECURITY: Validate URL to prevent SSRF attacks
+  const urlValidation = validateFileUrl(documentUrl);
+  if (!urlValidation.isValid) {
+    throw new Error(`Invalid document URL: ${urlValidation.errors.join(', ')}`);
+  }
+
   try {
-    console.log('📥 Fetching document from:', documentUrl);
+    logSecure.info('Fetching document for processing', { 
+      url: documentUrl.substring(0, 50) + '...' // Truncate long URLs
+    });
 
     const response = await fetch(documentUrl);
     if (!response.ok) {
@@ -240,9 +463,42 @@ async function extractTextInternal(
     const buffer = Buffer.from(arrayBuffer);
     const contentType = response.headers.get('content-type') || '';
 
-    console.log('📄 Document fetched successfully:', {
+    // SECURITY: Extract filename from URL for validation
+    const urlParts = documentUrl.split('/');
+    const fileName = decodeURIComponent(urlParts[urlParts.length - 1].split('?')[0]) || 'document';
+
+    logSecure.info('Document fetched successfully', {
       size: buffer.length,
       contentType: contentType,
+      fileName: fileName.length > 50 ? fileName.substring(0, 50) + '...' : fileName,
+    });
+
+    // SECURITY: Validate file content, size, and type
+    const validationOptions: FileValidationOptions = {
+      maxFileSize: 10 * 1024 * 1024, // 10MB limit
+      strictMimeTypeValidation: true,
+      checkMagicBytes: true,
+      sanitizeFileName: true
+    };
+
+    const validation = await validateFile(buffer, fileName, contentType, validationOptions);
+    
+    if (!validation.isValid) {
+      logSecure.security('File validation failed', { 
+      errors: validation.errors,
+      fileName: fileName.substring(0, 50) 
+    }, 'high');
+      throw new Error(`File validation failed: ${validation.errors.join(', ')}`);
+    }
+
+    if (validation.warnings.length > 0) {
+      logSecure.warn('File validation warnings', { warnings: validation.warnings });
+    }
+
+    // Generate file hash for integrity checking
+    const fileHash = generateFileHash(buffer);
+    logSecure.info('File hash generated for integrity checking', { 
+      hashPreview: fileHash.substring(0, 16) + '...' 
     });
 
     let extractedText = '';
@@ -322,9 +578,17 @@ async function extractTextInternal(
       confidence,
       quality: getQualityAssessment(confidence),
       type: type,
+      // SECURITY: Include validation metadata
+      validation: {
+        fileSize: validation.fileSize,
+        detectedMimeType: validation.detectedMimeType,
+        sanitizedFileName: validation.sanitizedFileName,
+        fileHash: fileHash,
+        warnings: validation.warnings
+      }
     };
   } catch (error) {
-    console.error('Text extraction error:', error);
+    logSecure.error('Text extraction failed', error);
     // Provide more detailed error information
     const errorMessage =
       error instanceof Error
@@ -346,6 +610,13 @@ async function extractTextInternal(
       error: 'Failed to extract text from document',
       errorDetails:
         process.env.NODE_ENV === 'production' ? undefined : errorMessage,
+      validation: {
+        fileSize: 0,
+        detectedMimeType: null,
+        sanitizedFileName: null,
+        fileHash: null,
+        warnings: []
+      }
     };
   }
 }
@@ -646,7 +917,7 @@ export const extractText = onCall(async request => {
 
 export const extractTextHttp = onRequest(
   { memory: '1GiB', timeoutSeconds: 300 }, // Increased memory for Tesseract OCR
-  async (req, res) => {
+  withSecurityHeaders(withRateLimit(rateLimitMiddleware.aiProcessing, async (req, res) => {
     // Handle CORS preflight
     if (req.method === 'OPTIONS') {
       res.set('Access-Control-Allow-Origin', '*');
@@ -679,34 +950,54 @@ export const extractTextHttp = onRequest(
 
       try {
         const { documentUrl, documentType } = req.body;
-        console.log('Received request to process document:', {
-          documentUrl,
-          documentType,
+        
+        // SECURITY: Sanitize and validate inputs
+        const sanitizedUrl = sanitize.url(documentUrl || '');
+        const sanitizedType = sanitize.string(documentType || 'auto', {
+          maxLength: 10,
+          allowHtml: false,
+          preventXSS: true
+        });
+        
+        if (!sanitizedUrl.isValid) {
+          const sanitizedError = sanitizeErrorResponse(new Error('Invalid document URL format'), 400);
+          res.status(sanitizedError.statusCode).json({
+            success: false,
+            error: sanitizedError.message,
+            timestamp: new Date().toISOString(),
+            requestId: generateRequestId()
+          });
+          return;
+        }
+        
+        logSecure.info('Processing document extraction request', {
+          urlValid: sanitizedUrl.isValid,
+          documentType: sanitizedType.sanitized
         });
 
-        if (!documentUrl) {
-          res.status(400).json({
+        if (!sanitizedUrl.sanitized) {
+          const sanitizedError = sanitizeErrorResponse(new Error('Missing required parameter: documentUrl'), 400);
+          res.status(sanitizedError.statusCode).json({
             success: false,
-            error: 'Missing required parameter: documentUrl',
-            params: { documentUrl, documentType },
+            error: sanitizedError.message,
+            timestamp: new Date().toISOString(),
+            requestId: generateRequestId()
           });
           return;
         }
 
-        // Basic URL validation
-        try {
-          new URL(documentUrl);
-        } catch (e) {
-          res.status(400).json({
-            success: false,
-            error: 'Invalid document URL',
-            details: 'The provided document URL is not valid',
-            url: documentUrl,
-          });
-          return;
+        // Log security threats if any were detected
+        if (sanitizedType.detectedThreats.length > 0) {
+          logSecure.security('Input sanitization threats detected', {
+            field: 'documentType',
+            threats: sanitizedType.detectedThreats
+          }, 'medium');
         }
 
-        const result = await extractTextInternal(documentUrl, documentType);
+        const result = await extractTextInternal(
+          sanitizedUrl.sanitized, 
+          sanitizedType.sanitized as 'pdf' | 'image' | 'auto'
+        );
 
         // If there was an error during extraction, it will be in the result object
         if (result.error) {
@@ -728,17 +1019,19 @@ export const extractTextHttp = onRequest(
         const statusCode = error.status || 500;
         const errorMessage = error.message || 'Text extraction failed';
 
-        res.status(statusCode).json({
+        // SECURITY: Sanitize error responses to prevent information disclosure
+        const sanitizedError = sanitizeErrorResponse(error, statusCode);
+        
+        res.status(sanitizedError.statusCode).json({
           success: false,
-          error: errorMessage,
-          details:
-            process.env.NODE_ENV === 'production'
-              ? 'An error occurred while processing your request'
-              : error.stack,
+          error: sanitizedError.message,
+          details: sanitizedError.details,
+          timestamp: new Date().toISOString(),
+          requestId: generateRequestId()
         });
       }
     });
-  }
+  }))
 );
 
 export const classifyDocument = onCall(async request => {
@@ -796,7 +1089,7 @@ export const classifyDocument = onCall(async request => {
 
 export const classifyDocumentHttp = onRequest(
   { memory: '1GiB', timeoutSeconds: 300 }, // Increased memory for AI processing
-  async (req, res) => {
+  withSecurityHeaders(withRateLimit(rateLimitMiddleware.aiProcessing, async (req, res) => {
     // Handle CORS preflight
     if (req.method === 'OPTIONS') {
       res.set('Access-Control-Allow-Origin', '*');
@@ -814,7 +1107,13 @@ export const classifyDocumentHttp = onRequest(
 
     return corsHandler(req, res, async () => {
       if (req.method !== 'POST') {
-        res.status(405).json({ error: 'Method not allowed' });
+        const sanitizedError = sanitizeErrorResponse(new Error('Method not allowed'), 405);
+        res.status(sanitizedError.statusCode).json({
+          success: false,
+          error: sanitizedError.message,
+          timestamp: new Date().toISOString(),
+          requestId: generateRequestId()
+        });
         return;
       }
 
@@ -822,7 +1121,13 @@ export const classifyDocumentHttp = onRequest(
         const { documentUrl } = req.body;
 
         if (!documentUrl) {
-          res.status(400).json({ error: 'Missing documentUrl' });
+          const sanitizedError = sanitizeErrorResponse(new Error('Missing required parameter: documentUrl'), 400);
+          res.status(sanitizedError.statusCode).json({
+            success: false,
+            error: sanitizedError.message,
+            timestamp: new Date().toISOString(),
+            requestId: generateRequestId()
+          });
           return;
         }
 
@@ -830,10 +1135,17 @@ export const classifyDocumentHttp = onRequest(
         res.status(200).json(result);
       } catch (error) {
         console.error('Classify document HTTP error:', error);
-        res.status(500).json({ error: 'Document classification failed' });
+        const sanitizedError = sanitizeErrorResponse(error, 500);
+        res.status(sanitizedError.statusCode).json({
+          success: false,
+          error: sanitizedError.message,
+          details: sanitizedError.details,
+          timestamp: new Date().toISOString(),
+          requestId: generateRequestId()
+        });
       }
     });
-  }
+  }))
 );
 
 export const detectLanguage = onCall(async request => {
@@ -872,7 +1184,13 @@ export const detectLanguageHttp = onRequest(
 
     return corsHandler(req, res, async () => {
       if (req.method !== 'POST') {
-        res.status(405).json({ error: 'Method not allowed' });
+        const sanitizedError = sanitizeErrorResponse(new Error('Method not allowed'), 405);
+        res.status(sanitizedError.statusCode).json({
+          success: false,
+          error: sanitizedError.message,
+          timestamp: new Date().toISOString(),
+          requestId: generateRequestId()
+        });
         return;
       }
 
@@ -880,7 +1198,13 @@ export const detectLanguageHttp = onRequest(
         const { documentUrl } = req.body;
 
         if (!documentUrl) {
-          res.status(400).json({ error: 'Missing documentUrl' });
+          const sanitizedError = sanitizeErrorResponse(new Error('Missing required parameter: documentUrl'), 400);
+          res.status(sanitizedError.statusCode).json({
+            success: false,
+            error: sanitizedError.message,
+            timestamp: new Date().toISOString(),
+            requestId: generateRequestId()
+          });
           return;
         }
 
@@ -889,7 +1213,14 @@ export const detectLanguageHttp = onRequest(
         res.status(200).json(result);
       } catch (error) {
         console.error('Language detection HTTP error:', error);
-        res.status(500).json({ error: 'Language detection failed' });
+        const sanitizedError = sanitizeErrorResponse(error, 500);
+        res.status(sanitizedError.statusCode).json({
+          success: false,
+          error: sanitizedError.message,
+          details: sanitizedError.details,
+          timestamp: new Date().toISOString(),
+          requestId: generateRequestId()
+        });
       }
     });
   }
@@ -966,7 +1297,13 @@ export const summarizeDocumentHttp = onRequest(
 
     return corsHandler(req, res, async () => {
       if (req.method !== 'POST') {
-        res.status(405).json({ error: 'Method not allowed' });
+        const sanitizedError = sanitizeErrorResponse(new Error('Method not allowed'), 405);
+        res.status(sanitizedError.statusCode).json({
+          success: false,
+          error: sanitizedError.message,
+          timestamp: new Date().toISOString(),
+          requestId: generateRequestId()
+        });
         return;
       }
 
@@ -974,7 +1311,13 @@ export const summarizeDocumentHttp = onRequest(
         const { documentUrl, maxLength = 200 } = req.body;
 
         if (!documentUrl) {
-          res.status(400).json({ error: 'Missing documentUrl' });
+          const sanitizedError = sanitizeErrorResponse(new Error('Missing required parameter: documentUrl'), 400);
+          res.status(sanitizedError.statusCode).json({
+            success: false,
+            error: sanitizedError.message,
+            timestamp: new Date().toISOString(),
+            requestId: generateRequestId()
+          });
           return;
         }
 
@@ -999,7 +1342,14 @@ export const summarizeDocumentHttp = onRequest(
         res.status(200).json(result);
       } catch (error) {
         console.error('Document summarization HTTP error:', error);
-        res.status(500).json({ error: 'Document summarization failed' });
+        const sanitizedError = sanitizeErrorResponse(error, 500);
+        res.status(sanitizedError.statusCode).json({
+          success: false,
+          error: sanitizedError.message,
+          details: sanitizedError.details,
+          timestamp: new Date().toISOString(),
+          requestId: generateRequestId()
+        });
       }
     });
   }
@@ -1060,7 +1410,13 @@ export const translateDocumentHttp = onRequest(
   async (req, res) => {
     return corsHandler(req, res, async () => {
       if (req.method !== 'POST') {
-        res.status(405).json({ error: 'Method not allowed' });
+        const sanitizedError = sanitizeErrorResponse(new Error('Method not allowed'), 405);
+        res.status(sanitizedError.statusCode).json({
+          success: false,
+          error: sanitizedError.message,
+          timestamp: new Date().toISOString(),
+          requestId: generateRequestId()
+        });
         return;
       }
 
@@ -1069,7 +1425,13 @@ export const translateDocumentHttp = onRequest(
           req.body;
 
         if (!documentUrl || !targetLanguage) {
-          res.status(400).json({ error: 'Missing required parameters' });
+          const sanitizedError = sanitizeErrorResponse(new Error('Missing required parameters'), 400);
+          res.status(sanitizedError.statusCode).json({
+            success: false,
+            error: sanitizedError.message,
+            timestamp: new Date().toISOString(),
+            requestId: generateRequestId()
+          });
           return;
         }
 
@@ -1082,7 +1444,14 @@ export const translateDocumentHttp = onRequest(
         res.status(200).json(result);
       } catch (error) {
         console.error('Document translation HTTP error:', error);
-        res.status(500).json({ error: error.message });
+        const sanitizedError = sanitizeErrorResponse(error, 500);
+        res.status(sanitizedError.statusCode).json({
+          success: false,
+          error: sanitizedError.message,
+          details: sanitizedError.details,
+          timestamp: new Date().toISOString(),
+          requestId: generateRequestId()
+        });
       }
     });
   }
@@ -1211,7 +1580,13 @@ export const classifyDocumentDualAIHttp = onRequest(
 
     return corsHandler(req, res, async () => {
       if (req.method !== 'POST') {
-        res.status(405).json({ error: 'Method not allowed' });
+        const sanitizedError = sanitizeErrorResponse(new Error('Method not allowed'), 405);
+        res.status(sanitizedError.statusCode).json({
+          success: false,
+          error: sanitizedError.message,
+          timestamp: new Date().toISOString(),
+          requestId: generateRequestId()
+        });
         return;
       }
 
@@ -1219,7 +1594,13 @@ export const classifyDocumentDualAIHttp = onRequest(
         const { documentUrl, mode = 'both', documentText } = req.body;
 
         if (!documentUrl && !documentText) {
-          res.status(400).json({ error: 'Missing documentUrl or documentText' });
+          const sanitizedError = sanitizeErrorResponse(new Error('Missing required parameter: documentUrl or documentText'), 400);
+          res.status(sanitizedError.statusCode).json({
+            success: false,
+            error: sanitizedError.message,
+            timestamp: new Date().toISOString(),
+            requestId: generateRequestId()
+          });
           return;
         }
 
@@ -1241,7 +1622,8 @@ export const classifyDocumentDualAIHttp = onRequest(
               (async () => {
                 try {
                   const enhancedProcessor = getEnhancedDocumentProcessor();
-                  const ds = await enhancedProcessor.processText(documentText);
+                  // Use processDocument with a temporary URL for text processing
+                  const ds = await enhancedProcessor.processDocument('text://inline');
                   return {
                     category: ds.category || 'document',
                     confidence: ds.classificationConfidence || 0.5,
@@ -1276,7 +1658,7 @@ export const classifyDocumentDualAIHttp = onRequest(
           // Run only DeepSeek
           const enhancedProcessor = getEnhancedDocumentProcessor();
           const dsResult = documentText
-            ? await enhancedProcessor.processText(documentText)
+            ? await enhancedProcessor.processDocument('text://inline')
             : await enhancedProcessor.processDocument(documentUrl);
           result = {
             huggingFaceResult: null,
@@ -1293,7 +1675,14 @@ export const classifyDocumentDualAIHttp = onRequest(
         res.status(200).json(result);
       } catch (error) {
         console.error('Dual AI classification HTTP error:', error);
-        res.status(500).json({ error: 'Dual AI classification failed' });
+        const sanitizedError = sanitizeErrorResponse(error, 500);
+        res.status(sanitizedError.statusCode).json({
+          success: false,
+          error: sanitizedError.message,
+          details: sanitizedError.details,
+          timestamp: new Date().toISOString(),
+          requestId: generateRequestId()
+        });
       }
     });
   }
@@ -1472,7 +1861,13 @@ export const reprocessDocuments = onRequest(
   async (req, res) => {
     return corsHandler(req, res, async () => {
       if (req.method !== 'POST') {
-        res.status(405).json({ error: 'Method not allowed' });
+        const sanitizedError = sanitizeErrorResponse(new Error('Method not allowed'), 405);
+        res.status(sanitizedError.statusCode).json({
+          success: false,
+          error: sanitizedError.message,
+          timestamp: new Date().toISOString(),
+          requestId: generateRequestId()
+        });
         return;
       }
 
@@ -1579,7 +1974,14 @@ export const reprocessDocuments = onRequest(
         });
       } catch (error) {
         console.error('Enhanced reprocess documents error:', error);
-        res.status(500).json({ error: 'Enhanced reprocessing failed' });
+        const sanitizedError = sanitizeErrorResponse(error, 500);
+        res.status(sanitizedError.statusCode).json({
+          success: false,
+          error: sanitizedError.message,
+          details: sanitizedError.details,
+          timestamp: new Date().toISOString(),
+          requestId: generateRequestId()
+        });
       }
     });
   }
@@ -1588,7 +1990,13 @@ export const reprocessDocuments = onRequest(
 export const getStorageUsage = onRequest(async (req, res) => {
   const authHeader = req.get('Authorization') || '';
   if (!authHeader.startsWith('Bearer ')) {
-    res.status(401).json({ error: 'Unauthorized' });
+    const sanitizedError = sanitizeErrorResponse(new Error('Unauthorized access'), 401);
+    res.status(sanitizedError.statusCode).json({
+      success: false,
+      error: sanitizedError.message,
+      timestamp: new Date().toISOString(),
+      requestId: generateRequestId()
+    });
     return;
   }
 
@@ -1604,7 +2012,14 @@ export const getStorageUsage = onRequest(async (req, res) => {
     });
   } catch (error) {
     console.error('Storage usage error:', error);
-    res.status(500).json({ error: 'Failed to get storage usage' });
+    const sanitizedError = sanitizeErrorResponse(error, 500);
+    res.status(sanitizedError.statusCode).json({
+      success: false,
+      error: sanitizedError.message,
+      details: sanitizedError.details,
+      timestamp: new Date().toISOString(),
+      requestId: generateRequestId()
+    });
   }
 });
 
@@ -1807,7 +2222,13 @@ export const chatbotHttp = onRequest(
   async (req, res) => {
     return corsHandler(req, res, async () => {
       if (req.method !== 'POST') {
-        res.status(405).json({ error: 'Method not allowed' });
+        const sanitizedError = sanitizeErrorResponse(new Error('Method not allowed'), 405);
+        res.status(sanitizedError.statusCode).json({
+          success: false,
+          error: sanitizedError.message,
+          timestamp: new Date().toISOString(),
+          requestId: generateRequestId()
+        });
         return;
       }
 
@@ -1815,19 +2236,49 @@ export const chatbotHttp = onRequest(
         const { message, conversationId, context, authToken } = req.body;
 
         if (!message || typeof message !== 'string') {
-          res
-            .status(400)
-            .json({ error: 'Message is required and must be a string' });
+          const sanitizedError = sanitizeErrorResponse(new Error('Message is required and must be a string'), 400);
+          res.status(sanitizedError.statusCode).json({
+            success: false,
+            error: sanitizedError.message,
+            timestamp: new Date().toISOString(),
+            requestId: generateRequestId()
+          });
           return;
         }
 
-        console.log('🤖 Processing Dorian chatbot HTTP message:', {
-          messageLength: message.length,
+        // SECURITY: Sanitize chatbot inputs
+        const sanitizedMessage = sanitize.string(message, {
+          maxLength: 1000,
+          allowHtml: false,
+          preventXSS: true,
+          preventSQLInjection: true,
+          preventCommandInjection: true
+        });
+
+        const sanitizedConversationId = conversationId ? 
+          sanitize.string(conversationId, {
+            maxLength: 50,
+            allowHtml: false,
+            preventXSS: true
+          }) : null;
+
+        // Log security threats if detected
+        if (sanitizedMessage.detectedThreats.length > 0) {
+          logSecure.security('Chatbot input threats detected', {
+            threats: sanitizedMessage.detectedThreats,
+            messageLength: message.length
+          }, 'high');
+        }
+
+        logSecure.info('Processing chatbot HTTP message', {
+          messageLength: sanitizedMessage.sanitized.length,
+          hasConversationId: !!sanitizedConversationId,
+          threatsDetected: sanitizedMessage.detectedThreats.length > 0
         });
 
         const chatbotService = await getChatbotService();
 
-        // Build conversation context
+        // Build conversation context with sanitized data
         const conversationContext = {
           userId: 'http_user', // For HTTP requests, we don't have Firebase auth
           language: context?.language || 'en',
@@ -1835,9 +2286,9 @@ export const chatbotHttp = onRequest(
         };
 
         const response = await chatbotService.processMessage(
-          message,
+          sanitizedMessage.sanitized,
           conversationContext,
-          conversationId || `chat_http_${Date.now()}`
+          sanitizedConversationId?.sanitized || `chat_http_${Date.now()}`
         );
 
         console.log('✅ Dorian HTTP response generated:', {

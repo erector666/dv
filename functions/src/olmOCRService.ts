@@ -213,7 +213,7 @@ export class OlmOCRService {
         language: 'en',
         languageConfidence: 0,
         confidence: 0,
-        processingTime,
+        processingTime: Date.now() - startTime,
       };
     }
   }

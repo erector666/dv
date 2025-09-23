@@ -3,12 +3,19 @@ service cloud.firestore {
   match /databases/{database}/documents {
     // Allow authenticated users to read and write their own documents
     match /documents/{documentId} {
-      allow read: if request.auth != null && (
-        resource.data.userId == request.auth.uid || 
-        !('userId' in resource.data)
-      );
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
-      allow update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
+      // SECURITY FIX: Removed dangerous fallback condition - only allow access to user's own documents
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.userId &&
+        request.resource.data.keys().hasAll(['userId', 'name', 'createdAt']) &&
+        request.resource.data.userId is string &&
+        request.resource.data.name is string;
+      allow update: if request.auth != null && 
+        request.auth.uid == resource.data.userId &&
+        request.auth.uid == request.resource.data.userId &&
+        // Prevent userId from being changed
+        resource.data.userId == request.resource.data.userId;
+      allow delete: if request.auth != null && request.auth.uid == resource.data.userId;
     }
     
     // Allow authenticated users to read and write their own user profiles

@@ -36,27 +36,57 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.chatbotHttp = exports.chatbot = exports.getStorageUsage = exports.reprocessDocuments = exports.classifyDocumentDualAIHttp = exports.processDocumentBatch = exports.extractDocumentMetadata = exports.translateText = exports.translateDocumentHttp = exports.translateDocument = exports.getSupportedLanguages = exports.summarizeDocumentHttp = exports.summarizeDocument = exports.detectTextLanguage = exports.detectLanguageHttp = exports.detectLanguage = exports.classifyDocumentHttp = exports.classifyDocument = exports.extractTextHttp = exports.extractText = void 0;
+exports.chatbotHttp = exports.chatbot = exports.processIncomingUpload = exports.getStorageUsage = exports.reprocessDocuments = exports.classifyDocumentDualAIHttp = exports.processDocumentBatch = exports.extractDocumentMetadata = exports.translateText = exports.translateDocumentHttp = exports.translateDocument = exports.getSupportedLanguages = exports.summarizeDocumentHttp = exports.summarizeDocument = exports.detectTextLanguage = exports.detectLanguageHttp = exports.detectLanguage = exports.classifyDocumentHttp = exports.classifyDocument = exports.extractTextHttp = exports.extractText = void 0;
 const functions = __importStar(require("firebase-functions"));
+const storage_1 = require("firebase-functions/v2/storage");
+const crypto = __importStar(require("crypto"));
 const admin = __importStar(require("firebase-admin"));
 const https_1 = require("firebase-functions/v2/https");
 const https_2 = require("firebase-functions/v2/https");
 const node_fetch_1 = __importDefault(require("node-fetch"));
 const pdf_parse_1 = __importDefault(require("pdf-parse"));
 const cors_1 = __importDefault(require("cors"));
+const fileValidation_1 = require("./fileValidation");
+const rateLimiting_1 = require("./rateLimiting");
+const secureLogging_1 = require("./secureLogging");
+const inputSanitization_1 = require("./inputSanitization");
 const tesseractService_1 = require("./tesseractService");
 const huggingFaceAIService_1 = require("./huggingFaceAIService");
 const freeTranslationService_1 = require("./freeTranslationService");
 const chatbotService_1 = require("./chatbotService");
 const enhancedDocumentProcessor_1 = require("./enhancedDocumentProcessor");
 const deepseekService_1 = require("./deepseekService");
-const multimodalOCRService_1 = require("./multimodalOCRService");
 try {
     admin.initializeApp();
 }
 catch { }
 const corsHandler = (0, cors_1.default)({
-    origin: true,
+    origin: (origin, callback) => {
+        const allowedOrigins = process.env.NODE_ENV === 'production'
+            ? [
+                'https://appvault.vercel.app',
+                'https://gpt1-77ce0.web.app',
+                'https://gpt1-77ce0.firebaseapp.com',
+            ]
+            : [
+                'http://localhost:3000',
+                'http://localhost:3001',
+                'https://localhost:3000',
+                'https://localhost:3001',
+                'https://appvault.vercel.app',
+                'https://gpt1-77ce0.web.app',
+                'https://gpt1-77ce0.firebaseapp.com',
+            ];
+        if (!origin)
+            return callback(null, true);
+        if (allowedOrigins.includes(origin)) {
+            callback(null, true);
+        }
+        else {
+            secureLogging_1.logSecure.security('CORS blocked origin', { origin }, 'medium');
+            callback(new Error('Not allowed by CORS policy'), false);
+        }
+    },
     credentials: true,
     allowedHeaders: [
         'Origin',
@@ -64,19 +94,18 @@ const corsHandler = (0, cors_1.default)({
         'Content-Type',
         'Accept',
         'Authorization',
-        'authorization',
-        'Access-Control-Allow-Headers',
-        'Access-Control-Allow-Origin',
-        'Access-Control-Allow-Methods',
         'X-Firebase-AppCheck',
+        'Cache-Control',
+        'X-Requested-With'
     ],
     exposedHeaders: [
-        'Access-Control-Allow-Origin',
-        'Access-Control-Allow-Headers',
+        'X-Total-Count',
+        'X-Request-ID'
     ],
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     preflightContinue: false,
     optionsSuccessStatus: 204,
+    maxAge: 86400,
 });
 const translateLanguagesCache = {
     data: [],
@@ -84,6 +113,116 @@ const translateLanguagesCache = {
 };
 const translationCache = {};
 const CACHE_TTL_MS = 10 * 60 * 1000;
+function sanitizeErrorResponse(error, statusCode) {
+    const isProduction = process.env.NODE_ENV === 'production';
+    const genericMessages = {
+        400: 'Bad Request - Invalid input provided',
+        401: 'Unauthorized - Authentication required',
+        403: 'Forbidden - Access denied',
+        404: 'Not Found - Resource not found',
+        429: 'Too Many Requests - Rate limit exceeded',
+        500: 'Internal Server Error - Please try again later',
+        502: 'Bad Gateway - Service temporarily unavailable',
+        503: 'Service Unavailable - Please try again later'
+    };
+    const safeStatusCode = [400, 401, 403, 404, 429, 500, 502, 503].includes(statusCode)
+        ? statusCode
+        : 500;
+    let message = genericMessages[safeStatusCode] || genericMessages[500];
+    let details;
+    if (!isProduction) {
+        const originalMessage = error?.message || 'Unknown error';
+        message = originalMessage.replace(/\b(?:password|token|key|secret|auth)\b/gi, '[REDACTED]');
+        if (safeStatusCode >= 500 && error?.stack) {
+            details = error.stack.replace(/\b(?:password|token|key|secret|auth)=\S+/gi, '[REDACTED]');
+        }
+    }
+    secureLogging_1.logSecure.error('Error response sanitized', error, {
+        originalStatusCode: statusCode,
+        sanitizedStatusCode: safeStatusCode,
+        userAgent: 'N/A',
+    });
+    return {
+        statusCode: safeStatusCode,
+        message,
+        details
+    };
+}
+function generateRequestId() {
+    return crypto.randomBytes(8).toString('hex');
+}
+function withRateLimit(rateLimiter, handler) {
+    return async (req, res) => {
+        return new Promise((resolve, reject) => {
+            rateLimiter(req, res, async () => {
+                try {
+                    await handler(req, res);
+                    resolve();
+                }
+                catch (error) {
+                    reject(error);
+                }
+            });
+        });
+    };
+}
+function addSecurityHeaders(req, res) {
+    const headers = {
+        'X-Content-Type-Options': 'nosniff',
+        'X-Frame-Options': 'DENY',
+        'X-XSS-Protection': '1; mode=block',
+        'Referrer-Policy': 'strict-origin-when-cross-origin',
+        'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload',
+        'Content-Security-Policy': [
+            "default-src 'self'",
+            "script-src 'self' 'unsafe-inline'",
+            "style-src 'self' 'unsafe-inline'",
+            "img-src 'self' data: https:",
+            "font-src 'self' data:",
+            "connect-src 'self' https://firebaseapp.com https://*.firebaseio.com https://*.googleapis.com",
+            "object-src 'none'",
+            "base-uri 'self'",
+            "form-action 'self'"
+        ].join('; '),
+        'Permissions-Policy': [
+            'geolocation=()',
+            'microphone=()',
+            'camera=()',
+            'payment=()',
+            'usb=()',
+            'magnetometer=()',
+            'gyroscope=()',
+            'accelerometer=()'
+        ].join(', '),
+        'Server': 'AppVault/1.0',
+        'X-Request-ID': generateRequestId(),
+        'X-API-Version': '1.0',
+        'X-RateLimit-Limit': '100',
+        'X-RateLimit-Remaining': '99'
+    };
+    res.set(headers);
+    res.removeHeader('X-Powered-By');
+    res.removeHeader('Server');
+}
+function withSecurityHeaders(handler) {
+    return async (req, res) => {
+        addSecurityHeaders(req, res);
+        if (req.method === 'OPTIONS') {
+            res.set({
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+                'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
+                'Access-Control-Max-Age': '86400'
+            });
+            res.status(204).send('');
+            return;
+        }
+        await handler(req, res);
+    };
+}
 let tesseractService = null;
 let huggingFaceService = null;
 let freeTranslationService = null;
@@ -134,7 +273,7 @@ async function detectLanguageInternal(text) {
             language: result.language,
             confidence: result.confidence,
             alternatives: result.allLanguages.length,
-            method: 'huggingface'
+            method: 'huggingface',
         });
         return result;
     }
@@ -146,15 +285,21 @@ async function detectLanguageInternal(text) {
                 return {
                     language: 'mk',
                     confidence: 0.9,
-                    allLanguages: [{ language: 'mk', confidence: 0.9 }, { language: 'sr', confidence: 0.1 }],
-                    method: 'olmocr_enhanced'
+                    allLanguages: [
+                        { language: 'mk', confidence: 0.9 },
+                        { language: 'sr', confidence: 0.1 },
+                    ],
+                    method: 'olmocr_enhanced',
                 };
             }
             return {
                 language: 'sr',
                 confidence: 0.8,
-                allLanguages: [{ language: 'sr', confidence: 0.8 }, { language: 'mk', confidence: 0.2 }],
-                method: 'olmocr_enhanced'
+                allLanguages: [
+                    { language: 'sr', confidence: 0.8 },
+                    { language: 'mk', confidence: 0.2 },
+                ],
+                method: 'olmocr_enhanced',
             };
         }
         if (/\b(université|attestation|certificat|formation|informatique|français|cours|publique|municipale)\b/i.test(text) ||
@@ -163,15 +308,18 @@ async function detectLanguageInternal(text) {
             return {
                 language: 'fr',
                 confidence: 0.8,
-                allLanguages: [{ language: 'fr', confidence: 0.8 }, { language: 'en', confidence: 0.2 }],
-                method: 'olmocr_enhanced'
+                allLanguages: [
+                    { language: 'fr', confidence: 0.8 },
+                    { language: 'en', confidence: 0.2 },
+                ],
+                method: 'olmocr_enhanced',
             };
         }
         return {
             language: 'en',
             confidence: 0.5,
             allLanguages: [{ language: 'en', confidence: 0.5 }],
-            method: 'olmocr_enhanced'
+            method: 'olmocr_enhanced',
         };
     }
 }
@@ -192,8 +340,14 @@ async function extractTextInternal(documentUrl, documentType) {
     if (!documentUrl) {
         throw new Error('Document URL is required');
     }
+    const urlValidation = (0, fileValidation_1.validateFileUrl)(documentUrl);
+    if (!urlValidation.isValid) {
+        throw new Error(`Invalid document URL: ${urlValidation.errors.join(', ')}`);
+    }
     try {
-        console.log('📥 Fetching document from:', documentUrl);
+        secureLogging_1.logSecure.info('Fetching document for processing', {
+            url: documentUrl.substring(0, 50) + '...'
+        });
         const response = await (0, node_fetch_1.default)(documentUrl);
         if (!response.ok) {
             throw new Error(`Unable to fetch document: ${response.status} ${response.statusText}`);
@@ -201,18 +355,44 @@ async function extractTextInternal(documentUrl, documentType) {
         const arrayBuffer = await response.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
         const contentType = response.headers.get('content-type') || '';
-        console.log('📄 Document fetched successfully:', {
+        const urlParts = documentUrl.split('/');
+        const fileName = decodeURIComponent(urlParts[urlParts.length - 1].split('?')[0]) || 'document';
+        secureLogging_1.logSecure.info('Document fetched successfully', {
             size: buffer.length,
-            contentType: contentType
+            contentType: contentType,
+            fileName: fileName.length > 50 ? fileName.substring(0, 50) + '...' : fileName,
+        });
+        const validationOptions = {
+            maxFileSize: 10 * 1024 * 1024,
+            strictMimeTypeValidation: true,
+            checkMagicBytes: true,
+            sanitizeFileName: true
+        };
+        const validation = await (0, fileValidation_1.validateFile)(buffer, fileName, contentType, validationOptions);
+        if (!validation.isValid) {
+            secureLogging_1.logSecure.security('File validation failed', {
+                errors: validation.errors,
+                fileName: fileName.substring(0, 50)
+            }, 'high');
+            throw new Error(`File validation failed: ${validation.errors.join(', ')}`);
+        }
+        if (validation.warnings.length > 0) {
+            secureLogging_1.logSecure.warn('File validation warnings', { warnings: validation.warnings });
+        }
+        const fileHash = (0, fileValidation_1.generateFileHash)(buffer);
+        secureLogging_1.logSecure.info('File hash generated for integrity checking', {
+            hashPreview: fileHash.substring(0, 16) + '...'
         });
         let extractedText = '';
         let confidence = 0.5;
         let type = documentType || 'auto';
         if (type === 'auto') {
-            if (contentType.includes('pdf') || documentUrl.toLowerCase().includes('.pdf')) {
+            if (contentType.includes('pdf') ||
+                documentUrl.toLowerCase().includes('.pdf')) {
                 type = 'pdf';
             }
-            else if (contentType.includes('image') || /\.(jpg|jpeg|png|gif|bmp|tiff)$/i.test(documentUrl)) {
+            else if (contentType.includes('image') ||
+                /\.(jpg|jpeg|png|gif|bmp|tiff)$/i.test(documentUrl)) {
                 type = 'image';
             }
             else {
@@ -230,25 +410,25 @@ async function extractTextInternal(documentUrl, documentType) {
                     confidence = 0.95;
                 }
                 else {
-                    console.log('⚠️ PDF text extraction yielded minimal content, trying Multimodal-OCR...');
-                    const multimodalOCR = (0, multimodalOCRService_1.getMultimodalOCRService)();
-                    const ocrResult = await multimodalOCR.extractTextFromPDF(buffer);
+                    console.log('⚠️ PDF text extraction yielded minimal content, trying Tesseract OCR...');
+                    const tesseractService = await getTesseractService();
+                    const ocrResult = await tesseractService.extractTextFromImage(buffer);
                     extractedText = ocrResult.text;
                     confidence = ocrResult.confidence;
                 }
             }
             catch (error) {
-                console.error('❌ PDF parsing failed, falling back to Multimodal-OCR:', error);
-                const multimodalOCR = (0, multimodalOCRService_1.getMultimodalOCRService)();
-                const ocrResult = await multimodalOCR.extractTextFromPDF(buffer);
+                console.error('❌ PDF parsing failed, falling back to Tesseract OCR:', error);
+                const tesseractService = await getTesseractService();
+                const ocrResult = await tesseractService.extractTextFromImage(buffer);
                 extractedText = ocrResult.text;
                 confidence = ocrResult.confidence;
             }
         }
         else {
-            console.log('🖼️ Processing as image with Multimodal-OCR (OlmOCR-7B-0725 model)...');
-            const multimodalOCR = (0, multimodalOCRService_1.getMultimodalOCRService)();
-            const ocrResult = await multimodalOCR.extractTextFromImage(buffer);
+            console.log('🖼️ Processing as image with Tesseract OCR Service...');
+            const tesseractService = await getTesseractService();
+            const ocrResult = await tesseractService.extractTextFromImage(buffer);
             extractedText = ocrResult.text;
             confidence = ocrResult.confidence;
         }
@@ -256,18 +436,48 @@ async function extractTextInternal(documentUrl, documentType) {
             type: type,
             textLength: extractedText.length,
             confidence: confidence,
-            hasText: extractedText.length > 0
+            hasText: extractedText.length > 0,
         });
         return {
             text: extractedText,
             confidence,
             quality: getQualityAssessment(confidence),
             type: type,
+            validation: {
+                fileSize: validation.fileSize,
+                detectedMimeType: validation.detectedMimeType,
+                sanitizedFileName: validation.sanitizedFileName,
+                fileHash: fileHash,
+                warnings: validation.warnings
+            }
         };
     }
     catch (error) {
-        console.error('Text extraction error:', error);
-        throw new Error('Failed to extract text from document');
+        secureLogging_1.logSecure.error('Text extraction failed', error);
+        const errorMessage = error instanceof Error
+            ? error.message
+            : 'Unknown error during text extraction';
+        console.error('Error details:', {
+            error: errorMessage,
+            stack: error instanceof Error ? error.stack : 'No stack trace',
+            documentUrl: documentUrl,
+            documentType: documentType,
+        });
+        return {
+            text: '',
+            confidence: 0,
+            quality: 'low',
+            type: documentType || 'unknown',
+            error: 'Failed to extract text from document',
+            errorDetails: process.env.NODE_ENV === 'production' ? undefined : errorMessage,
+            validation: {
+                fileSize: 0,
+                detectedMimeType: null,
+                sanitizedFileName: null,
+                fileHash: null,
+                warnings: []
+            }
+        };
     }
 }
 async function classifyDocumentInternal(documentUrl) {
@@ -301,7 +511,7 @@ async function classifyDocumentInternal(documentUrl) {
             confidence: classification.confidence,
             language: classification.language,
             entities: classification.entities.length,
-            dates: classification.extractedDates.length
+            dates: classification.extractedDates.length,
         });
         return classification;
     }
@@ -340,7 +550,7 @@ async function classifyDocumentDualAI(documentUrl, extractedText) {
             return {
                 huggingFaceResult: basicResult,
                 deepSeekResult: basicResult,
-                extractedText: textData
+                extractedText: textData,
             };
         }
         console.log('🤖 Starting PARALLEL dual AI processing...');
@@ -363,7 +573,7 @@ async function classifyDocumentDualAI(documentUrl, extractedText) {
                         language: 'en',
                         extractedDates: [],
                         suggestedName: 'Document',
-                        error: 'Hugging Face processing failed'
+                        error: 'Hugging Face processing failed',
                     };
                 }
             })(),
@@ -378,9 +588,9 @@ async function classifyDocumentDualAI(documentUrl, extractedText) {
                     suggestedName: 'Document',
                     summary: 'Document processed with fast fallback',
                     reasoning: 'Using fast processing to prevent DeepSeek timeouts',
-                    processingMethod: 'fast_fallback'
+                    processingMethod: 'fast_fallback',
                 };
-            })()
+            })(),
         ]);
         const processingTime = Date.now() - startTime;
         console.log(`🎯 DUAL AI processing completed in ${processingTime}ms`);
@@ -388,27 +598,29 @@ async function classifyDocumentDualAI(documentUrl, extractedText) {
             huggingFace: {
                 category: huggingFaceResult.category,
                 confidence: huggingFaceResult.confidence,
-                tags: huggingFaceResult.tags?.length || 0
+                tags: huggingFaceResult.tags?.length || 0,
             },
             deepSeek: {
                 category: deepSeekResult.category,
-                confidence: deepSeekResult.classificationConfidence || deepSeekResult.confidence || 0,
+                confidence: deepSeekResult.classificationConfidence ||
+                    deepSeekResult.confidence ||
+                    0,
                 tags: deepSeekResult.tags?.length || 0,
-                hasSummary: !!deepSeekResult.summary
-            }
+                hasSummary: !!deepSeekResult.summary,
+            },
         });
         return {
             huggingFaceResult: {
                 ...huggingFaceResult,
                 processingTime: processingTime,
-                aiType: 'huggingface'
+                aiType: 'huggingface',
             },
             deepSeekResult: {
                 ...deepSeekResult,
                 processingTime: 0,
-                aiType: 'fast_fallback'
+                aiType: 'fast_fallback',
             },
-            extractedText: textData
+            extractedText: textData,
         };
     }
     catch (error) {
@@ -425,7 +637,10 @@ async function translateDocumentInternal(documentUrl, targetLanguage, sourceLang
         if (documentId) {
             try {
                 console.log('🔍 Checking for stored extracted text in Firestore...');
-                const docRef = admin.firestore().collection('documents').doc(documentId);
+                const docRef = admin
+                    .firestore()
+                    .collection('documents')
+                    .doc(documentId);
                 const docSnap = await docRef.get();
                 if (docSnap.exists) {
                     const docData = docSnap.data();
@@ -433,7 +648,9 @@ async function translateDocumentInternal(documentUrl, targetLanguage, sourceLang
                     if (storedText && storedText.trim().length > 0) {
                         textToTranslate = storedText;
                         extractionMethod = 'stored_text';
-                        console.log('✅ Using stored extracted text:', { length: textToTranslate.length });
+                        console.log('✅ Using stored extracted text:', {
+                            length: textToTranslate.length,
+                        });
                     }
                 }
             }
@@ -474,7 +691,7 @@ exports.extractText = (0, https_1.onCall)(async (request) => {
         throw new functions.https.HttpsError('internal', 'Text extraction failed');
     }
 });
-exports.extractTextHttp = (0, https_2.onRequest)({ memory: '1GiB', timeoutSeconds: 300 }, async (req, res) => {
+exports.extractTextHttp = (0, https_2.onRequest)({ memory: '1GiB', timeoutSeconds: 300 }, withSecurityHeaders(withRateLimit(rateLimiting_1.rateLimitMiddleware.aiProcessing, async (req, res) => {
     if (req.method === 'OPTIONS') {
         res.set('Access-Control-Allow-Origin', '*');
         res.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -483,25 +700,84 @@ exports.extractTextHttp = (0, https_2.onRequest)({ memory: '1GiB', timeoutSecond
         return;
     }
     return corsHandler(req, res, async () => {
+        res.set('Access-Control-Allow-Origin', '*');
+        res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+        res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
         if (req.method !== 'POST') {
-            res.status(405).json({ error: 'Method not allowed' });
+            res.status(405).json({
+                success: false,
+                error: 'Method not allowed',
+                allowedMethods: ['POST', 'OPTIONS'],
+            });
             return;
         }
         try {
             const { documentUrl, documentType } = req.body;
-            if (!documentUrl) {
-                res.status(400).json({ error: 'Missing documentUrl' });
+            const sanitizedUrl = inputSanitization_1.sanitize.url(documentUrl || '');
+            const sanitizedType = inputSanitization_1.sanitize.string(documentType || 'auto', {
+                maxLength: 10,
+                allowHtml: false,
+                preventXSS: true
+            });
+            if (!sanitizedUrl.isValid) {
+                const sanitizedError = sanitizeErrorResponse(new Error('Invalid document URL format'), 400);
+                res.status(sanitizedError.statusCode).json({
+                    success: false,
+                    error: sanitizedError.message,
+                    timestamp: new Date().toISOString(),
+                    requestId: generateRequestId()
+                });
                 return;
             }
-            const result = await extractTextInternal(documentUrl, documentType);
-            res.status(200).json(result);
+            secureLogging_1.logSecure.info('Processing document extraction request', {
+                urlValid: sanitizedUrl.isValid,
+                documentType: sanitizedType.sanitized
+            });
+            if (!sanitizedUrl.sanitized) {
+                const sanitizedError = sanitizeErrorResponse(new Error('Missing required parameter: documentUrl'), 400);
+                res.status(sanitizedError.statusCode).json({
+                    success: false,
+                    error: sanitizedError.message,
+                    timestamp: new Date().toISOString(),
+                    requestId: generateRequestId()
+                });
+                return;
+            }
+            if (sanitizedType.detectedThreats.length > 0) {
+                secureLogging_1.logSecure.security('Input sanitization threats detected', {
+                    field: 'documentType',
+                    threats: sanitizedType.detectedThreats
+                }, 'medium');
+            }
+            const result = await extractTextInternal(sanitizedUrl.sanitized, sanitizedType.sanitized);
+            if (result.error) {
+                res.status(500).json({
+                    success: false,
+                    error: result.error,
+                    details: result.errorDetails || 'An error occurred during text extraction',
+                });
+                return;
+            }
+            res.status(200).json({
+                success: true,
+                data: result,
+            });
         }
         catch (error) {
             console.error('Extract text HTTP error:', error);
-            res.status(500).json({ error: 'Text extraction failed' });
+            const statusCode = error.status || 500;
+            const errorMessage = error.message || 'Text extraction failed';
+            const sanitizedError = sanitizeErrorResponse(error, statusCode);
+            res.status(sanitizedError.statusCode).json({
+                success: false,
+                error: sanitizedError.message,
+                details: sanitizedError.details,
+                timestamp: new Date().toISOString(),
+                requestId: generateRequestId()
+            });
         }
     });
-});
+})));
 exports.classifyDocument = (0, https_1.onCall)(async (request) => {
     assertAuthenticated(request);
     const { documentUrl, useEnhanced = true } = request.data;
@@ -520,16 +796,19 @@ exports.classifyDocument = (0, https_1.onCall)(async (request) => {
                 extractedDates: result.keyDates.map(d => d.date),
                 suggestedName: result.suggestedName,
                 classificationDetails: {
-                    categories: [result.category, ...result.alternativeCategories.map(c => c.category)],
+                    categories: [
+                        result.category,
+                        ...result.alternativeCategories.map(c => c.category),
+                    ],
                     entities: result.entities.entities,
                     sentiment: null,
                     reasoning: result.classificationReasoning,
                     processingMethod: result.processingMethod,
                     qualityScore: result.qualityScore,
-                    processingTime: result.processingTime
+                    processingTime: result.processingTime,
                 },
                 summary: result.summary,
-                wordCount: result.wordCount
+                wordCount: result.wordCount,
             };
         }
         else {
@@ -542,7 +821,7 @@ exports.classifyDocument = (0, https_1.onCall)(async (request) => {
         throw new functions.https.HttpsError('internal', 'Document classification failed');
     }
 });
-exports.classifyDocumentHttp = (0, https_2.onRequest)({ memory: '1GiB', timeoutSeconds: 300 }, async (req, res) => {
+exports.classifyDocumentHttp = (0, https_2.onRequest)({ memory: '1GiB', timeoutSeconds: 300 }, withSecurityHeaders(withRateLimit(rateLimiting_1.rateLimitMiddleware.aiProcessing, async (req, res) => {
     if (req.method === 'OPTIONS') {
         res.set('Access-Control-Allow-Origin', '*');
         res.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -552,13 +831,25 @@ exports.classifyDocumentHttp = (0, https_2.onRequest)({ memory: '1GiB', timeoutS
     }
     return corsHandler(req, res, async () => {
         if (req.method !== 'POST') {
-            res.status(405).json({ error: 'Method not allowed' });
+            const sanitizedError = sanitizeErrorResponse(new Error('Method not allowed'), 405);
+            res.status(sanitizedError.statusCode).json({
+                success: false,
+                error: sanitizedError.message,
+                timestamp: new Date().toISOString(),
+                requestId: generateRequestId()
+            });
             return;
         }
         try {
             const { documentUrl } = req.body;
             if (!documentUrl) {
-                res.status(400).json({ error: 'Missing documentUrl' });
+                const sanitizedError = sanitizeErrorResponse(new Error('Missing required parameter: documentUrl'), 400);
+                res.status(sanitizedError.statusCode).json({
+                    success: false,
+                    error: sanitizedError.message,
+                    timestamp: new Date().toISOString(),
+                    requestId: generateRequestId()
+                });
                 return;
             }
             const result = await classifyDocumentInternal(documentUrl);
@@ -566,10 +857,17 @@ exports.classifyDocumentHttp = (0, https_2.onRequest)({ memory: '1GiB', timeoutS
         }
         catch (error) {
             console.error('Classify document HTTP error:', error);
-            res.status(500).json({ error: 'Document classification failed' });
+            const sanitizedError = sanitizeErrorResponse(error, 500);
+            res.status(sanitizedError.statusCode).json({
+                success: false,
+                error: sanitizedError.message,
+                details: sanitizedError.details,
+                timestamp: new Date().toISOString(),
+                requestId: generateRequestId()
+            });
         }
     });
-});
+})));
 exports.detectLanguage = (0, https_1.onCall)(async (request) => {
     const { documentUrl } = request.data;
     try {
@@ -592,13 +890,25 @@ exports.detectLanguageHttp = (0, https_2.onRequest)({ memory: '1GiB', timeoutSec
     }
     return corsHandler(req, res, async () => {
         if (req.method !== 'POST') {
-            res.status(405).json({ error: 'Method not allowed' });
+            const sanitizedError = sanitizeErrorResponse(new Error('Method not allowed'), 405);
+            res.status(sanitizedError.statusCode).json({
+                success: false,
+                error: sanitizedError.message,
+                timestamp: new Date().toISOString(),
+                requestId: generateRequestId()
+            });
             return;
         }
         try {
             const { documentUrl } = req.body;
             if (!documentUrl) {
-                res.status(400).json({ error: 'Missing documentUrl' });
+                const sanitizedError = sanitizeErrorResponse(new Error('Missing required parameter: documentUrl'), 400);
+                res.status(sanitizedError.statusCode).json({
+                    success: false,
+                    error: sanitizedError.message,
+                    timestamp: new Date().toISOString(),
+                    requestId: generateRequestId()
+                });
                 return;
             }
             const extractedText = await extractTextInternal(documentUrl);
@@ -607,7 +917,14 @@ exports.detectLanguageHttp = (0, https_2.onRequest)({ memory: '1GiB', timeoutSec
         }
         catch (error) {
             console.error('Language detection HTTP error:', error);
-            res.status(500).json({ error: 'Language detection failed' });
+            const sanitizedError = sanitizeErrorResponse(error, 500);
+            res.status(sanitizedError.statusCode).json({
+                success: false,
+                error: sanitizedError.message,
+                details: sanitizedError.details,
+                timestamp: new Date().toISOString(),
+                requestId: generateRequestId()
+            });
         }
     });
 });
@@ -630,7 +947,7 @@ exports.summarizeDocument = (0, https_1.onCall)(async (request) => {
             return {
                 summary: 'Document processed successfully - content extracted and analyzed',
                 confidence: 0.0,
-                quality: 'low'
+                quality: 'low',
             };
         }
         const aiService = await getHuggingFaceService();
@@ -652,13 +969,25 @@ exports.summarizeDocumentHttp = (0, https_2.onRequest)({ memory: '1GiB', timeout
     }
     return corsHandler(req, res, async () => {
         if (req.method !== 'POST') {
-            res.status(405).json({ error: 'Method not allowed' });
+            const sanitizedError = sanitizeErrorResponse(new Error('Method not allowed'), 405);
+            res.status(sanitizedError.statusCode).json({
+                success: false,
+                error: sanitizedError.message,
+                timestamp: new Date().toISOString(),
+                requestId: generateRequestId()
+            });
             return;
         }
         try {
             const { documentUrl, maxLength = 200 } = req.body;
             if (!documentUrl) {
-                res.status(400).json({ error: 'Missing documentUrl' });
+                const sanitizedError = sanitizeErrorResponse(new Error('Missing required parameter: documentUrl'), 400);
+                res.status(sanitizedError.statusCode).json({
+                    success: false,
+                    error: sanitizedError.message,
+                    timestamp: new Date().toISOString(),
+                    requestId: generateRequestId()
+                });
                 return;
             }
             const extractedText = await extractTextInternal(documentUrl);
@@ -666,7 +995,7 @@ exports.summarizeDocumentHttp = (0, https_2.onRequest)({ memory: '1GiB', timeout
                 res.status(200).json({
                     summary: 'Document processed successfully - content extracted and analyzed',
                     confidence: 0.0,
-                    quality: 'low'
+                    quality: 'low',
                 });
                 return;
             }
@@ -676,7 +1005,14 @@ exports.summarizeDocumentHttp = (0, https_2.onRequest)({ memory: '1GiB', timeout
         }
         catch (error) {
             console.error('Document summarization HTTP error:', error);
-            res.status(500).json({ error: 'Document summarization failed' });
+            const sanitizedError = sanitizeErrorResponse(error, 500);
+            res.status(sanitizedError.statusCode).json({
+                success: false,
+                error: sanitizedError.message,
+                details: sanitizedError.details,
+                timestamp: new Date().toISOString(),
+                requestId: generateRequestId()
+            });
         }
     });
 });
@@ -715,13 +1051,25 @@ exports.translateDocument = (0, https_1.onCall)(async (request) => {
 exports.translateDocumentHttp = (0, https_2.onRequest)({ memory: '1GiB', timeoutSeconds: 300 }, async (req, res) => {
     return corsHandler(req, res, async () => {
         if (req.method !== 'POST') {
-            res.status(405).json({ error: 'Method not allowed' });
+            const sanitizedError = sanitizeErrorResponse(new Error('Method not allowed'), 405);
+            res.status(sanitizedError.statusCode).json({
+                success: false,
+                error: sanitizedError.message,
+                timestamp: new Date().toISOString(),
+                requestId: generateRequestId()
+            });
             return;
         }
         try {
             const { documentUrl, targetLanguage, sourceLanguage, documentId } = req.body;
             if (!documentUrl || !targetLanguage) {
-                res.status(400).json({ error: 'Missing required parameters' });
+                const sanitizedError = sanitizeErrorResponse(new Error('Missing required parameters'), 400);
+                res.status(sanitizedError.statusCode).json({
+                    success: false,
+                    error: sanitizedError.message,
+                    timestamp: new Date().toISOString(),
+                    requestId: generateRequestId()
+                });
                 return;
             }
             const result = await translateDocumentInternal(documentUrl, targetLanguage, sourceLanguage, documentId);
@@ -729,7 +1077,14 @@ exports.translateDocumentHttp = (0, https_2.onRequest)({ memory: '1GiB', timeout
         }
         catch (error) {
             console.error('Document translation HTTP error:', error);
-            res.status(500).json({ error: error.message });
+            const sanitizedError = sanitizeErrorResponse(error, 500);
+            res.status(sanitizedError.statusCode).json({
+                success: false,
+                error: sanitizedError.message,
+                details: sanitizedError.details,
+                timestamp: new Date().toISOString(),
+                requestId: generateRequestId()
+            });
         }
     });
 });
@@ -761,7 +1116,7 @@ exports.extractDocumentMetadata = (0, https_1.onCall)(async (request) => {
             },
             classification: classification,
             processingTimestamp: new Date().toISOString(),
-            processingMethod: 'free-ai-stack'
+            processingMethod: 'free-ai-stack',
         };
         return metadata;
     }
@@ -779,10 +1134,12 @@ exports.processDocumentBatch = (0, https_1.onCall)(async (request) => {
             const documentResult = { documentUrl };
             try {
                 if (operations.includes('extract')) {
-                    documentResult.textExtraction = await extractTextInternal(documentUrl);
+                    documentResult.textExtraction =
+                        await extractTextInternal(documentUrl);
                 }
                 if (operations.includes('classify')) {
-                    documentResult.classification = await classifyDocumentInternal(documentUrl);
+                    documentResult.classification =
+                        await classifyDocumentInternal(documentUrl);
                 }
                 if (operations.includes('language')) {
                     const text = documentResult.textExtraction?.text ||
@@ -815,45 +1172,106 @@ exports.classifyDocumentDualAIHttp = (0, https_2.onRequest)({ memory: '2GiB', ti
     }
     return corsHandler(req, res, async () => {
         if (req.method !== 'POST') {
-            res.status(405).json({ error: 'Method not allowed' });
+            const sanitizedError = sanitizeErrorResponse(new Error('Method not allowed'), 405);
+            res.status(sanitizedError.statusCode).json({
+                success: false,
+                error: sanitizedError.message,
+                timestamp: new Date().toISOString(),
+                requestId: generateRequestId()
+            });
             return;
         }
         try {
-            const { documentUrl, mode = 'both' } = req.body;
-            if (!documentUrl) {
-                res.status(400).json({ error: 'Missing documentUrl' });
+            const { documentUrl, mode = 'both', documentText } = req.body;
+            if (!documentUrl && !documentText) {
+                const sanitizedError = sanitizeErrorResponse(new Error('Missing required parameter: documentUrl or documentText'), 400);
+                res.status(sanitizedError.statusCode).json({
+                    success: false,
+                    error: sanitizedError.message,
+                    timestamp: new Date().toISOString(),
+                    requestId: generateRequestId()
+                });
                 return;
             }
             let result;
             if (mode === 'both') {
-                result = await classifyDocumentDualAI(documentUrl);
+                if (documentText && typeof documentText === 'string' && documentText.trim().length > 0) {
+                    const [huggingFaceResult, deepSeekResult] = await Promise.all([
+                        (async () => {
+                            try {
+                                const aiService = await getHuggingFaceService();
+                                return await aiService.classifyDocument(documentText);
+                            }
+                            catch (e) {
+                                return { category: 'document', confidence: 0.3, tags: ['document'], language: 'en' };
+                            }
+                        })(),
+                        (async () => {
+                            try {
+                                const enhancedProcessor = (0, enhancedDocumentProcessor_1.getEnhancedDocumentProcessor)();
+                                const ds = await enhancedProcessor.processDocument('text://inline');
+                                return {
+                                    category: ds.category || 'document',
+                                    confidence: ds.classificationConfidence || 0.5,
+                                    tags: ds.tags || ['document'],
+                                    language: ds.language || 'en',
+                                    suggestedName: ds.suggestedName,
+                                    summary: ds.summary,
+                                };
+                            }
+                            catch (e) {
+                                return { category: 'document', confidence: 0.4, tags: ['document'], language: 'en' };
+                            }
+                        })(),
+                    ]);
+                    result = { huggingFaceResult, deepSeekResult, extractedText: { text: documentText } };
+                }
+                else {
+                    result = await classifyDocumentDualAI(documentUrl);
+                }
             }
             else if (mode === 'huggingface') {
-                const hfResult = await classifyDocumentInternal(documentUrl);
+                const hfResult = documentText
+                    ? await (async () => {
+                        const aiService = await getHuggingFaceService();
+                        return aiService.classifyDocument(documentText);
+                    })()
+                    : await classifyDocumentInternal(documentUrl);
                 result = {
                     huggingFaceResult: hfResult,
                     deepSeekResult: null,
-                    selectedAI: 'huggingface'
+                    selectedAI: 'huggingface',
                 };
             }
             else if (mode === 'deepseek') {
                 const enhancedProcessor = (0, enhancedDocumentProcessor_1.getEnhancedDocumentProcessor)();
-                const dsResult = await enhancedProcessor.processDocument(documentUrl);
+                const dsResult = documentText
+                    ? await enhancedProcessor.processDocument('text://inline')
+                    : await enhancedProcessor.processDocument(documentUrl);
                 result = {
                     huggingFaceResult: null,
                     deepSeekResult: dsResult,
-                    selectedAI: 'deepseek'
+                    selectedAI: 'deepseek',
                 };
             }
             else {
-                res.status(400).json({ error: 'Invalid mode. Use: both, huggingface, or deepseek' });
+                res.status(400).json({
+                    error: 'Invalid mode. Use: both, huggingface, or deepseek',
+                });
                 return;
             }
             res.status(200).json(result);
         }
         catch (error) {
             console.error('Dual AI classification HTTP error:', error);
-            res.status(500).json({ error: 'Dual AI classification failed' });
+            const sanitizedError = sanitizeErrorResponse(error, 500);
+            res.status(sanitizedError.statusCode).json({
+                success: false,
+                error: sanitizedError.message,
+                details: sanitizedError.details,
+                timestamp: new Date().toISOString(),
+                requestId: generateRequestId()
+            });
         }
     });
 });
@@ -863,7 +1281,9 @@ async function reprocessFromMetadata(documentUrl, mode) {
         const urlParts = documentUrl.split('/');
         const fileName = decodeURIComponent(urlParts[urlParts.length - 1].split('?')[0]);
         const documentsRef = admin.firestore().collection('documents');
-        const querySnapshot = await documentsRef.where('url', '==', documentUrl).get();
+        const querySnapshot = await documentsRef
+            .where('url', '==', documentUrl)
+            .get();
         if (querySnapshot.empty) {
             console.log('📋 No document found in Firestore for URL:', documentUrl);
             return null;
@@ -877,7 +1297,7 @@ async function reprocessFromMetadata(documentUrl, mode) {
         console.log('✅ Found stored metadata with extracted text:', {
             textLength: storedMetadata.extractedText.length,
             hasHuggingFaceAnalysis: !!storedMetadata.huggingFaceAnalysis,
-            hasDeepSeekAnalysis: !!storedMetadata.deepSeekAnalysis
+            hasDeepSeekAnalysis: !!storedMetadata.deepSeekAnalysis,
         });
         const extractedText = storedMetadata.extractedText;
         let classification;
@@ -898,7 +1318,7 @@ async function reprocessFromMetadata(documentUrl, mode) {
                             language: 'en',
                             extractedDates: [],
                             suggestedName: 'Document',
-                            error: 'Hugging Face processing failed'
+                            error: 'Hugging Face processing failed',
                         };
                     }
                 })(),
@@ -914,7 +1334,7 @@ async function reprocessFromMetadata(documentUrl, mode) {
                             extractedDates: result.extractedDates || [],
                             suggestedName: result.suggestedName || 'Document',
                             summary: result.summary || 'Document processed with DeepSeek',
-                            reasoning: result.reasoning || 'Analyzed using stored text metadata'
+                            reasoning: result.reasoning || 'Analyzed using stored text metadata',
                         };
                     }
                     catch (error) {
@@ -928,15 +1348,15 @@ async function reprocessFromMetadata(documentUrl, mode) {
                             suggestedName: 'Document',
                             summary: 'DeepSeek processing failed',
                             reasoning: 'An error occurred during DeepSeek analysis',
-                            error: 'DeepSeek processing failed'
+                            error: 'DeepSeek processing failed',
                         };
                     }
-                })()
+                })(),
             ]);
             classification = {
                 huggingFaceResult,
                 deepSeekResult,
-                extractedText: { text: extractedText }
+                extractedText: { text: extractedText },
             };
         }
         else if (mode === 'deepseek') {
@@ -965,19 +1385,21 @@ async function reprocessFromMetadata(documentUrl, mode) {
             date: new Date().toISOString(),
             mode,
             previousCategory: docData.category,
-            newCategory: classification.category || classification.huggingFaceResult?.category || classification.deepSeekResult?.category,
-            method: 'metadata-based'
+            newCategory: classification.category ||
+                classification.huggingFaceResult?.category ||
+                classification.deepSeekResult?.category,
+            method: 'metadata-based',
         };
         const updatedMetadata = {
             ...storedMetadata,
             reprocessingHistory: [
                 ...(storedMetadata.reprocessingHistory || []),
-                reprocessingEntry
-            ]
+                reprocessingEntry,
+            ],
         };
         await querySnapshot.docs[0].ref.update({
             metadata: updatedMetadata,
-            lastModified: admin.firestore.FieldValue.serverTimestamp()
+            lastModified: admin.firestore.FieldValue.serverTimestamp(),
         });
         console.log('✅ Metadata-based reprocessing completed successfully');
         return classification;
@@ -989,17 +1411,25 @@ async function reprocessFromMetadata(documentUrl, mode) {
 }
 exports.reprocessDocuments = (0, https_2.onRequest)({
     memory: '1GiB',
-    timeoutSeconds: 540
+    timeoutSeconds: 540,
 }, async (req, res) => {
     return corsHandler(req, res, async () => {
         if (req.method !== 'POST') {
-            res.status(405).json({ error: 'Method not allowed' });
+            const sanitizedError = sanitizeErrorResponse(new Error('Method not allowed'), 405);
+            res.status(sanitizedError.statusCode).json({
+                success: false,
+                error: sanitizedError.message,
+                timestamp: new Date().toISOString(),
+                requestId: generateRequestId()
+            });
             return;
         }
         try {
-            const { documentUrls, mode = 'huggingface', useStoredMetadata = true } = req.body;
+            const { documentUrls, mode = 'huggingface', useStoredMetadata = true, } = req.body;
             if (!documentUrls || !Array.isArray(documentUrls)) {
-                res.status(400).json({ error: 'Missing or invalid documentUrls array' });
+                res
+                    .status(400)
+                    .json({ error: 'Missing or invalid documentUrls array' });
                 return;
             }
             console.log(`🔄 Enhanced metadata-based reprocessing ${documentUrls.length} documents with mode: ${mode}`);
@@ -1017,7 +1447,7 @@ exports.reprocessDocuments = (0, https_2.onRequest)({
                                 success: true,
                                 classification,
                                 mode,
-                                method: 'metadata'
+                                method: 'metadata',
                             });
                             continue;
                         }
@@ -1031,7 +1461,8 @@ exports.reprocessDocuments = (0, https_2.onRequest)({
                     }
                     else if (mode === 'deepseek') {
                         const enhancedProcessor = (0, enhancedDocumentProcessor_1.getEnhancedDocumentProcessor)();
-                        classification = await enhancedProcessor.processDocument(documentUrl);
+                        classification =
+                            await enhancedProcessor.processDocument(documentUrl);
                     }
                     else {
                         classification = await classifyDocumentInternal(documentUrl);
@@ -1041,7 +1472,7 @@ exports.reprocessDocuments = (0, https_2.onRequest)({
                         success: true,
                         classification,
                         mode,
-                        method: 'ocr'
+                        method: 'ocr',
                     });
                 }
                 catch (error) {
@@ -1051,7 +1482,7 @@ exports.reprocessDocuments = (0, https_2.onRequest)({
                         success: false,
                         error: error.message,
                         mode,
-                        method: 'failed'
+                        method: 'failed',
                     });
                 }
             }
@@ -1063,19 +1494,32 @@ exports.reprocessDocuments = (0, https_2.onRequest)({
                 mode,
                 processed: results.length,
                 successful: successCount,
-                metadataBased: metadataCount
+                metadataBased: metadataCount,
             });
         }
         catch (error) {
             console.error('Enhanced reprocess documents error:', error);
-            res.status(500).json({ error: 'Enhanced reprocessing failed' });
+            const sanitizedError = sanitizeErrorResponse(error, 500);
+            res.status(sanitizedError.statusCode).json({
+                success: false,
+                error: sanitizedError.message,
+                details: sanitizedError.details,
+                timestamp: new Date().toISOString(),
+                requestId: generateRequestId()
+            });
         }
     });
 });
 exports.getStorageUsage = (0, https_2.onRequest)(async (req, res) => {
     const authHeader = req.get('Authorization') || '';
     if (!authHeader.startsWith('Bearer ')) {
-        res.status(401).json({ error: 'Unauthorized' });
+        const sanitizedError = sanitizeErrorResponse(new Error('Unauthorized access'), 401);
+        res.status(sanitizedError.statusCode).json({
+            success: false,
+            error: sanitizedError.message,
+            timestamp: new Date().toISOString(),
+            requestId: generateRequestId()
+        });
         return;
     }
     try {
@@ -1083,24 +1527,127 @@ exports.getStorageUsage = (0, https_2.onRequest)(async (req, res) => {
         res.status(200).json({
             totalSize,
             freeQuota: 1073741824,
-            usedPercentage: (totalSize / 1073741824) * 100
+            usedPercentage: (totalSize / 1073741824) * 100,
         });
     }
     catch (error) {
         console.error('Storage usage error:', error);
-        res.status(500).json({ error: 'Failed to get storage usage' });
+        const sanitizedError = sanitizeErrorResponse(error, 500);
+        res.status(sanitizedError.statusCode).json({
+            success: false,
+            error: sanitizedError.message,
+            details: sanitizedError.details,
+            timestamp: new Date().toISOString(),
+            requestId: generateRequestId()
+        });
+    }
+});
+exports.processIncomingUpload = (0, storage_1.onObjectFinalized)({ memory: '1GiB', timeoutSeconds: 540, region: 'us-central1' }, async (event) => {
+    try {
+        const object = event.data;
+        const bucketName = object.bucket;
+        const filePath = object.name || '';
+        const contentType = object.contentType || 'application/octet-stream';
+        if (!filePath.startsWith('incoming/')) {
+            console.log('Skipping non-incoming object:', filePath);
+            return;
+        }
+        console.log('📥 onFinalize processing:', filePath);
+        const bucket = admin.storage().bucket(bucketName);
+        const srcFile = bucket.file(filePath);
+        const parts = filePath.split('/');
+        if (parts.length < 3) {
+            console.warn('Unexpected incoming path:', filePath);
+            return;
+        }
+        const userId = parts[1];
+        const fileName = parts.slice(2).join('/');
+        const destPath = `documents/${userId}/${fileName}`;
+        const destFile = bucket.file(destPath);
+        await srcFile.copy(destFile);
+        const token = crypto.randomUUID
+            ? crypto.randomUUID()
+            : crypto.randomBytes(16).toString('hex');
+        await destFile.setMetadata({
+            contentType,
+            metadata: { firebaseStorageDownloadTokens: token },
+            cacheControl: 'public, max-age=3600',
+        });
+        const encodedPath = encodeURIComponent(destPath);
+        const downloadURL = `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodedPath}?alt=media&token=${token}`;
+        const [signedUrl] = await destFile.getSignedUrl({
+            action: 'read',
+            expires: Date.now() + 60 * 60 * 1000,
+        });
+        const extractedText = await extractTextInternal(signedUrl, 'auto');
+        let classification = null;
+        try {
+            classification = await classifyDocumentInternal(signedUrl);
+        }
+        catch (e) {
+            console.warn('Classification failed:', e?.message);
+        }
+        const docsRef = admin.firestore().collection('documents');
+        const snap = await docsRef.where('path', '==', filePath).limit(1).get();
+        if (snap.empty) {
+            console.warn('No Firestore document found for', filePath);
+        }
+        else {
+            const docRef = snap.docs[0].ref;
+            const updates = {
+                url: downloadURL,
+                path: destPath,
+                status: 'ready',
+                lastModified: admin.firestore.FieldValue.serverTimestamp(),
+                'metadata.aiProcessed': true,
+                'metadata.aiProcessingCompleted': admin.firestore.FieldValue.serverTimestamp(),
+                'metadata.textExtraction': {
+                    extractedText: extractedText?.text || '',
+                    confidence: extractedText?.confidence || 0,
+                    wordCount: extractedText?.text ? extractedText.text.split(/\s+/).length : 0,
+                    documentType: extractedText?.type || 'auto',
+                    extractionMethod: 'server_ocr',
+                    extractedAt: new Date().toISOString(),
+                },
+            };
+            if (classification) {
+                updates['category'] = classification.category || 'document';
+                updates['tags'] = classification.tags || ['document'];
+                updates['metadata.classificationConfidence'] = classification.confidence || 0;
+                if (classification.suggestedName)
+                    updates['metadata.suggestedName'] = classification.suggestedName;
+                if (classification.summary)
+                    updates['metadata.summary'] = classification.summary;
+                if (classification.language)
+                    updates['metadata.language'] = classification.language;
+                if (classification.extractedDates)
+                    updates['metadata.extractedDates'] = classification.extractedDates;
+            }
+            await docRef.update(updates);
+            console.log('✅ Firestore updated for', filePath);
+        }
+        try {
+            await srcFile.delete();
+            console.log('🧹 Deleted original incoming file');
+        }
+        catch (e) {
+            console.warn('Cleanup incoming delete failed:', e?.message);
+        }
+    }
+    catch (err) {
+        console.error('❌ processIncomingUpload error:', err?.message || err);
     }
 });
 exports.chatbot = (0, https_1.onCall)(async (request) => {
     try {
-        const { message, conversationId, context, useEnhanced = true } = request.data;
+        const { message, conversationId, context, useEnhanced = true, } = request.data;
         if (!message || typeof message !== 'string') {
             throw new functions.https.HttpsError('invalid-argument', 'Message is required and must be a string');
         }
         console.log('🤖 Processing chatbot message:', {
             userId: request.auth?.uid,
             messageLength: message.length,
-            useEnhanced
+            useEnhanced,
         });
         if (useEnhanced && context?.documentText) {
             console.log('🧠 Using enhanced chatbot with DeepSeek...');
@@ -1113,8 +1660,8 @@ exports.chatbot = (0, https_1.onCall)(async (request) => {
                 method: result.method,
                 suggestedActions: [
                     { action: 'ask_more', label: 'Ask another question' },
-                    { action: 'summarize', label: 'Summarize document' }
-                ]
+                    { action: 'summarize', label: 'Summarize document' },
+                ],
             };
         }
         else {
@@ -1122,16 +1669,16 @@ exports.chatbot = (0, https_1.onCall)(async (request) => {
             const conversationContext = {
                 userId: request.auth?.uid || 'anonymous',
                 language: context?.language || 'en',
-                recentDocuments: context?.recentDocuments || []
+                recentDocuments: context?.recentDocuments || [],
             };
             const response = await chatbotService.processMessage(message, conversationContext, conversationId || `chat_${request.auth?.uid}_${Date.now()}`);
             console.log('✅ Dorian response generated:', {
                 confidence: response.confidence,
-                hasActions: !!response.suggestedActions?.length
+                hasActions: !!response.suggestedActions?.length,
             });
             return {
                 success: true,
-                response: response
+                response: response,
             };
         }
     }
@@ -1146,39 +1693,72 @@ exports.chatbot = (0, https_1.onCall)(async (request) => {
 exports.chatbotHttp = (0, https_2.onRequest)({ memory: '1GiB', timeoutSeconds: 300 }, async (req, res) => {
     return corsHandler(req, res, async () => {
         if (req.method !== 'POST') {
-            res.status(405).json({ error: 'Method not allowed' });
+            const sanitizedError = sanitizeErrorResponse(new Error('Method not allowed'), 405);
+            res.status(sanitizedError.statusCode).json({
+                success: false,
+                error: sanitizedError.message,
+                timestamp: new Date().toISOString(),
+                requestId: generateRequestId()
+            });
             return;
         }
         try {
             const { message, conversationId, context, authToken } = req.body;
             if (!message || typeof message !== 'string') {
-                res.status(400).json({ error: 'Message is required and must be a string' });
+                const sanitizedError = sanitizeErrorResponse(new Error('Message is required and must be a string'), 400);
+                res.status(sanitizedError.statusCode).json({
+                    success: false,
+                    error: sanitizedError.message,
+                    timestamp: new Date().toISOString(),
+                    requestId: generateRequestId()
+                });
                 return;
             }
-            console.log('🤖 Processing Dorian chatbot HTTP message:', {
-                messageLength: message.length
+            const sanitizedMessage = inputSanitization_1.sanitize.string(message, {
+                maxLength: 1000,
+                allowHtml: false,
+                preventXSS: true,
+                preventSQLInjection: true,
+                preventCommandInjection: true
+            });
+            const sanitizedConversationId = conversationId ?
+                inputSanitization_1.sanitize.string(conversationId, {
+                    maxLength: 50,
+                    allowHtml: false,
+                    preventXSS: true
+                }) : null;
+            if (sanitizedMessage.detectedThreats.length > 0) {
+                secureLogging_1.logSecure.security('Chatbot input threats detected', {
+                    threats: sanitizedMessage.detectedThreats,
+                    messageLength: message.length
+                }, 'high');
+            }
+            secureLogging_1.logSecure.info('Processing chatbot HTTP message', {
+                messageLength: sanitizedMessage.sanitized.length,
+                hasConversationId: !!sanitizedConversationId,
+                threatsDetected: sanitizedMessage.detectedThreats.length > 0
             });
             const chatbotService = await getChatbotService();
             const conversationContext = {
                 userId: 'http_user',
                 language: context?.language || 'en',
-                recentDocuments: context?.recentDocuments || []
+                recentDocuments: context?.recentDocuments || [],
             };
-            const response = await chatbotService.processMessage(message, conversationContext, conversationId || `chat_http_${Date.now()}`);
+            const response = await chatbotService.processMessage(sanitizedMessage.sanitized, conversationContext, sanitizedConversationId?.sanitized || `chat_http_${Date.now()}`);
             console.log('✅ Dorian HTTP response generated:', {
                 confidence: response.confidence,
-                hasActions: !!response.suggestedActions?.length
+                hasActions: !!response.suggestedActions?.length,
             });
             res.status(200).json({
                 success: true,
-                response: response
+                response: response,
             });
         }
         catch (error) {
             console.error('❌ Dorian HTTP chatbot processing failed:', error);
             res.status(500).json({
                 error: 'Failed to process chatbot message',
-                details: error.message
+                details: error.message,
             });
         }
     });
