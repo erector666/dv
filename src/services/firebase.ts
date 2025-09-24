@@ -30,6 +30,10 @@ const db = (FirestoreMod as any).initializeFirestore
       ignoreUndefinedProperties: true,
       // Reduce connection timeout issues
       maxIdleTime: 30000, // 30 seconds
+      // Additional QUIC protocol error prevention
+      experimentalAutoDetectLongPolling: true,
+      // Force WebChannel transport for better compatibility
+      experimentalForceOwningTab: false,
     })
   : (FirestoreMod.getFirestore as any)(app);
 const storage = getStorage(app);
@@ -49,7 +53,9 @@ const handleNetworkError = async (error: any) => {
     error?.toString()?.includes('webchannel') ||
     error?.toString()?.includes('Listen/channel') ||
     error?.message?.includes('net::ERR_QUIC_PROTOCOL_ERROR') ||
-    error?.message?.includes('gsessionid');
+    error?.message?.includes('gsessionid') ||
+    error?.message?.includes('WebChannel') ||
+    error?.message?.includes('stream_bridge');
 
   const isConnectionError = 
     error?.code === 'unavailable' ||
