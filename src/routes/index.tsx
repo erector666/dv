@@ -11,7 +11,7 @@ const CategoryView = React.lazy(() => import('../pages/CategoryView'));
 const Settings = React.lazy(() => import('../pages/Settings'));
 const Upload = React.lazy(() => import('../pages/Upload'));
 const Search = React.lazy(() => import('../pages/Search'));
-const Profile = React.lazy(() => import('../components/profile/Profile'));
+const Profile = React.lazy(() => import('../components/profile/EnhancedProfile'));
 const NotFound = React.lazy(() => import('../pages/NotFound'));
 
 // Auth pages
