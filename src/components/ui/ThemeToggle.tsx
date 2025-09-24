@@ -31,12 +31,12 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({
       className={`
         ${sizeClasses[size]}
         relative inline-flex items-center justify-center
-        rounded-xl border border-gray-200 bg-white
-        text-gray-700 shadow-soft transition-all duration-300
+        rounded-xl border border-light-border bg-light-bg
+        text-light-text shadow-soft transition-all duration-300
         hover:shadow-medium hover:scale-105
-        focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2
-        dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200
-        dark:hover:bg-gray-700 dark:focus:ring-offset-gray-900
+        focus:outline-none focus:ring-2 focus:ring-spotify-green focus:ring-offset-2
+        dark:border-dark-border dark:bg-dark-surface dark:text-dark-text
+        dark:hover:bg-dark-bg dark:focus:ring-offset-dark-bg
         ${className}
       `}
       aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}

@@ -40,16 +40,7 @@ const Upload: React.FC = () => {
               </div>
             </div>
             
-            {/* Quick Actions */}
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={() => navigate('/dashboard')}
-                className="hidden sm:flex items-center space-x-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-              >
-                <Zap className="w-4 h-4" />
-                <span>Quick Upload</span>
-              </button>
-            </div>
+            {/* Quick Actions - removed */}
           </div>
         </div>
       </div>

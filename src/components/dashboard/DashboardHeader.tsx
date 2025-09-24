@@ -27,32 +27,37 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   };
 
   return (
-    <div className={`bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-700 text-white ${className}`}>
-      <div className="p-6 md:p-8">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-          <div className="mb-6 md:mb-0">
-            <h1 className="text-3xl md:text-4xl font-bold mb-2">
-              Welcome back, {getUserName()}! 👋
-            </h1>
-            <p className="text-blue-100 text-lg">
-              {new Date().toLocaleDateString('en-US', { 
-                weekday: 'long', 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-              })}
-            </p>
+    <div className={`bg-dark-bg text-white ${className}`}>
+      <div className="px-3 py-1.5 md:px-4 md:py-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <div className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center transition-all duration-300 hover:bg-white/30 hover:scale-105">
+              <span className="text-xs font-medium">{getUserName().charAt(0).toUpperCase()}</span>
+            </div>
+            <div className="animate-fade-in">
+              <h1 className="text-sm md:text-base font-medium leading-tight transition-all duration-300 hover:text-white/90">
+                Welcome back, {getUserName()}
+              </h1>
+              <p className="text-white/50 text-xs transition-all duration-300 hover:text-white/70">
+                {new Date().toLocaleDateString('en-US', { 
+                  weekday: 'short', 
+                  month: 'short', 
+                  day: 'numeric',
+                  year: 'numeric'
+                })}
+              </p>
+            </div>
           </div>
           
-          <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex items-center space-x-1.5">
             {/* Performance Toggle for Development */}
             {showPerformanceToggle && process.env.NODE_ENV === 'development' && (
               <button
                 onClick={onToggleVirtualization}
-                className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-medium transition-colors"
+                className="px-2 py-0.5 bg-white/20 hover:bg-white/30 rounded text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95"
                 aria-label={useVirtualization ? 'Switch to standard view' : 'Switch to virtual view'}
               >
-                {useVirtualization ? 'Standard View' : 'Virtual View'}
+                {useVirtualization ? 'Std' : 'Virt'}
               </button>
             )}
           </div>

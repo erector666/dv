@@ -1,22 +1,22 @@
-import React, { Suspense } from 'react';
+import React from 'react';
 import { useAuth } from '../context/AuthContext';
 import { DocumentViewer } from '../components/viewer';
 import { Card } from '../components/ui';
 import { Activity } from 'lucide-react';
 import { 
   SmartSearchWidget, 
-  AnalyticsWidget,
   DashboardHeader,
   DashboardStats,
   DashboardSidebar,
-  DashboardContent,
-  DashboardCategories
+  DashboardContent
 } from '../components/dashboard';
 import { useOptimizedDocuments } from '../hooks/useOptimizedDocuments';
 import { useDashboardState } from '../hooks/useDashboardState';
 import { useDocumentInteractions } from '../hooks/useDocumentInteractions';
 import { DashboardErrorBoundary } from '../components/error/DashboardErrorBoundary';
 import { DashboardLoadingState } from '../components/ui/LoadingStates';
+import { DashboardSkeleton } from '../components/ui/DashboardSkeleton';
+import { ContextualEmptyState, useUserType } from '../components/ui/ContextualEmptyStates';
 import { Document } from '../services/documentService';
 
 const Dashboard: React.FC = () => {
@@ -58,9 +58,31 @@ const Dashboard: React.FC = () => {
     // Other handlers can be customized as needed
   });
 
+  // Determine user type for contextual empty states
+  const userType = useUserType(documents.length);
+
   // Show loading state
   if (isLoading && !documents.length) {
-    return <DashboardLoadingState message="Loading your dashboard..." />;
+    return <DashboardSkeleton />;
+  }
+
+  // Show empty state if no documents
+  if (!isLoading && documents.length === 0) {
+    return (
+      <DashboardErrorBoundary>
+        <div className="min-h-screen bg-light-bg dark:bg-dark-bg">
+          <DashboardHeader />
+          <ContextualEmptyState
+            userType={userType}
+            documentCount={documents.length}
+            onUpload={() => {
+              // Navigate to upload page or open upload modal
+              window.location.href = '/upload';
+            }}
+          />
+        </div>
+      </DashboardErrorBoundary>
+    );
   }
 
   // Show error state
@@ -98,7 +120,7 @@ const Dashboard: React.FC = () => {
 
   return (
     <DashboardErrorBoundary>
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="min-h-screen bg-light-bg dark:bg-dark-bg">
         {/* Modular Dashboard Header */}
         <DashboardHeader
           showPerformanceToggle={documents.length > 20}
@@ -132,16 +154,8 @@ const Dashboard: React.FC = () => {
             />
           </div>
 
-          {/* Modular Categories Section */}
-          <DashboardCategories
-            documentStats={documentStats}
-            getCategoryCount={getCategoryCount}
-          />
+          {/* Categories section removed */}
 
-          {/* Analytics Widget */}
-          <Suspense fallback={<div className="h-64 bg-gray-100 dark:bg-gray-800 rounded-lg animate-pulse" />}>
-            <AnalyticsWidget documents={allDocuments} className="mb-8" />
-          </Suspense>
         </div>
 
         {/* Document Viewer Modal */}

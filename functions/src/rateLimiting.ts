@@ -332,10 +332,13 @@ export const rateLimitMiddleware = {
     })
 };
 
-// Cleanup expired entries every hour
-const firestoreRateLimit = new FirestoreRateLimit();
+// Cleanup expired entries every hour - lazy initialization
+let firestoreRateLimit: FirestoreRateLimit | null = null;
 setInterval(async () => {
   try {
+    if (!firestoreRateLimit) {
+      firestoreRateLimit = new FirestoreRateLimit();
+    }
     await firestoreRateLimit.cleanupExpiredEntries();
   } catch (error) {
     console.error('Rate limit cleanup error:', error);

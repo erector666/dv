@@ -5,7 +5,7 @@ import * as crypto from 'crypto';
 import * as admin from 'firebase-admin';
 import { onCall } from 'firebase-functions/v2/https';
 import { onRequest } from 'firebase-functions/v2/https';
-import fetch from 'node-fetch';
+// import fetch from 'node-fetch'; // Using dynamic import to avoid ESM issues
 import pdfParse from 'pdf-parse';
 import cors from 'cors';
 
@@ -452,6 +452,7 @@ async function extractTextInternal(
       url: documentUrl.substring(0, 50) + '...' // Truncate long URLs
     });
 
+    const fetch = (await import('node-fetch')).default;
     const response = await fetch(documentUrl);
     if (!response.ok) {
       throw new Error(
@@ -2025,7 +2026,7 @@ export const getStorageUsage = onRequest(async (req, res) => {
 
 // Storage onFinalize: process files uploaded to incoming/{userId}/
 export const processIncomingUpload = onObjectFinalized(
-  { memory: '1GiB', timeoutSeconds: 540, region: 'us-central1' },
+  { memory: '1GiB', timeoutSeconds: 540, region: 'europe-central2' },
   async event => {
     try {
       const object = event.data;
@@ -2220,6 +2221,20 @@ export const chatbot = onCall(async request => {
 export const chatbotHttp = onRequest(
   { memory: '1GiB', timeoutSeconds: 300 }, // Increased memory for chatbot processing
   async (req, res) => {
+    // Handle CORS preflight requests
+    if (req.method === 'OPTIONS') {
+      res.set('Access-Control-Allow-Origin', '*');
+      res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+      res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, Origin, X-Requested-With, Accept');
+      res.status(204).send('');
+      return;
+    }
+
+    // Set CORS headers for all responses
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, Origin, X-Requested-With, Accept');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+
     return corsHandler(req, res, async () => {
       if (req.method !== 'POST') {
         const sanitizedError = sanitizeErrorResponse(new Error('Method not allowed'), 405);

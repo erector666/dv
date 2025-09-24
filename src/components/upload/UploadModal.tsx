@@ -41,7 +41,7 @@ const UploadModal: React.FC<UploadModalProps> = ({
           onClick={e => e.stopPropagation()}
         >
           {/* Header - Compact for mobile, sticky on small screens */}
-          <div className="relative bg-gradient-to-r from-blue-600 to-purple-600 p-4 sm:p-6 text-white flex-shrink-0 sticky top-0 z-10">
+          <div className="relative bg-gradient-to-r from-spotify-green to-green-600 p-4 sm:p-6 text-white flex-shrink-0 sticky top-0 z-10">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2 sm:space-x-3">
                 <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white/20 rounded-full flex items-center justify-center">

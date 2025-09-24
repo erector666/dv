@@ -40,12 +40,12 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
   };
 
   return (
-    <header className="bg-gradient-to-r from-white via-gray-50 to-white dark:from-gray-800 dark:via-gray-850 dark:to-gray-800 shadow-lg border-b border-gray-200/60 dark:border-gray-700/60 backdrop-blur-sm py-3 px-4">
+    <header className="bg-light-bg dark:bg-dark-bg shadow-lg border-b border-light-border dark:border-dark-border backdrop-blur-sm py-3 px-4">
       <div className="flex items-center justify-between">
         {/* Mobile menu button */}
         <button
           onClick={onMenuClick}
-          className="md:hidden p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+          className="md:hidden p-2 rounded-md text-light-text-secondary dark:text-dark-text-secondary hover:bg-light-surface dark:hover:bg-dark-surface"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -67,7 +67,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
         <div className="flex-1 flex justify-center md:justify-start">
           <Link 
             to="/dashboard" 
-            className="text-xl font-bold text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+            className="text-xl font-bold text-light-text dark:text-dark-text hover:text-spotify-green dark:hover:text-spotify-green transition-colors"
           >
             DocVault
           </Link>
@@ -82,7 +82,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
           <div className="relative">
             <button
               onClick={toggleLanguageMenu}
-              className="p-2 rounded-full text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
+              className="p-2 rounded-full text-light-text-secondary dark:text-dark-text-secondary hover:bg-light-surface dark:hover:bg-dark-surface flex items-center"
               aria-label="Change language"
             >
               <span className="text-sm font-medium mr-1">
@@ -106,13 +106,13 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
 
             {/* Language dropdown */}
             {isLanguageMenuOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg py-1 z-10 border border-gray-200 dark:border-gray-700">
+              <div className="absolute right-0 mt-2 w-48 bg-light-bg dark:bg-dark-surface rounded-md shadow-lg py-1 z-10 border border-light-border dark:border-dark-border">
                 <button
                   onClick={() => handleLanguageChange('en')}
                   className={`block px-4 py-2 text-sm w-full text-left ${
                     language === 'en'
-                      ? 'bg-primary-50 dark:bg-primary-900 text-primary-600 dark:text-primary-300'
-                      : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                      ? 'bg-spotify-green/20 text-spotify-green'
+                      : 'hover:bg-light-surface dark:hover:bg-dark-surface text-light-text dark:text-dark-text'
                   }`}
                 >
                   English
@@ -121,8 +121,8 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
                   onClick={() => handleLanguageChange('mk')}
                   className={`block px-4 py-2 text-sm w-full text-left ${
                     language === 'mk'
-                      ? 'bg-primary-50 dark:bg-primary-900 text-primary-600 dark:text-primary-300'
-                      : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                      ? 'bg-spotify-green/20 text-spotify-green'
+                      : 'hover:bg-light-surface dark:hover:bg-dark-surface text-light-text dark:text-dark-text'
                   }`}
                 >
                   Македонски
@@ -131,8 +131,8 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
                   onClick={() => handleLanguageChange('fr')}
                   className={`block px-4 py-2 text-sm w-full text-left ${
                     language === 'fr'
-                      ? 'bg-primary-50 dark:bg-primary-900 text-primary-600 dark:text-primary-300'
-                      : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                      ? 'bg-spotify-green/20 text-spotify-green'
+                      : 'hover:bg-light-surface dark:hover:bg-dark-surface text-light-text dark:text-dark-text'
                   }`}
                 >
                   Français
@@ -145,10 +145,10 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
           <div className="relative">
             <button
               onClick={toggleProfileMenu}
-              className="flex items-center text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+              className="flex items-center text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-spotify-green"
               aria-label="User menu"
             >
-              <div className="h-8 w-8 rounded-full bg-primary-200 dark:bg-primary-700 flex items-center justify-center text-primary-700 dark:text-primary-200 overflow-hidden">
+              <div className="h-8 w-8 rounded-full bg-spotify-green/20 flex items-center justify-center text-spotify-green overflow-hidden">
                 {currentUser?.photoURL ? (
                   <img
                     src={currentUser.photoURL}
@@ -163,18 +163,18 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
 
             {/* Profile dropdown */}
             {isProfileMenuOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg py-1 z-10 border border-gray-200 dark:border-gray-700">
+              <div className="absolute right-0 mt-2 w-48 bg-light-bg dark:bg-dark-surface rounded-md shadow-lg py-1 z-10 border border-light-border dark:border-dark-border">
                 <Link
                   to="/profile"
                   onClick={() => setIsProfileMenuOpen(false)}
-                  className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  className="block px-4 py-2 text-sm text-light-text dark:text-dark-text hover:bg-light-surface dark:hover:bg-dark-surface"
                 >
                   Your Profile
                 </Link>
                 <Link
                   to="/settings"
                   onClick={() => setIsProfileMenuOpen(false)}
-                  className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  className="block px-4 py-2 text-sm text-light-text dark:text-dark-text hover:bg-light-surface dark:hover:bg-dark-surface"
                 >
                   Settings
                 </Link>

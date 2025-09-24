@@ -58,6 +58,26 @@ const defaultTranslations: Translations = {
     mk: 'Друго',
     fr: 'Autre',
   },
+  financial: {
+    en: 'Financial',
+    mk: 'Финансиски',
+    fr: 'Financier',
+  },
+  education: {
+    en: 'Education',
+    mk: 'Образование',
+    fr: 'Éducation',
+  },
+  legal: {
+    en: 'Legal',
+    mk: 'Правни',
+    fr: 'Légal',
+  },
+  government: {
+    en: 'Government',
+    mk: 'Влада',
+    fr: 'Gouvernement',
+  },
   document: {
     en: 'document',
     mk: 'документ',

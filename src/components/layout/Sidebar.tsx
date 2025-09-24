@@ -1,9 +1,7 @@
 import React from 'react';
-import { useDocuments } from '../../context/DocumentContext';
 import SidebarHeader from './sidebar/SidebarHeader';
 import SidebarNavigation from './sidebar/SidebarNavigation';
 import SidebarCategories from './sidebar/SidebarCategories';
-import SidebarStats from './sidebar/SidebarStats';
 
 interface SidebarProps {
   isMobile?: boolean;
@@ -11,8 +9,6 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ isMobile = false, onClose }) => {
-  const { isLoading } = useDocuments();
-
   const handleLinkClick = () => {
     if (isMobile && onClose) {
       onClose();
@@ -42,9 +38,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile = false, onClose }) => {
           <SidebarCategories onItemClick={handleLinkClick} />
         </div>
       </nav>
-
-      {/* Statistics */}
-      <SidebarStats isCompact={isMobile} />
     </div>
   );
 };

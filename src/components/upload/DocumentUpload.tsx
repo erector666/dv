@@ -454,8 +454,8 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
       <motion.div
         className={`relative border-2 border-dashed rounded-xl sm:rounded-2xl p-4 sm:p-8 text-center cursor-pointer transition-all duration-300 ${
           isDragging
-            ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-900/20 scale-105'
-            : 'border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600'
+            ? 'border-spotify-green bg-green-50/50 dark:bg-green-900/20 scale-105'
+            : 'border-gray-200 dark:border-gray-700 hover:border-green-300 dark:hover:border-green-600'
         }`}
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
@@ -477,7 +477,7 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
 
         <div className="flex flex-col items-center justify-center space-y-4 sm:space-y-6">
           <motion.div
-            className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg"
+            className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-spotify-green to-green-600 rounded-full flex items-center justify-center shadow-lg"
             animate={isDragging ? { rotate: 360 } : {}}
             transition={{ duration: 0.5 }}
           >
@@ -507,7 +507,7 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
 
           <div className="flex flex-col sm:flex-row items-center gap-3">
             <motion.button
-              className="px-4 py-2 sm:px-6 sm:py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium rounded-lg sm:rounded-xl hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-lg hover:shadow-xl transition-all duration-200 text-sm sm:text-base"
+              className="px-4 py-2 sm:px-6 sm:py-3 bg-gradient-to-r from-spotify-green to-green-600 text-white font-medium rounded-lg sm:rounded-xl hover:from-green-700 hover:to-green-700 focus:outline-none focus:ring-2 focus:ring-spotify-green focus:ring-offset-2 shadow-lg hover:shadow-xl transition-all duration-200 text-sm sm:text-base"
               onClick={e => {
                 e.stopPropagation();
                 handleBrowseClick();
@@ -519,7 +519,7 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
             </motion.button>
 
             <motion.button
-              className="px-4 py-2 sm:px-6 sm:py-3 bg-white text-blue-700 border border-blue-200 dark:bg-gray-800 dark:text-blue-300 dark:border-blue-700 font-medium rounded-lg sm:rounded-xl hover:bg-blue-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm transition-all duration-200 text-sm sm:text-base"
+              className="px-4 py-2 sm:px-6 sm:py-3 bg-white text-green-700 border border-green-200 dark:bg-gray-800 dark:text-green-300 dark:border-green-700 font-medium rounded-lg sm:rounded-xl hover:bg-green-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-spotify-green focus:ring-offset-2 shadow-sm transition-all duration-200 text-sm sm:text-base"
               onClick={e => {
                 e.stopPropagation();
                 setIsCameraOpen(true);
@@ -554,7 +554,7 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
               onClick={() => setSelectedCategory(category.key)}
               className={`p-3 rounded-lg border-2 transition-all duration-200 ${
                 selectedCategory === category.key
-                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
+                  ? 'border-spotify-green bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300'
                   : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 text-gray-700 dark:text-gray-300'
               }`}
             >
@@ -566,7 +566,7 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
           ))}
         </div>
         {showAiSuggestion && aiSuggestedCategory && (
-          <div className="mt-3 p-3 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
+          <div className="mt-3 p-3 bg-gradient-to-r from-green-50 to-green-50 dark:from-green-900/20 dark:to-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <span className="text-lg">🤖</span>

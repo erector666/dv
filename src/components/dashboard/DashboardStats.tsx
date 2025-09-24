@@ -55,7 +55,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
   ], [documentStats, navigate]);
 
   return (
-    <div className={`grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8 relative z-10 ${className}`}>
+    <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8 relative z-10 ${className}`}>
       {statsCards.map((card) => (
         <StatsCard
           key={card.key}
@@ -65,7 +65,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
           value={card.value}
           trend={card.trend}
           trendValue={card.trendValue}
-          className="active:scale-95 transition-all duration-200 touch-manipulation"
+          className="active:scale-95 transition-all duration-200 touch-manipulation min-h-[80px] sm:min-h-[100px]"
           onClick={card.onClick}
         />
       ))}

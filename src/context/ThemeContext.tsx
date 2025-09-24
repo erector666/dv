@@ -30,18 +30,8 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
       return savedTheme;
     }
 
-    // Check system preference (with safety check for test environment)
-    if (typeof window !== 'undefined' && window.matchMedia) {
-      try {
-        if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-          return 'dark';
-        }
-      } catch (error) {
-        // Fallback to light theme if matchMedia fails
-      }
-    }
-
-    return 'light';
+    // Default to dark mode (Spotify-inspired)
+    return 'dark';
   });
 
   const setTheme = (newTheme: Theme) => {
@@ -62,12 +52,12 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     // Add current theme class
     root.classList.add(theme);
 
-    // Update meta theme-color for mobile browsers
+    // Update meta theme-color for mobile browsers - MVP Specification
     const metaThemeColor = document.querySelector('meta[name="theme-color"]');
     if (metaThemeColor) {
       metaThemeColor.setAttribute(
         'content',
-        theme === 'dark' ? '#0f172a' : '#ffffff'
+        theme === 'dark' ? '#121212' : '#ffffff' // Black (Background) / White (Background)
       );
     }
   }, [theme]);

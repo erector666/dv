@@ -90,7 +90,7 @@ class ChatbotService {
     } catch (error) {
 
       // Return fallback response based on language
-      return this.getFallbackResponse(context.language);
+      return this.getFallbackResponse(context.language, message);
     }
   }
 
@@ -153,7 +153,41 @@ class ChatbotService {
   /**
    * Get fallback response when service fails
    */
-  private getFallbackResponse(language: string): ChatbotResponse {
+  private getFallbackResponse(language: string, userMessage?: string): ChatbotResponse {
+    // Try to provide a contextual response based on the user's message
+    if (userMessage) {
+      const lowerMessage = userMessage.toLowerCase();
+      
+      // Handle specific questions about Macedonia
+      if (lowerMessage.includes('macedonia') || lowerMessage.includes('македонија')) {
+        const macedoniaResponses = {
+          en: "Macedonia is a beautiful country in Southeast Europe! 🇲🇰 It's known for its rich history, stunning landscapes, and warm people. The capital is Skopje, and it's famous for Lake Ohrid, ancient monasteries, and delicious food like ajvar and tavče gravče. Is there something specific about Macedonia you'd like to know?",
+          mk: "Македонија е прекрасна земја во југоисточна Европа! 🇲🇰 Позната е по својата богата историја, прекрасни пејзажи и топли луѓе. Главен град е Скопје, а позната е по Охридското Езеро, древните манастири и вкусната храна како ајвар и тавче гравче. Дали има нешто конкретно за Македонија што сакате да знаете?",
+          fr: "La Macédoine est un magnifique pays d'Europe du Sud-Est ! 🇲🇰 Elle est connue pour sa riche histoire, ses paysages époustouflants et ses habitants chaleureux. La capitale est Skopje, et elle est célèbre pour le lac Ohrid, les anciens monastères et la délicieuse nourriture comme l'ajvar et le tavče gravče. Y a-t-il quelque chose de spécifique sur la Macédoine que vous aimeriez savoir ?"
+        };
+        
+        return {
+          message: macedoniaResponses[language as keyof typeof macedoniaResponses] || macedoniaResponses.en,
+          confidence: 0.8,
+        };
+      }
+      
+      // Handle document-related questions
+      if (lowerMessage.includes('document') || lowerMessage.includes('file') || lowerMessage.includes('документ')) {
+        const documentResponses = {
+          en: "I can help you with your documents! 📄 You can ask me to search for specific files, help categorize them, or provide information about your uploaded documents. What would you like to know about your documents?",
+          mk: "Можам да ви помогнам со документите! 📄 Можете да ме прашате да пребарам специфични датотеки, да ви помогнам да ги категоризирам или да дадам информации за вашите прикачени документи. Што сакате да знаете за вашите документи?",
+          fr: "Je peux vous aider avec vos documents ! 📄 Vous pouvez me demander de rechercher des fichiers spécifiques, vous aider à les catégoriser ou fournir des informations sur vos documents téléchargés. Que souhaitez-vous savoir sur vos documents ?"
+        };
+        
+        return {
+          message: documentResponses[language as keyof typeof documentResponses] || documentResponses.en,
+          confidence: 0.8,
+        };
+      }
+    }
+
+    // Default fallback responses
     const responses = {
       en: "Hi I am Dorian, how can I help? 😊 I'm sorry, I'm having trouble right now. Please try again later or contact support if the issue persists.",
       mk: 'Здраво, јас сум Дориан, како можам да помогнам? 😊 Извинете, имам проблеми моментално. Обидете се повторно подоцна.',

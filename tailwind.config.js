@@ -4,19 +4,42 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // HeroUI-inspired color palette
+        // Spotify-inspired color palette
+        spotify: {
+          green: '#1DB954', // Primary accent color
+        },
+        
+        // Dark Mode Colors (Default) - Exact MVP Specification
+        dark: {
+          bg: '#121212',        // Black (Background) - Main app background
+          surface: '#212121',   // Dark Gray - Secondary backgrounds (cards, sidebars)
+          border: '#535353',    // Medium Gray - Disabled buttons, secondary text
+          'text-secondary': '#B3B3B3', // Light Gray - Subtle text, icons
+          text: '#FFFFFF',      // White - Primary text (song names, artists)
+        },
+        
+        // Light Mode Colors - Exact MVP Specification
+        light: {
+          bg: '#FFFFFF',        // White (Background) - Main app background
+          surface: '#E5E5E5',   // Light Gray - Secondary backgrounds (cards, sidebars)
+          border: '#A7A7A7',    // Medium Gray - Disabled buttons, secondary text
+          'text-secondary': '#535353', // Dark Gray - Subtle text, icons
+          text: '#000000',      // Black - Primary text (song names, artists) – high contrast on white
+        },
+        
+        // Legacy color system (keeping for compatibility)
         primary: {
-          50: '#eff6ff',
-          100: '#dbeafe',
-          200: '#bfdbfe',
-          300: '#93c5fd',
-          400: '#60a5fa',
-          500: '#3b82f6',
-          600: '#2563eb',
-          700: '#1d4ed8',
-          800: '#1e40af',
-          900: '#1e3a8a',
-          950: '#172554',
+          50: '#f0fdf4',
+          100: '#dcfce7',
+          200: '#bbf7d0',
+          300: '#86efac',
+          400: '#4ade80',
+          500: '#1DB954', // Spotify Green
+          600: '#16a34a',
+          700: '#15803d',
+          800: '#166534',
+          900: '#14532d',
+          950: '#052e16',
         },
         secondary: {
           50: '#f8fafc',
@@ -37,7 +60,7 @@ module.exports = {
           200: '#bbf7d0',
           300: '#86efac',
           400: '#4ade80',
-          500: '#22c55e',
+          500: '#1DB954', // Spotify Green
           600: '#16a34a',
           700: '#15803d',
           800: '#166534',
@@ -69,22 +92,6 @@ module.exports = {
           800: '#991b1b',
           900: '#7f1d1d',
           950: '#450a0a',
-        },
-        // Dark mode specific colors
-        dark: {
-          bg: '#0f172a',
-          surface: '#1e293b',
-          border: '#334155',
-          text: '#f8fafc',
-          'text-secondary': '#cbd5e1',
-        },
-        // Light mode specific colors
-        light: {
-          bg: '#ffffff',
-          surface: '#f8fafc',
-          border: '#e2e8f0',
-          text: '#0f172a',
-          'text-secondary': '#475569',
         },
       },
       fontFamily: {

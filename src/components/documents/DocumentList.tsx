@@ -30,8 +30,7 @@ import { DocumentViewer, DocumentViewerMobile } from '../viewer';
 import { formatFileSize, formatDate, formatDateWithFallback } from '../../utils/formatters';
 import { ReprocessModal } from '../ai';
 import { reprocessDocumentsEnhanced, checkAIServiceHealth } from '../../services/dualAIService';
-import { ContextMenu, ContextMenuItem, ContextMenuSection, ContextMenuSeparator } from '../ui/ContextMenu';
-import { useContextMenu } from '../../hooks/useContextMenu';
+import DocumentCardActions from './DocumentCardActions';
 
 interface DocumentListProps {
   category?: string;
@@ -81,8 +80,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
     { type: 'all' | 'selected' | 'single'; document?: Document }
   | null>(null);
 
-  // Context menu state
-  const { contextMenu, closeContextMenu, handleContextMenu, handleLongPress } = useContextMenu();
+  // Removed context menu - now using click-based actions
 
   // Use DocumentContext for optimized document fetching
   const {
@@ -262,9 +260,8 @@ const DocumentList: React.FC<DocumentListProps> = ({
     }
   };
 
-  // Context menu actions
+  // Document actions
   const handleViewDocument = (document: Document) => {
-    closeContextMenu();
     // Full document viewer in modal with all features
     if (onViewDocument) {
       onViewDocument(document);
@@ -275,18 +272,15 @@ const DocumentList: React.FC<DocumentListProps> = ({
   };
 
   const handleReprocessDocument = (document: Document) => {
-    closeContextMenu();
     setReprocessTarget({ type: 'single', document });
     setIsReprocessModalOpen(true);
   };
 
   const handleDeleteDocument = (document: Document) => {
-    closeContextMenu();
     handleDeleteClick({ stopPropagation: () => {} } as React.MouseEvent, document);
   };
 
   const handleDownloadDocument = (document: Document) => {
-    closeContextMenu();
     // Create a temporary link to download the document
     const link = window.document.createElement('a');
     link.href = document.url;
@@ -777,8 +771,6 @@ const DocumentList: React.FC<DocumentListProps> = ({
                   handleDocumentClick(document);
                 }
               }}
-              onContextMenu={e => handleContextMenu(e, document)}
-              onTouchStart={e => handleLongPress(e, document)}
             >
               {/* Large Thumbnail Section */}
               <div className="aspect-square bg-gray-50 dark:bg-gray-700 relative overflow-hidden">
@@ -843,6 +835,19 @@ const DocumentList: React.FC<DocumentListProps> = ({
                       : 'Unknown status'
                   }></div>
                 </div>
+
+                {/* Document Actions - only show when not in batch mode */}
+                {!isBatchMode && (
+                  <DocumentCardActions
+                    document={document}
+                    onViewDocument={handleViewDocument}
+                    onDownloadDocument={handleDownloadDocument}
+                    onReprocessDocument={handleReprocessDocument}
+                    onDeleteDocument={handleDeleteDocument}
+                    isReprocessing={isReprocessing}
+                    className="absolute top-2 left-2"
+                  />
+                )}
 
                 {/* Document Type Badge */}
                 <div className="absolute bottom-2 right-2 bg-white dark:bg-gray-800 rounded-full p-1 shadow-sm">
@@ -1058,72 +1063,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
         </div>
       )}
 
-      {/* Context Menu */}
-      <ContextMenu
-        isOpen={contextMenu.isOpen}
-        onClose={closeContextMenu}
-        position={contextMenu.position}
-      >
-        {contextMenu.data && (
-          <>
-            <ContextMenuSection>
-              <ContextMenuItem
-                label="View in Modal"
-                icon={
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                  </svg>
-                }
-                onClick={() => handleViewDocument(contextMenu.data)}
-                variant="primary"
-                shortcut="Enter"
-              />
-              <ContextMenuItem
-                label="Download"
-                icon={
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                }
-                onClick={() => handleDownloadDocument(contextMenu.data)}
-              />
-            </ContextMenuSection>
-
-            <ContextMenuSeparator />
-
-            <ContextMenuSection>
-              <ContextMenuItem
-                label="Reprocess with AI"
-                icon={
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                }
-                onClick={() => handleReprocessDocument(contextMenu.data)}
-                disabled={!contextMenu.data.url || isReprocessing}
-              />
-            </ContextMenuSection>
-
-            <ContextMenuSeparator />
-
-            <ContextMenuSection>
-              <ContextMenuItem
-                label="Delete Document"
-                icon={
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1 1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                }
-                onClick={() => handleDeleteDocument(contextMenu.data)}
-                variant="danger"
-                disabled={!contextMenu.data.firestoreId || contextMenu.data.firestoreId === ''}
-                shortcut="Del"
-              />
-            </ContextMenuSection>
-          </>
-        )}
-      </ContextMenu>
+      {/* Context menu removed - now using click-based actions on cards */}
     </>
   );
 };

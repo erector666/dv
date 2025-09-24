@@ -10,7 +10,6 @@ import {
   Shield,
   FolderOpen,
   ChevronDown,
-  Search,
   Edit3,
   Palette,
   EyeOff,
@@ -103,15 +102,11 @@ interface SidebarCategoriesProps {
 const SidebarCategories: React.FC<SidebarCategoriesProps> = React.memo(({ onItemClick }) => {
   const { translate } = useLanguage();
   const { categoryCounts, isLoading } = useDocuments();
-  const [searchQuery, setSearchQuery] = useState('');
   const [showSecondary, setShowSecondary] = useState(true);
   const [showTertiary, setShowTertiary] = useState(false);
 
-  // Filter categories based on search query
-  const filteredCategories = PREDEFINED_CATEGORIES.filter(category =>
-    category.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    translate(category.id).toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Use all categories since search is removed
+  const filteredCategories = PREDEFINED_CATEGORIES;
 
   // Group categories by priority
   const primaryCategories = filteredCategories.filter(cat => cat.priority === 'primary');
@@ -191,20 +186,6 @@ const SidebarCategories: React.FC<SidebarCategoriesProps> = React.memo(({ onItem
         </span>
       </div>
 
-      {/* Search Categories */}
-      <div className="px-2">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search categories..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-sm bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors"
-            aria-label="Search categories"
-          />
-        </div>
-      </div>
 
       {/* Primary Categories (Always Visible) */}
       <div className="space-y-1">
@@ -336,12 +317,6 @@ const SidebarCategories: React.FC<SidebarCategoriesProps> = React.memo(({ onItem
         </div>
       )}
 
-      {/* No Results */}
-      {searchQuery && filteredCategories.length === 0 && (
-        <div className="px-2 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
-          No categories found for "{searchQuery}"
-        </div>
-      )}
     </div>
   );
 });

@@ -43,7 +43,6 @@ const crypto = __importStar(require("crypto"));
 const admin = __importStar(require("firebase-admin"));
 const https_1 = require("firebase-functions/v2/https");
 const https_2 = require("firebase-functions/v2/https");
-const node_fetch_1 = __importDefault(require("node-fetch"));
 const pdf_parse_1 = __importDefault(require("pdf-parse"));
 const cors_1 = __importDefault(require("cors"));
 const fileValidation_1 = require("./fileValidation");
@@ -348,7 +347,8 @@ async function extractTextInternal(documentUrl, documentType) {
         secureLogging_1.logSecure.info('Fetching document for processing', {
             url: documentUrl.substring(0, 50) + '...'
         });
-        const response = await (0, node_fetch_1.default)(documentUrl);
+        const fetch = (await Promise.resolve().then(() => __importStar(require('node-fetch')))).default;
+        const response = await fetch(documentUrl);
         if (!response.ok) {
             throw new Error(`Unable to fetch document: ${response.status} ${response.statusText}`);
         }
@@ -1542,7 +1542,7 @@ exports.getStorageUsage = (0, https_2.onRequest)(async (req, res) => {
         });
     }
 });
-exports.processIncomingUpload = (0, storage_1.onObjectFinalized)({ memory: '1GiB', timeoutSeconds: 540, region: 'us-central1' }, async (event) => {
+exports.processIncomingUpload = (0, storage_1.onObjectFinalized)({ memory: '1GiB', timeoutSeconds: 540, region: 'europe-central2' }, async (event) => {
     try {
         const object = event.data;
         const bucketName = object.bucket;
@@ -1691,6 +1691,16 @@ exports.chatbot = (0, https_1.onCall)(async (request) => {
     }
 });
 exports.chatbotHttp = (0, https_2.onRequest)({ memory: '1GiB', timeoutSeconds: 300 }, async (req, res) => {
+    if (req.method === 'OPTIONS') {
+        res.set('Access-Control-Allow-Origin', '*');
+        res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+        res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, Origin, X-Requested-With, Accept');
+        res.status(204).send('');
+        return;
+    }
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, Origin, X-Requested-With, Accept');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
     return corsHandler(req, res, async () => {
         if (req.method !== 'POST') {
             const sanitizedError = sanitizeErrorResponse(new Error('Method not allowed'), 405);

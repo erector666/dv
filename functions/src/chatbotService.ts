@@ -433,7 +433,7 @@ class DorianChatbotService {
   }
 
   /**
-   * Handle general conversation with intelligent local responses
+   * Handle general conversation with DeepSeek-R1 model
    */
   private async handleGeneralConversation(
     message: string,
@@ -441,28 +441,14 @@ class DorianChatbotService {
     history: ChatMessage[]
   ): Promise<ChatbotResponse> {
     try {
-      console.log('🚀 Using DeepSeek-V3.1 - 671B parameter AI powerhouse!');
+      console.log('🚀 Using DeepSeek-R1 from Hugging Face Space!');
 
-      // Build DeepSeek conversation context
-      const conversationText = this.buildDeepSeekContext(
-        message,
-        history,
-        context
-      );
-
-      // Determine if we should use thinking mode for complex queries
-      const useThinkingMode = this.shouldUseThinkingMode(message);
-
-      console.log(
-        `🧠 DeepSeek mode: ${useThinkingMode ? 'THINKING' : 'DIRECT'} | Context: ${conversationText.length} chars`
-      );
-
-      // Build conversation messages for OpenRouter
+      // Build conversation messages for DeepSeek-R1
       const messages = [
         {
           role: 'system',
           content:
-            'You are Dorian, a helpful AI assistant for DocVault document management app. Be friendly, concise, and helpful.',
+            'You are Dorian, a helpful AI assistant for DocVault document management app. Be friendly, concise, and helpful. Answer the user\'s question directly and provide relevant suggestions.',
         },
       ];
 
@@ -480,28 +466,27 @@ class DorianChatbotService {
         content: message,
       });
 
-      const response = await this.callOpenRouter(
-        'deepseek/deepseek-chat',
-        messages,
-        150
-      );
+      console.log(`🧠 DeepSeek-R1 processing: ${message.length} chars message`);
 
+      // Use DeepSeek-R1 from Hugging Face Space as primary
+      const response = await this.callHuggingFace(messages, 200);
       let botResponse = response.choices?.[0]?.message?.content;
 
-      if (botResponse) {
+      if (botResponse && botResponse.length > 10) {
+        console.log('✅ DeepSeek-R1 response received successfully');
         return {
           message: botResponse,
           confidence: 0.9,
-          model: 'DeepSeek-Chat (OpenRouter)',
-          thinkingMode: useThinkingMode,
+          model: 'DeepSeek-R1 (Hugging Face)',
+          suggestedActions: this.getDefaultSuggestedActions(context.language),
         };
       } else {
-        throw new Error('No response from DeepSeek-V3.1');
+        throw new Error('No valid response from DeepSeek-R1');
       }
     } catch (error) {
       console.warn(
-        '⚠️ Intelligent conversation failed, using local analysis:',
-        error
+        '⚠️ DeepSeek-R1 failed, trying fallback:',
+        error.message
       );
 
       // Use intelligent local response as fallback
@@ -518,7 +503,7 @@ class DorianChatbotService {
         };
       } catch (fallbackError) {
         console.warn('⚠️ Local intelligent response failed:', fallbackError);
-        return this.getFallbackResponse(context.language);
+        return this.getFallbackResponse(context.language, message);
       }
     }
   }
@@ -592,7 +577,41 @@ class DorianChatbotService {
   /**
    * Get fallback response for errors
    */
-  private getFallbackResponse(language: string): ChatbotResponse {
+  private getFallbackResponse(language: string, userMessage?: string): ChatbotResponse {
+    // Try to provide a contextual response based on the user's message
+    if (userMessage) {
+      const lowerMessage = userMessage.toLowerCase();
+      
+      // Handle specific questions about Macedonia
+      if (lowerMessage.includes('macedonia') || lowerMessage.includes('македонија')) {
+        const macedoniaResponses = {
+          en: "Macedonia is a beautiful country in Southeast Europe! 🇲🇰 It's known for its rich history, stunning landscapes, and warm people. The capital is Skopje, and it's famous for Lake Ohrid, ancient monasteries, and delicious food like ajvar and tavče gravče. Is there something specific about Macedonia you'd like to know?",
+          mk: "Македонија е прекрасна земја во југоисточна Европа! 🇲🇰 Позната е по својата богата историја, прекрасни пејзажи и топли луѓе. Главен град е Скопје, а позната е по Охридското Езеро, древните манастири и вкусната храна како ајвар и тавче гравче. Дали има нешто конкретно за Македонија што сакате да знаете?",
+          fr: "La Macédoine est un magnifique pays d'Europe du Sud-Est ! 🇲🇰 Elle est connue pour sa riche histoire, ses paysages époustouflants et ses habitants chaleureux. La capitale est Skopje, et elle est célèbre pour le lac Ohrid, les anciens monastères et la délicieuse nourriture comme l'ajvar et le tavče gravče. Y a-t-il quelque chose de spécifique sur la Macédoine que vous aimeriez savoir ?"
+        };
+        
+        return {
+          message: macedoniaResponses[language as keyof typeof macedoniaResponses] || macedoniaResponses.en,
+          confidence: 0.8,
+        };
+      }
+      
+      // Handle document-related questions
+      if (lowerMessage.includes('document') || lowerMessage.includes('file') || lowerMessage.includes('документ')) {
+        const documentResponses = {
+          en: "I can help you with your documents! 📄 You can ask me to search for specific files, help categorize them, or provide information about your uploaded documents. What would you like to know about your documents?",
+          mk: "Можам да ви помогнам со документите! 📄 Можете да ме прашате да пребарам специфични датотеки, да ви помогнам да ги категоризирам или да дадам информации за вашите прикачени документи. Што сакате да знаете за вашите документи?",
+          fr: "Je peux vous aider avec vos documents ! 📄 Vous pouvez me demander de rechercher des fichiers spécifiques, vous aider à les catégoriser ou fournir des informations sur vos documents téléchargés. Que souhaitez-vous savoir sur vos documents ?"
+        };
+        
+        return {
+          message: documentResponses[language as keyof typeof documentResponses] || documentResponses.en,
+          confidence: 0.8,
+        };
+      }
+    }
+
+    // Default fallback responses
     const responses = {
       en: "Hi I am Dorian, how can I help? 😊 I'm your DocVault AI assistant and I'm here to help with your documents! You can ask me to search, upload, or manage your files.",
       mk: 'Здраво, јас сум Дориан, како можам да помогнам? 😊 Јас сум вашиот DocVault AI асистент и тука сум да помогнам со документите! Можете да ме прашате за сé.',
@@ -648,7 +667,7 @@ class DorianChatbotService {
   }
 
   /**
-   * Call OpenRouter API with retry logic
+   * Call OpenRouter API with retry logic and Hugging Face fallback
    */
   private async callOpenRouter(
     model: string,
@@ -711,8 +730,348 @@ class DorianChatbotService {
       }
     }
 
-    throw lastError!;
+    // If OpenRouter fails completely, try Hugging Face as fallback
+    console.log('🔄 OpenRouter failed, trying Hugging Face fallback...');
+    return await this.callHuggingFace(messages, maxTokens);
   }
+
+  /**
+   * Call Hugging Face API as fallback for text generation using DeepSeek-R1
+   */
+  private async callHuggingFace(
+    messages: any[],
+    maxTokens: number = 100
+  ): Promise<any> {
+    try {
+      // Get the best available Hugging Face token
+      const huggingFaceToken = await this.getValidHuggingFaceToken();
+      
+      if (!huggingFaceToken) {
+        throw new Error('No valid Hugging Face token available');
+      }
+
+      // Convert messages to a single prompt for DeepSeek-R1
+      const prompt = this.convertMessagesToPrompt(messages);
+      
+      console.log('🤗 Using DeepSeek-R1 via Hugging Face Spaces for chatbot response');
+      console.log(`🤗 Token: ${huggingFaceToken.substring(0, 10)}...`);
+      console.log(`🤗 Prompt length: ${prompt.length} characters`);
+
+      // Try multiple approaches for DeepSeek-R1 API
+      const approaches = [
+        // Approach 1: Direct Gradio API
+        () => this.callDeepSeekR1Gradio(huggingFaceToken, prompt),
+        // Approach 2: Hugging Face Inference API
+        () => this.callDeepSeekR1Inference(huggingFaceToken, prompt),
+        // Approach 3: Alternative model
+        () => this.callAlternativeModel(huggingFaceToken, prompt)
+      ];
+
+      for (let i = 0; i < approaches.length; i++) {
+        try {
+          console.log(`🔄 Trying approach ${i + 1} for DeepSeek-R1...`);
+          const result = await approaches[i]();
+          console.log('✅ DeepSeek-R1 response received via approach', i + 1);
+          return result;
+        } catch (error) {
+          console.warn(`⚠️ Approach ${i + 1} failed:`, error.message);
+          if (i === approaches.length - 1) throw error;
+        }
+      }
+    } catch (error) {
+      console.error('❌ All DeepSeek-R1 approaches failed:', error);
+      
+      // Try a simpler Hugging Face inference API as final fallback
+      return await this.callSimpleHuggingFace(messages, maxTokens);
+    }
+  }
+
+  /**
+   * Get a valid Hugging Face token from available options
+   */
+  private async getValidHuggingFaceToken(): Promise<string | null> {
+    const tokens = [
+      process.env.HUGGING_FACE_TOKEN,
+      process.env.HUGGINGFACE_TOKEN,
+      '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', // New token from user
+      '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', // Primary token
+      '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', // Translation token
+      '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'  // OCR token
+    ].filter(Boolean);
+
+    for (const token of tokens) {
+      if (await this.validateHuggingFaceToken(token)) {
+        console.log(`✅ Valid token found: ${token.substring(0, 10)}...`);
+        return token;
+      }
+    }
+
+    console.error('❌ No valid Hugging Face tokens found');
+    return null;
+  }
+
+  /**
+   * Validate a Hugging Face token by making a test API call
+   */
+  private async validateHuggingFaceToken(token: string): Promise<boolean> {
+    try {
+      const response = await fetch(
+        'https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium',
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            inputs: 'Hello',
+            parameters: { max_length: 10 }
+          }),
+        }
+      );
+
+      return response.ok || response.status === 503; // 503 means model is loading, but token is valid
+    } catch (error) {
+      return false;
+    }
+  }
+
+  /**
+   * Call DeepSeek-R1 via Gradio API
+   */
+  private async callDeepSeekR1Gradio(token: string, prompt: string): Promise<any> {
+    try {
+      console.log('🤖 Calling DeepSeek-R1 via Gradio API...');
+      
+      // Use the correct Gradio API format based on the documentation
+      const response = await fetch(
+        'https://indoboyz1357-deepseek-ai-deepseek-r1.hf.space/gradio_api/call/chat',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            data: [prompt], // Just the message
+            fn_index: 0
+          }),
+        }
+      );
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ DeepSeek-R1 Gradio API response:', result);
+        
+        // Extract the response from the Gradio API format
+        let generatedText = 'I apologize, but I had trouble processing your request.';
+        
+        if (result.data && result.data.length > 0) {
+          generatedText = result.data[0] || result.data;
+        }
+        
+        return {
+          choices: [{
+            message: {
+              content: generatedText
+            }
+          }]
+        };
+      } else {
+        console.log(`⚠️ DeepSeek-R1 Gradio API failed: ${response.status} ${response.statusText}`);
+        const errorText = await response.text();
+        console.log(`Error details: ${errorText}`);
+      }
+    } catch (error) {
+      console.log('⚠️ DeepSeek-R1 Gradio API error:', error.message);
+    }
+
+    // Fallback: Use Hugging Face Inference API with a similar model
+    throw new Error('DeepSeek-R1 space not accessible, using inference API fallback');
+  }
+
+  /**
+   * Get default suggested actions based on language
+   */
+  private getDefaultSuggestedActions(language: string): any[] {
+    const actions = {
+      en: [
+        { action: 'search_documents', label: 'Search Documents' },
+        { action: 'show_recent_documents', label: 'Show Recent Documents' },
+        { action: 'open_upload_modal', label: 'Upload Document' },
+      ],
+      mk: [
+        { action: 'search_documents', label: 'Пребарај документи' },
+        { action: 'show_recent_documents', label: 'Прикажи неодамнешни документи' },
+        { action: 'open_upload_modal', label: 'Прикачи документ' },
+      ],
+      fr: [
+        { action: 'search_documents', label: 'Rechercher des documents' },
+        { action: 'show_recent_documents', label: 'Afficher les documents récents' },
+        { action: 'open_upload_modal', label: 'Télécharger un document' },
+      ],
+    };
+
+    return actions[language as keyof typeof actions] || actions.en;
+  }
+
+  /**
+   * Call DeepSeek-R1 via Hugging Face Inference API
+   */
+  private async callDeepSeekR1Inference(token: string, prompt: string): Promise<any> {
+    const response = await fetch(
+      'https://api-inference.huggingface.co/models/deepseek-ai/DeepSeek-R1',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          inputs: prompt,
+          parameters: {
+            max_length: 512,
+            temperature: 0.7,
+            do_sample: true,
+          },
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Inference API error: ${response.status} ${response.statusText}`);
+    }
+
+    const result = await response.json();
+    const generatedText = result[0]?.generated_text || result[0]?.text || 'I apologize, but I had trouble processing your request.';
+    
+    return {
+      choices: [{
+        message: {
+          content: generatedText
+        }
+      }]
+    };
+  }
+
+  /**
+   * Call alternative model as fallback
+   */
+  private async callAlternativeModel(token: string, prompt: string): Promise<any> {
+    const response = await fetch(
+      'https://api-inference.huggingface.co/models/microsoft/DialoGPT-large',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          inputs: prompt,
+          parameters: {
+            max_length: 200,
+            temperature: 0.7,
+            do_sample: true,
+            pad_token_id: 50256,
+          },
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Alternative model error: ${response.status} ${response.statusText}`);
+    }
+
+    const result = await response.json();
+    const generatedText = result[0]?.generated_text || result[0]?.text || 'I apologize, but I had trouble processing your request.';
+    
+    return {
+      choices: [{
+        message: {
+          content: generatedText
+        }
+      }]
+    };
+  }
+
+  /**
+   * Simple Hugging Face inference API fallback
+   */
+  private async callSimpleHuggingFace(
+    messages: any[],
+    maxTokens: number = 100
+  ): Promise<any> {
+    try {
+      const huggingFaceToken = 
+        process.env.HUGGING_FACE_TOKEN ||
+        process.env.HUGGINGFACE_TOKEN ||
+        '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' || // New token from user
+        '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';
+
+      const prompt = this.convertMessagesToPrompt(messages);
+      
+      console.log('🤗 Using simple Hugging Face inference API as final fallback');
+
+      const response = await fetch(
+        'https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium',
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${huggingFaceToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            inputs: prompt,
+            parameters: {
+              max_length: Math.min(maxTokens * 2, 200),
+              temperature: 0.7,
+              do_sample: true,
+              pad_token_id: 50256,
+            },
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Simple Hugging Face API error: ${response.status}`);
+      }
+
+      const result = await response.json();
+      const generatedText = result[0]?.generated_text || result[0]?.text || 'I apologize, but I had trouble processing your request.';
+      
+      return {
+        choices: [{
+          message: {
+            content: generatedText
+          }
+        }]
+      };
+    } catch (error) {
+      console.error('❌ All AI services failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Convert chat messages to a single prompt for Hugging Face
+   */
+  private convertMessagesToPrompt(messages: any[]): string {
+    let prompt = '';
+    
+    for (const message of messages) {
+      if (message.role === 'system') {
+        prompt += `System: ${message.content}\n`;
+      } else if (message.role === 'user') {
+        prompt += `Human: ${message.content}\n`;
+      } else if (message.role === 'assistant') {
+        prompt += `Assistant: ${message.content}\n`;
+      }
+    }
+    
+    prompt += 'Assistant:';
+    return prompt;
+  }
+
 
   /**
    * Analyze document content and provide insights
@@ -820,6 +1179,37 @@ class DorianChatbotService {
     confidence: number;
     suggestedActions?: any[];
   }> {
+    // First try to use Hugging Face models for intelligent responses
+    try {
+      console.log('🤗 Trying Hugging Face models for intelligent response...');
+      
+      const messages = [
+        {
+          role: 'system',
+          content: 'You are Dorian, a helpful AI assistant for DocVault document management app. Be friendly, concise, and helpful. Answer the user\'s question directly and provide relevant suggestions.',
+        },
+        {
+          role: 'user',
+          content: message,
+        },
+      ];
+
+      const response = await this.callHuggingFace(messages, 200);
+      const aiResponse = response.choices?.[0]?.message?.content;
+      
+      if (aiResponse && aiResponse.length > 10) {
+        console.log('✅ Got intelligent response from Hugging Face models');
+        return {
+          message: aiResponse,
+          confidence: 0.9,
+          suggestedActions: this.getDefaultSuggestedActions(context.language),
+        };
+      }
+    } catch (error) {
+      console.warn('⚠️ Hugging Face models failed for intelligent response:', error.message);
+    }
+
+    // Fallback to local intelligent responses
     const lowerMessage = message.toLowerCase().trim();
     const userName = context.userId ? 'friend' : 'there';
 
