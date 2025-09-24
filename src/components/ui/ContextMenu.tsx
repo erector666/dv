@@ -13,23 +13,36 @@ interface ContextMenuItem {
 }
 
 interface ContextMenuProps {
-  items: ContextMenuItem[];
+  items?: ContextMenuItem[];
   children: React.ReactNode;
   disabled?: boolean;
+  // Alternative API for compatibility
+  isOpen?: boolean;
+  onClose?: () => void;
+  position?: { x: number; y: number };
 }
 
 const ContextMenu: React.FC<ContextMenuProps> = ({ 
   items, 
   children, 
-  disabled = false 
+  disabled = false,
+  // Alternative API props
+  isOpen: externalIsOpen,
+  onClose: externalOnClose,
+  position: externalPosition
 }: ContextMenuProps) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [internalIsOpen, setInternalIsOpen] = useState(false);
+  const [internalPosition, setInternalPosition] = useState({ x: 0, y: 0 });
   const triggerRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
+  // Use external state if provided, otherwise use internal state
+  const isOpen = externalIsOpen !== undefined ? externalIsOpen : internalIsOpen;
+  const position = externalPosition || internalPosition;
+  const closeMenu = externalOnClose || (() => setInternalIsOpen(false));
+
   const handleContextMenu = (event: React.MouseEvent) => {
-    if (disabled) return;
+    if (disabled || externalIsOpen !== undefined) return; // Don't handle if using external state
     
     event.preventDefault();
     event.stopPropagation();
@@ -38,8 +51,8 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
     const x = event.clientX;
     const y = event.clientY;
     
-    setPosition({ x, y });
-    setIsOpen(true);
+    setInternalPosition({ x, y });
+    setInternalIsOpen(true);
   };
 
   const handleClick = (event: React.MouseEvent) => {
@@ -55,11 +68,11 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
     if (item.disabled) return;
     
     item.onClick();
-    setIsOpen(false);
+    closeMenu();
   };
 
-  const closeMenu = () => {
-    setIsOpen(false);
+  const handleCloseMenu = () => {
+    closeMenu();
   };
 
   // Close menu when clicking outside
@@ -71,12 +84,12 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
         triggerRef.current &&
         !triggerRef.current.contains(event.target as Node)
       ) {
-        closeMenu();
+        handleCloseMenu();
       }
     };
 
     const handleScroll = () => {
-      closeMenu();
+      handleCloseMenu();
     };
 
     if (isOpen) {
@@ -94,14 +107,14 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
 
   const handleKeyDown = (event: KeyboardEvent) => {
     if (event.key === 'Escape') {
-      closeMenu();
+      handleCloseMenu();
     }
   };
 
   // Adjust menu position to stay within viewport
   const getMenuStyle = (): React.CSSProperties => {
     const menuWidth = 200; // Approximate menu width
-    const menuHeight = items.length * 40; // Approximate item height
+    const menuHeight = (items?.length || 5) * 40; // Approximate item height
     
     let { x, y } = position;
     
@@ -137,37 +150,49 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
           role="menu"
           aria-orientation="vertical"
         >
-          {items.map((item: ContextMenuItem, index: number) => (
-            <React.Fragment key={item.id}>
-              {item.divider && index > 0 && (
-                <div className="h-px bg-gray-200 dark:bg-gray-700 my-1" />
-              )}
-              <button
-                onClick={() => handleItemClick(item)}
-                disabled={item.disabled}
-                className={`
-                  w-full flex items-center px-3 py-2 text-sm text-left transition-colors
-                  ${item.disabled 
-                    ? 'text-gray-400 dark:text-gray-500 cursor-not-allowed' 
-                    : item.destructive
-                      ? 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20'
-                      : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
-                  }
-                `}
-                role="menuitem"
-              >
-                {item.icon && (
-                  <item.icon className="w-4 h-4 mr-2 flex-shrink-0" />
+          {items ? (
+            // Render items if provided
+            items.map((item: ContextMenuItem, index: number) => (
+              <React.Fragment key={item.id}>
+                {item.divider && index > 0 && (
+                  <div className="h-px bg-gray-200 dark:bg-gray-700 my-1" />
                 )}
-                {item.label}
-              </button>
-            </React.Fragment>
-          ))}
+                <button
+                  onClick={() => handleItemClick(item)}
+                  disabled={item.disabled}
+                  className={`
+                    w-full flex items-center px-3 py-2 text-sm text-left transition-colors
+                    ${item.disabled 
+                      ? 'text-gray-400 dark:text-gray-500 cursor-not-allowed' 
+                      : item.destructive
+                        ? 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20'
+                        : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    }
+                  `}
+                  role="menuitem"
+                >
+                  {item.icon && (
+                    <item.icon className="w-4 h-4 mr-2 flex-shrink-0" />
+                  )}
+                  {item.label}
+                </button>
+              </React.Fragment>
+            ))
+          ) : (
+            // Render children if no items provided (alternative API)
+            children
+          )}
         </motion.div>
       )}
     </AnimatePresence>
   );
 
+  // If using external state (alternative API), only render the menu
+  if (externalIsOpen !== undefined) {
+    return typeof document !== 'undefined' ? createPortal(menuContent, document.body) : null;
+  }
+
+  // Original API - render trigger and menu
   return (
     <>
       <div
@@ -182,5 +207,68 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
     </>
   );
 };
+
+// Export types and components for compatibility
+export type { ContextMenuItem as ContextMenuItemType };
+
+// For compatibility with existing code that expects ContextMenuItem as a value
+interface ContextMenuItemComponentProps {
+  label: string;
+  icon?: React.ReactNode;
+  onClick: () => void;
+  disabled?: boolean;
+  destructive?: boolean;
+  shortcut?: string;
+  variant?: string; // For compatibility
+  children?: React.ReactNode;
+}
+
+export const ContextMenuItem: React.FC<ContextMenuItemComponentProps> = ({ 
+  label, 
+  icon, 
+  onClick, 
+  disabled = false, 
+  destructive = false, 
+  shortcut,
+  variant,
+  children 
+}) => (
+  <button
+    onClick={onClick}
+    disabled={disabled}
+    className={`
+      w-full flex items-center justify-between px-3 py-2 text-sm text-left transition-colors
+      ${disabled 
+        ? 'text-gray-400 dark:text-gray-500 cursor-not-allowed' 
+        : destructive
+          ? 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20'
+          : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
+      }
+    `}
+    role="menuitem"
+  >
+    <div className="flex items-center">
+      {icon && <span className="mr-2 flex-shrink-0">{icon}</span>}
+      {label}
+    </div>
+    {shortcut && (
+      <span className="text-xs text-gray-400 dark:text-gray-500 ml-4">
+        {shortcut}
+      </span>
+    )}
+    {children}
+  </button>
+);
+
+export const ContextMenuSection = ({ children }: { children: React.ReactNode }) => (
+  <div role="group">{children}</div>
+);
+
+export const ContextMenuSeparator = () => (
+  <div className="h-px bg-gray-200 dark:bg-gray-700 my-1" />
+);
+
+// Named export for compatibility with existing imports
+export { ContextMenu };
 
 export default ContextMenu;

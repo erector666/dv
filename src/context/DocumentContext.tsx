@@ -155,7 +155,7 @@ export const DocumentProvider: React.FC<DocumentProviderProps> = ({ children }) 
   const value: DocumentContextValue = {
     documents,
     isLoading,
-    error,
+    error: error as Error | null,
     categoryCounts,
     stats,
     refetch

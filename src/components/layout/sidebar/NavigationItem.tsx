@@ -2,12 +2,12 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LucideIcon } from 'lucide-react';
-import ContextMenu from '../../ui/ContextMenu';
+import { ContextMenu } from '../../ui';
 
 interface NavigationItemProps {
   id: string;
   label: string;
-  icon: LucideIcon;
+  icon: any; // Flexible icon type
   path: string;
   count?: number;
   color: string;

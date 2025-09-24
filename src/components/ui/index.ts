@@ -46,6 +46,9 @@ export {
   StatusIndicator
 } from './FeedbackSystem';
 
+export { default as ContextMenu, ContextMenuSection, ContextMenuSeparator, type ContextMenuItem } from './ContextMenu';
+export { default as LoadingSkeleton, NavigationSkeleton, StatsSkeleton, CategorySkeleton } from './LoadingSkeleton';
+
 // Re-export Lucide Icons for convenience
 export {
   Sun as SunIcon,
