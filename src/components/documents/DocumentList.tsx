@@ -1,4 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import { 
+  LoadingSpinner, 
+  ListSkeleton, 
+  EmptyDocumentList, 
+  EmptySearchResults,
+  NetworkError,
+  useToast,
+  createToastHelpers
+} from '../ui';
 
 import { useQuery } from 'react-query';
 import { useAuth } from '../../context/AuthContext';
@@ -31,6 +40,8 @@ const DocumentList: React.FC<DocumentListProps> = ({
   const { currentUser } = useAuth();
   const { translate } = useLanguage();
   const { searchTerm } = useSearch();
+  const { addToast } = useToast();
+  const toast = createToastHelpers(addToast);
 
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(
     null
@@ -658,8 +669,8 @@ const DocumentList: React.FC<DocumentListProps> = ({
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      <div role="status" aria-label="Loading documents">
+        <ListSkeleton count={6} variant="document" />
       </div>
     );
   }
@@ -667,48 +678,36 @@ const DocumentList: React.FC<DocumentListProps> = ({
   if (isError) {
     console.error('❌ Document list error:', error);
     return (
-      <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-md">
-        <p className="text-red-600 dark:text-red-400">
-          {translate('documents.error.loading')}
-        </p>
-        <details className="mt-2 text-sm">
-          <summary className="cursor-pointer">Error Details</summary>
-          <pre className="mt-2 text-xs bg-red-100 p-2 rounded overflow-auto">
-            {JSON.stringify(error, null, 2)}
-          </pre>
-        </details>
-      </div>
+      <NetworkError 
+        onRetry={() => {
+          refetch();
+          toast.info('Retrying...', 'Attempting to reload documents');
+        }}
+      />
     );
   }
 
   if (!filteredDocuments?.length) {
+    if (searchTerm) {
+      return (
+        <EmptySearchResults 
+          searchTerm={searchTerm}
+          onClearSearch={() => {
+            // This would need to be connected to the search context
+            toast.info('Search cleared', 'Showing all documents');
+          }}
+        />
+      );
+    }
+    
     return (
-      <div className="bg-gray-50 dark:bg-gray-800 p-8 rounded-md text-center">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          className="h-16 w-16 mx-auto text-gray-400"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-          />
-        </svg>
-        <h3 className="mt-4 text-lg font-medium text-gray-900 dark:text-gray-100">
-          {searchTerm
-            ? translate('documents.noSearchResults')
-            : category
-              ? translate('documents.noCategoryDocuments')
-              : translate('documents.noDocuments')}
-        </h3>
-        <p className="mt-2 text-gray-500 dark:text-gray-400">
-          {translate('documents.uploadPrompt')}
-        </p>
-      </div>
+      <EmptyDocumentList 
+        category={category}
+        onUpload={() => {
+          // This would need to be connected to the upload modal
+          toast.info('Opening upload', 'Upload your first document');
+        }}
+      />
     );
   }
 

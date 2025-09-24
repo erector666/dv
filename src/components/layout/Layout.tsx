@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import { useQuery } from 'react-query';
 import Sidebar from './Sidebar';
 import Header from './Header';
+import MobileNavigation from './MobileNavigation';
 import ChatBot from '../chat/ChatBot';
 import { Button } from '../ui/Button';
 import { useAuth } from '../../context/AuthContext';
@@ -194,7 +195,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <div className="flex flex-col flex-1 overflow-hidden">
         <Header onMenuClick={toggleMobileSidebar} />
 
-        <main className="flex-1 overflow-y-auto">{children || <Outlet />}</main>
+        <main className="flex-1 overflow-y-auto pb-20 md:pb-0">{children || <Outlet />}</main>
       </div>
 
       {/* Floating Chat Button - safe area aware */}
@@ -212,6 +213,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           <MessageCircle className="w-6 h-6" />
         </Button>
       )}
+
+      {/* Mobile Navigation */}
+      <MobileNavigation />
 
       {/* ChatBot Modal */}
       <ChatBot

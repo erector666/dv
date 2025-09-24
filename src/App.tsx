@@ -10,6 +10,8 @@ import { LanguageProvider } from './context/LanguageContext';
 import { AuthProvider } from './context/AuthContext';
 import { UploadModalProvider } from './context/UploadModalContext';
 import { SearchProvider } from './context/SearchContext';
+import { ToastProvider } from './components/ui/FeedbackSystem';
+import { UserPreferencesProvider } from './context/UserPreferencesContext';
 
 // Components
 import ErrorBoundary from './components/ErrorBoundary';
@@ -142,18 +144,22 @@ function App() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <ThemeProvider>
-          <LanguageProvider>
-            <AuthProvider>
-              <UploadModalProvider>
-                <SearchProvider>
-                  <RouterProvider router={router} />
-                  <PerformanceDashboard />
-                </SearchProvider>
-              </UploadModalProvider>
-            </AuthProvider>
-          </LanguageProvider>
-        </ThemeProvider>
+        <UserPreferencesProvider>
+          <ThemeProvider>
+            <LanguageProvider>
+              <AuthProvider>
+                <ToastProvider>
+                  <UploadModalProvider>
+                    <SearchProvider>
+                      <RouterProvider router={router} />
+                      <PerformanceDashboard />
+                    </SearchProvider>
+                  </UploadModalProvider>
+                </ToastProvider>
+              </AuthProvider>
+            </LanguageProvider>
+          </ThemeProvider>
+        </UserPreferencesProvider>
       </QueryClientProvider>
     </ErrorBoundary>
   );

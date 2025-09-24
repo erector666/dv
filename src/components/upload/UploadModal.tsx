@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DocumentUpload } from '.';
+import { useFocusTrap } from '../../hooks/useAccessibility';
 
 interface UploadModalProps {
   isOpen: boolean;
@@ -13,6 +14,8 @@ const UploadModal: React.FC<UploadModalProps> = ({
   onClose,
   onUploadComplete,
 }) => {
+  const focusTrapRef = useFocusTrap(isOpen);
+
   if (!isOpen) return null;
 
   return (
@@ -23,8 +26,13 @@ const UploadModal: React.FC<UploadModalProps> = ({
         exit={{ opacity: 0 }}
         className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
         onClick={onClose}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="upload-modal-title"
+        aria-describedby="upload-modal-description"
       >
         <motion.div
+          ref={focusTrapRef}
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -52,10 +60,10 @@ const UploadModal: React.FC<UploadModalProps> = ({
                   </svg>
                 </div>
                 <div>
-                  <h2 className="text-lg sm:text-2xl font-bold">
+                  <h2 id="upload-modal-title" className="text-lg sm:text-2xl font-bold">
                     Upload Documents
                   </h2>
-                  <p className="text-blue-100 text-xs sm:text-sm">
+                  <p id="upload-modal-description" className="text-blue-100 text-xs sm:text-sm">
                     Drag & drop or browse files
                   </p>
                 </div>
