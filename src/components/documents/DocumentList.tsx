@@ -17,6 +17,7 @@ import { useTouchGestures, SwipeableCard } from '../ui/MobileInteractions';
 import { BulkOperationsPanel, BulkOperationsSummary } from '../ui/BulkOperationsPanel';
 import { AccessibleButton, ToggleButton } from '../ui/AccessibleButton';
 import { Trash2, Download, X } from 'lucide-react';
+import { useDocuments } from '../../context/DocumentContext';
 import {
   getUserDocuments,
   getDocuments,
@@ -83,27 +84,15 @@ const DocumentList: React.FC<DocumentListProps> = ({
   // Context menu state
   const { contextMenu, closeContextMenu, handleContextMenu, handleLongPress } = useContextMenu();
 
-  // Fetch documents using React Query - get ALL documents and filter client-side
+  // Use DocumentContext for optimized document fetching
   const {
-    data: documents,
+    documents,
     isLoading,
-    isError,
     error,
     refetch,
-  } = useQuery(
-    ['documents', currentUser?.uid], // Remove category from cache key since we fetch all documents
-    () => getDocuments(currentUser?.uid || ''), // Use getDocuments to fetch ALL documents
-    {
-      enabled: !!currentUser?.uid,
-      staleTime: 60000, // 1 minute
-      onSuccess: data => {
-        // Documents fetched successfully - no logging needed
-      },
-      onError: err => {
-        console.error('Error fetching documents:', err);
-      },
-    }
-  );
+  } = useDocuments();
+
+  const isError = !!error;
 
   // Removed excessive debug logging to reduce console spam
 
