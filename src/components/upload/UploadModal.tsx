@@ -16,6 +16,8 @@ const UploadModal: React.FC<UploadModalProps> = ({
 }) => {
   const focusTrapRef = useFocusTrap(isOpen);
 
+  console.log('📤 UploadModal render:', { isOpen });
+
   if (!isOpen) return null;
 
   return (
