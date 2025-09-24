@@ -7,14 +7,14 @@ import { getFunctions } from 'firebase/functions';
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
-  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY || "AIzaSyAXBPuFnMNl6UDUrz75h-KFk92pMTtEuis",
+  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN || "gpt1-77ce0.firebaseapp.com",
+  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID || "gpt1-77ce0",
   // Using the correct Firebase Storage bucket format
   storageBucket: 'gpt1-77ce0.firebasestorage.app',
-  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.REACT_APP_FIREBASE_APP_ID,
-  measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID,
+  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID || "887480132482",
+  appId: process.env.REACT_APP_FIREBASE_APP_ID || "1:887480132482:web:7f8d166d0d36d4f058e59b",
+  measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID || "G-XTCDJJGTD2",
 };
 
 // Initialize Firebase
@@ -23,15 +23,13 @@ const auth = getAuth();
 // Enhanced Firestore configuration to handle QUIC protocol errors
 const db = (FirestoreMod as any).initializeFirestore
   ? (FirestoreMod as any).initializeFirestore(app, {
-      // Force long polling to avoid QUIC/WebChannel issues
-      experimentalForceLongPolling: true,
+      // Use auto-detection for long polling to avoid QUIC/WebChannel issues
+      experimentalAutoDetectLongPolling: true,
       useFetchStreams: false,
       // Additional settings for better connection stability
       ignoreUndefinedProperties: true,
       // Reduce connection timeout issues
       maxIdleTime: 30000, // 30 seconds
-      // Additional QUIC protocol error prevention
-      experimentalAutoDetectLongPolling: true,
       // Force WebChannel transport for better compatibility
       experimentalForceOwningTab: false,
     })
