@@ -17,19 +17,21 @@ export {
 // Enhanced UI Components
 export {
   LoadingSpinner,
-  Skeleton,
-  CardSkeleton,
-  DocumentCardSkeleton,
-  ListSkeleton,
-  LoadingOverlay,
-  ProgressBar,
-  PulseLoader
+  LoadingSkeleton as Skeleton,
+  LoadingSkeleton as ListSkeleton,
+  LoadingDots,
+  LoadingProgress,
+  DashboardLoadingState,
+  DocumentListLoadingState,
+  SearchLoadingState,
+  UploadLoadingState,
+  AnalyticsLoadingState,
+  EmptyState
 } from './LoadingStates';
 
 export {
   ErrorState,
   NetworkError,
-  EmptyState,
   EmptyDocumentList,
   EmptySearchResults,
   FileUploadError,

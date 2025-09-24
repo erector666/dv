@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { useQuery } from 'react-query';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   FileText,
@@ -36,6 +37,7 @@ interface DashboardStats {
 const EnhancedDashboard: React.FC = () => {
   const { currentUser } = useAuth();
   const { preferences } = useUserPreferences();
+  const navigate = useNavigate();
 
   // Fetch documents
   const { 
@@ -145,11 +147,10 @@ const EnhancedDashboard: React.FC = () => {
         icon={<FileText className="w-12 h-12 text-gray-400" />}
         title="Welcome to AppVault!"
         description="Start by uploading your first document to see your dashboard come to life."
-        action={
-          <button className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors">
-            Upload Your First Document
-          </button>
-        }
+        action={{
+          label: "Upload Your First Document",
+          onClick: () => navigate('/upload')
+        }}
       />
     );
   }

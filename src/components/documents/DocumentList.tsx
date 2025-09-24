@@ -642,7 +642,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
   if (isLoading) {
     return (
       <div role="status" aria-label="Loading documents">
-        <ListSkeleton count={6} variant="document" />
+        <ListSkeleton rows={6} />
       </div>
     );
   }
