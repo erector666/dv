@@ -1,6 +1,7 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { BarChart3, TrendingUp, PieChart, Calendar, FileText } from 'lucide-react';
 import { Card } from '../ui';
+import { ToggleButton } from '../ui/AccessibleButton';
 
 interface AnalyticsWidgetProps {
   documents?: any[];
@@ -15,13 +16,15 @@ interface ChartData {
 }
 
 const AnalyticsWidget: React.FC<AnalyticsWidgetProps> = ({ documents = [], className }) => {
+  const [viewMode, setViewMode] = useState<'basic' | 'advanced'>('basic');
+
   // Memoized analytics data calculation - single pass through documents
   const analyticsData = useMemo(() => {
     const totalDocuments = documents.length;
-    const totalSize = documents.reduce((sum, doc) => sum + (doc.size || 0), 0);
+    const totalSize = documents.reduce((sum: number, doc: any) => sum + (doc.size || 0), 0);
     
     // Single pass to count all categories
-    const categoryCounts = documents.reduce((acc, doc) => {
+    const categoryCounts = documents.reduce((acc: Record<string, number>, doc: any) => {
       const category = doc.category || 'other';
       acc[category] = (acc[category] || 0) + 1;
       return acc;
@@ -67,7 +70,7 @@ const AnalyticsWidget: React.FC<AnalyticsWidgetProps> = ({ documents = [], class
     }).reverse();
 
     // Single pass to count uploads by day
-    const uploadCounts = documents.reduce((acc, doc) => {
+    const uploadCounts = documents.reduce((acc: Record<string, number>, doc: any) => {
       const uploadDate = doc.uploadedAt?.toDate?.() || new Date(doc.uploadedAt || 0);
       const dayKey = uploadDate.toDateString();
       acc[dayKey] = (acc[dayKey] || 0) + 1;
@@ -83,7 +86,7 @@ const AnalyticsWidget: React.FC<AnalyticsWidgetProps> = ({ documents = [], class
     const maxTrendValue = Math.max(...uploadTrend.map(d => d.value), 1);
 
     // File type distribution - optimized single pass
-    const typeCounts = documents.reduce((acc, doc) => {
+    const typeCounts = documents.reduce((acc: any, doc: any) => {
       const type = doc.type || '';
       if (type === 'application/pdf') {
         acc.pdf++;
@@ -146,8 +149,21 @@ const AnalyticsWidget: React.FC<AnalyticsWidgetProps> = ({ documents = [], class
               <BarChart3 className="w-5 h-5 text-blue-600" />
               <span>Document Analytics</span>
             </h3>
-            <div className="text-sm text-gray-500 dark:text-gray-400">
-              Overview
+            <div className="flex items-center space-x-2">
+              <ToggleButton
+                pressed={viewMode === 'basic'}
+                onPressedChange={() => setViewMode('basic')}
+                size="sm"
+              >
+                Basic
+              </ToggleButton>
+              <ToggleButton
+                pressed={viewMode === 'advanced'}
+                onPressedChange={() => setViewMode('advanced')}
+                size="sm"
+              >
+                Advanced
+              </ToggleButton>
             </div>
           </div>
 

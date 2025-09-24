@@ -1,276 +1,308 @@
 import React from 'react';
-import { motion } from 'framer-motion';
-import { clsx } from 'clsx';
+import { Card } from './Card';
+import { FileText, Search, Upload, BarChart3, Loader2 } from 'lucide-react';
 
-interface LoadingSpinnerProps {
+interface LoadingStateProps {
+  variant?: 'spinner' | 'skeleton' | 'pulse' | 'dots' | 'progress';
   size?: 'sm' | 'md' | 'lg' | 'xl';
-  color?: 'primary' | 'secondary' | 'white' | 'gray';
+  message?: string;
+  progress?: number; // 0-100 for progress variant
   className?: string;
-  'aria-label'?: string;
 }
 
-export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
+export const LoadingSpinner: React.FC<LoadingStateProps> = ({
   size = 'md',
-  color = 'primary',
-  className,
-  'aria-label': ariaLabel = 'Loading'
+  message,
+  className = '',
 }) => {
   const sizeClasses = {
     sm: 'h-4 w-4',
     md: 'h-6 w-6',
     lg: 'h-8 w-8',
-    xl: 'h-12 w-12'
-  };
-
-  const colorClasses = {
-    primary: 'border-primary-500',
-    secondary: 'border-secondary-500',
-    white: 'border-white',
-    gray: 'border-gray-500'
+    xl: 'h-12 w-12',
   };
 
   return (
-    <div
-      className={clsx(
-        'animate-spin rounded-full border-2 border-t-transparent',
-        sizeClasses[size],
-        colorClasses[color],
-        className
-      )}
-      role="status"
-      aria-label={ariaLabel}
-    />
-  );
-};
-
-interface SkeletonProps {
-  width?: string | number;
-  height?: string | number;
-  className?: string;
-  animate?: boolean;
-}
-
-export const Skeleton: React.FC<SkeletonProps> = ({
-  width,
-  height,
-  className,
-  animate = true
-}) => {
-  return (
-    <div
-      className={clsx(
-        'bg-gray-200 dark:bg-gray-700 rounded',
-        animate && 'animate-pulse',
-        className
-      )}
-      style={{ width, height }}
-      role="presentation"
-      aria-hidden="true"
-    />
-  );
-};
-
-export const CardSkeleton: React.FC<{ className?: string }> = ({ className }) => (
-  <div className={clsx('p-6 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700', className)}>
-    <div className="animate-pulse">
-      <div className="flex items-center space-x-4 mb-4">
-        <Skeleton width={48} height={48} className="rounded-full" />
-        <div className="flex-1 space-y-2">
-          <Skeleton height={16} className="w-3/4" />
-          <Skeleton height={12} className="w-1/2" />
-        </div>
-      </div>
-      <div className="space-y-3">
-        <Skeleton height={12} />
-        <Skeleton height={12} className="w-5/6" />
-        <Skeleton height={12} className="w-4/6" />
-      </div>
-      <div className="flex justify-between items-center mt-6">
-        <Skeleton width={80} height={32} className="rounded-lg" />
-        <Skeleton width={24} height={24} className="rounded" />
-      </div>
-    </div>
-  </div>
-);
-
-export const DocumentCardSkeleton: React.FC<{ className?: string }> = ({ className }) => (
-  <div className={clsx('p-6 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700', className)}>
-    <div className="animate-pulse">
-      {/* Document preview skeleton */}
-      <Skeleton height={120} className="w-full rounded-lg mb-4" />
-      
-      {/* Document info skeleton */}
-      <div className="space-y-3">
-        <Skeleton height={16} className="w-full" />
-        <div className="flex items-center space-x-2">
-          <Skeleton width={60} height={20} className="rounded-full" />
-          <Skeleton width={80} height={12} />
-        </div>
-        <div className="flex justify-between items-center">
-          <Skeleton width={100} height={12} />
-          <Skeleton width={60} height={12} />
-        </div>
-      </div>
-      
-      {/* Action buttons skeleton */}
-      <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-        <div className="flex space-x-2">
-          <Skeleton width={32} height={32} className="rounded-lg" />
-          <Skeleton width={32} height={32} className="rounded-lg" />
-          <Skeleton width={32} height={32} className="rounded-lg" />
-        </div>
-        <Skeleton width={24} height={24} className="rounded" />
-      </div>
-    </div>
-  </div>
-);
-
-interface ListSkeletonProps {
-  count?: number;
-  variant?: 'card' | 'document' | 'simple';
-  className?: string;
-}
-
-export const ListSkeleton: React.FC<ListSkeletonProps> = ({
-  count = 3,
-  variant = 'card',
-  className
-}) => {
-  const SkeletonComponent = variant === 'document' ? DocumentCardSkeleton : CardSkeleton;
-  
-  return (
-    <div className={clsx(
-      variant === 'card' || variant === 'document' 
-        ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
-        : 'space-y-4',
-      className
-    )}>
-      {Array(count).fill(0).map((_, i) => (
-        <SkeletonComponent key={i} />
-      ))}
-    </div>
-  );
-};
-
-interface LoadingOverlayProps {
-  isLoading: boolean;
-  message?: string;
-  children: React.ReactNode;
-  className?: string;
-}
-
-export const LoadingOverlay: React.FC<LoadingOverlayProps> = ({
-  isLoading,
-  message = 'Loading...',
-  children,
-  className
-}) => {
-  return (
-    <div className={clsx('relative', className)}>
-      {children}
-      {isLoading && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="absolute inset-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm flex items-center justify-center z-10 rounded-lg"
-        >
-          <div className="text-center">
-            <LoadingSpinner size="lg" className="mx-auto mb-4" />
-            <p className="text-gray-600 dark:text-gray-400 font-medium" role="status" aria-live="polite">
-              {message}
-            </p>
-          </div>
-        </motion.div>
+    <div className={`flex flex-col items-center justify-center ${className}`}>
+      <Loader2 className={`animate-spin text-blue-600 ${sizeClasses[size]}`} />
+      {message && (
+        <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">{message}</p>
       )}
     </div>
   );
 };
 
-interface ProgressBarProps {
-  progress: number;
-  label?: string;
-  showPercentage?: boolean;
-  color?: 'primary' | 'success' | 'warning' | 'danger';
-  size?: 'sm' | 'md' | 'lg';
-  className?: string;
-}
-
-export const ProgressBar: React.FC<ProgressBarProps> = ({
-  progress,
-  label,
-  showPercentage = true,
-  color = 'primary',
+export const LoadingDots: React.FC<LoadingStateProps> = ({
   size = 'md',
-  className
+  message,
+  className = '',
 }) => {
-  const sizeClasses = {
-    sm: 'h-1',
-    md: 'h-2',
-    lg: 'h-3'
+  const dotSizes = {
+    sm: 'w-1 h-1',
+    md: 'w-2 h-2',
+    lg: 'w-3 h-3',
+    xl: 'w-4 h-4',
   };
-
-  const colorClasses = {
-    primary: 'bg-primary-500',
-    success: 'bg-success-500',
-    warning: 'bg-warning-500',
-    danger: 'bg-danger-500'
-  };
-
-  const clampedProgress = Math.min(Math.max(progress, 0), 100);
 
   return (
-    <div className={clsx('w-full', className)}>
-      {(label || showPercentage) && (
-        <div className="flex justify-between items-center mb-2">
-          {label && (
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              {label}
-            </span>
-          )}
-          {showPercentage && (
-            <span className="text-sm text-gray-500 dark:text-gray-400">
-              {Math.round(clampedProgress)}%
-            </span>
-          )}
-        </div>
+    <div className={`flex flex-col items-center justify-center ${className}`}>
+      <div className="flex space-x-1">
+        {[0, 1, 2].map((i) => (
+          <div
+            key={i}
+            className={`${dotSizes[size]} bg-blue-600 rounded-full animate-pulse`}
+            style={{
+              animationDelay: `${i * 0.2}s`,
+              animationDuration: '1s',
+            }}
+          />
+        ))}
+      </div>
+      {message && (
+        <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">{message}</p>
       )}
-      <div className={clsx(
-        'w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden',
-        sizeClasses[size]
-      )}>
-        <motion.div
-          className={clsx('h-full rounded-full', colorClasses[color])}
-          initial={{ width: 0 }}
-          animate={{ width: `${clampedProgress}%` }}
-          transition={{ duration: 0.5, ease: 'easeOut' }}
-          role="progressbar"
-          aria-valuenow={clampedProgress}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-label={label || `${clampedProgress}% complete`}
+    </div>
+  );
+};
+
+export const LoadingProgress: React.FC<LoadingStateProps> = ({
+  progress = 0,
+  message,
+  className = '',
+}) => {
+  return (
+    <div className={`w-full ${className}`}>
+      <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-2">
+        <span>{message || 'Loading...'}</span>
+        <span>{Math.round(progress)}%</span>
+      </div>
+      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+        <div
+          className="bg-blue-600 h-2 rounded-full transition-all duration-300 ease-out"
+          style={{ width: `${Math.min(Math.max(progress, 0), 100)}%` }}
         />
       </div>
     </div>
   );
 };
 
-export const PulseLoader: React.FC<{ className?: string }> = ({ className }) => (
-  <div className={clsx('flex space-x-1', className)}>
-    {[0, 1, 2].map((i) => (
-      <motion.div
-        key={i}
-        className="w-2 h-2 bg-primary-500 rounded-full"
-        animate={{
-          scale: [1, 1.5, 1],
-          opacity: [0.7, 1, 0.7]
-        }}
-        transition={{
-          duration: 1.5,
-          repeat: Infinity,
-          delay: i * 0.2
-        }}
-      />
-    ))}
-  </div>
-);
+export const LoadingSkeleton: React.FC<{
+  className?: string;
+  rows?: number;
+  avatar?: boolean;
+}> = ({ className = '', rows = 3, avatar = false }) => {
+  return (
+    <div className={`animate-pulse ${className}`}>
+      {avatar && (
+        <div className="flex items-center space-x-4 mb-4">
+          <div className="w-12 h-12 bg-gray-300 dark:bg-gray-700 rounded-full" />
+          <div className="flex-1">
+            <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded w-3/4 mb-2" />
+            <div className="h-3 bg-gray-300 dark:bg-gray-700 rounded w-1/2" />
+          </div>
+        </div>
+      )}
+      <div className="space-y-3">
+        {Array.from({ length: rows }).map((_, i) => (
+          <div key={i} className="space-y-2">
+            <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded" />
+            <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded w-5/6" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// Specialized loading states for dashboard components
+
+export const DashboardLoadingState: React.FC<{ message?: string }> = ({
+  message = 'Loading dashboard...',
+}) => {
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
+      {/* Header Skeleton */}
+      <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-700 rounded-lg mb-8 p-6">
+        <div className="animate-pulse">
+          <div className="h-8 bg-white/20 rounded w-1/3 mb-2" />
+          <div className="h-4 bg-white/20 rounded w-1/4" />
+        </div>
+      </div>
+
+      {/* Stats Cards Skeleton */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Card key={i} variant="glass" className="p-4">
+            <div className="animate-pulse">
+              <div className="w-8 h-8 bg-gray-300 dark:bg-gray-700 rounded mb-3" />
+              <div className="h-6 bg-gray-300 dark:bg-gray-700 rounded w-16 mb-2" />
+              <div className="h-3 bg-gray-300 dark:bg-gray-700 rounded w-20" />
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      {/* Main Content Skeleton */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className="lg:col-span-1 space-y-6">
+          <Card variant="glass" className="p-6">
+            <LoadingSkeleton rows={4} />
+          </Card>
+          <Card variant="glass" className="p-6">
+            <LoadingSkeleton rows={3} />
+          </Card>
+        </div>
+        <div className="lg:col-span-3">
+          <Card variant="floating" className="p-6">
+            <LoadingSkeleton rows={8} />
+          </Card>
+        </div>
+      </div>
+
+      {/* Loading Message */}
+      <div className="fixed bottom-6 right-6">
+        <Card variant="floating" className="px-4 py-2">
+          <div className="flex items-center space-x-2">
+            <LoadingSpinner size="sm" />
+            <span className="text-sm text-gray-600 dark:text-gray-400">{message}</span>
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+};
+
+export const DocumentListLoadingState: React.FC<{ count?: number }> = ({ count = 6 }) => {
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+      {Array.from({ length: count }).map((_, i) => (
+        <Card key={i} variant="default" className="p-0 overflow-hidden">
+          <div className="animate-pulse">
+            {/* Thumbnail skeleton */}
+            <div className="aspect-square bg-gray-300 dark:bg-gray-700" />
+            
+            {/* Content skeleton */}
+            <div className="p-3">
+              <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded mb-2" />
+              <div className="h-3 bg-gray-300 dark:bg-gray-700 rounded w-16 mb-2" />
+              <div className="flex justify-between">
+                <div className="h-3 bg-gray-300 dark:bg-gray-700 rounded w-12" />
+                <div className="h-3 bg-gray-300 dark:bg-gray-700 rounded w-8" />
+              </div>
+            </div>
+          </div>
+        </Card>
+      ))}
+    </div>
+  );
+};
+
+export const SearchLoadingState: React.FC = () => {
+  return (
+    <div className="flex flex-col items-center justify-center py-12">
+      <div className="relative mb-4">
+        <Search className="h-12 w-12 text-gray-400 animate-pulse" />
+        <div className="absolute -top-1 -right-1">
+          <LoadingSpinner size="sm" />
+        </div>
+      </div>
+      <p className="text-gray-600 dark:text-gray-400 mb-2">Searching documents...</p>
+      <p className="text-sm text-gray-500 dark:text-gray-500">This may take a moment</p>
+    </div>
+  );
+};
+
+export const UploadLoadingState: React.FC<{ progress?: number; fileName?: string }> = ({
+  progress = 0,
+  fileName,
+}) => {
+  return (
+    <Card variant="glass" className="p-6">
+      <div className="flex items-center space-x-4 mb-4">
+        <div className="relative">
+          <Upload className="h-8 w-8 text-blue-600" />
+          <div className="absolute -top-1 -right-1">
+            <LoadingSpinner size="sm" />
+          </div>
+        </div>
+        <div className="flex-1">
+          <h3 className="font-medium text-gray-900 dark:text-white">
+            Uploading {fileName ? `"${fileName}"` : 'file'}...
+          </h3>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Processing and analyzing content
+          </p>
+        </div>
+      </div>
+      <LoadingProgress progress={progress} />
+    </Card>
+  );
+};
+
+export const AnalyticsLoadingState: React.FC = () => {
+  return (
+    <Card variant="floating" className="p-6">
+      <div className="flex items-center space-x-3 mb-6">
+        <BarChart3 className="h-6 w-6 text-blue-600 animate-pulse" />
+        <div className="h-6 bg-gray-300 dark:bg-gray-700 rounded w-32 animate-pulse" />
+      </div>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="space-y-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="animate-pulse">
+              <div className="h-16 bg-gray-200 dark:bg-gray-700 rounded-lg" />
+            </div>
+          ))}
+        </div>
+        
+        <div className="space-y-6">
+          <div className="animate-pulse">
+            <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded w-24 mb-3" />
+            <div className="space-y-2">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex items-center space-x-3">
+                  <div className="w-3 h-3 bg-gray-300 dark:bg-gray-700 rounded-full" />
+                  <div className="flex-1 h-3 bg-gray-300 dark:bg-gray-700 rounded" />
+                  <div className="w-12 h-3 bg-gray-300 dark:bg-gray-700 rounded" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+};
+
+export const EmptyState: React.FC<{
+  icon?: React.ReactNode;
+  title: string;
+  description: string;
+  action?: {
+    label: string;
+    onClick: () => void;
+  };
+}> = ({ icon, title, description, action }) => {
+  return (
+    <div className="text-center py-12">
+      <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-gray-100 dark:bg-gray-800 mb-6">
+        {icon || <FileText className="h-8 w-8 text-gray-400" />}
+      </div>
+      <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+        {title}
+      </h3>
+      <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-sm mx-auto">
+        {description}
+      </p>
+      {action && (
+        <button
+          onClick={action.onClick}
+          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+        >
+          {action.label}
+        </button>
+      )}
+    </div>
+  );
+};

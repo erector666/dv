@@ -17,7 +17,8 @@ const PerformanceDashboard: React.FC<PerformanceDashboardProps> = ({ className }
     // Only update metrics when dashboard is visible to reduce overhead
     if (!isVisible) return;
 
-    // Use throttled updates to reduce performance impact
+    let animationFrameId: number;
+    let timeoutId: NodeJS.Timeout;
     let lastUpdate = 0;
     const updateInterval = 2000; // Update every 2 seconds when visible
     
@@ -26,16 +27,37 @@ const PerformanceDashboard: React.FC<PerformanceDashboardProps> = ({ className }
       
       const now = Date.now();
       if (now - lastUpdate >= updateInterval) {
-        setMetrics(performanceMonitor.getPerformanceSummary());
+        const summary = performanceMonitor.getPerformanceSummary();
+        if (summary) {
+          setMetrics(summary);
+        }
         lastUpdate = now;
       }
-      requestAnimationFrame(updateMetrics);
+      
+      // Use timeout instead of requestAnimationFrame for less frequent updates
+      timeoutId = setTimeout(() => {
+        if (isVisible) {
+          animationFrameId = requestAnimationFrame(updateMetrics);
+        }
+      }, 1000); // Check every second
     };
     
-    const animationFrameId = requestAnimationFrame(updateMetrics);
+    // Initial update
+    const summary = performanceMonitor.getPerformanceSummary();
+    if (summary) {
+      setMetrics(summary);
+    }
+    
+    // Start the update loop
+    animationFrameId = requestAnimationFrame(updateMetrics);
 
     return () => {
-      cancelAnimationFrame(animationFrameId);
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
     };
   }, [isVisible]); // Re-run when visibility changes
 

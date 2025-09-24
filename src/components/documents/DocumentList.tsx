@@ -8,11 +8,15 @@ import {
   useToast,
   createToastHelpers
 } from '../ui';
-
 import { useQuery } from 'react-query';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { useSearch } from '../../context/SearchContext';
+import { useBulkOperations } from '../../hooks/useBulkOperations';
+import { useTouchGestures, SwipeableCard } from '../ui/MobileInteractions';
+import { BulkOperationsPanel, BulkOperationsSummary } from '../ui/BulkOperationsPanel';
+import { AccessibleButton, ToggleButton } from '../ui/AccessibleButton';
+import { Trash2, Download, X } from 'lucide-react';
 import {
   getUserDocuments,
   getDocuments,
@@ -51,13 +55,25 @@ const DocumentList: React.FC<DocumentListProps> = ({
   const [isViewerModalOpen, setIsViewerModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Batch operations state
-  const [selectedDocuments, setSelectedDocuments] = useState<Set<string>>(
-    new Set()
-  );
+  // Enhanced bulk operations
+  const {
+    selectedItems,
+    selectedCount,
+    toggleSelection,
+    selectAll,
+    clearSelection,
+    selectByFilter,
+    operations,
+    operationsSummary,
+    isProcessing,
+    bulkDelete,
+    bulkUpdate,
+    bulkDownload,
+    clearOperations,
+  } = useBulkOperations();
+
   const [isBatchMode, setIsBatchMode] = useState(false);
-  const [isBatchDeleteModalOpen, setIsBatchDeleteModalOpen] = useState(false);
-  const [isBatchDeleting, setIsBatchDeleting] = useState(false);
+  const [showBulkPanel, setShowBulkPanel] = useState(false);
   const [isReprocessing, setIsReprocessing] = useState(false);
   const [isReprocessModalOpen, setIsReprocessModalOpen] = useState(false);
   const [reprocessTarget, setReprocessTarget] = useState<
@@ -332,109 +348,65 @@ const DocumentList: React.FC<DocumentListProps> = ({
     }
   };
 
-  // Batch operation handlers
+  // Enhanced batch operation handlers
   const toggleBatchMode = () => {
     setIsBatchMode(!isBatchMode);
-    setSelectedDocuments(new Set());
+    clearSelection();
+    setShowBulkPanel(false);
   };
 
-  const toggleDocumentSelection = (documentId: string) => {
-    const newSelection = new Set(selectedDocuments);
-    if (newSelection.has(documentId)) {
-      newSelection.delete(documentId);
-    } else {
-      newSelection.add(documentId);
-    }
-    setSelectedDocuments(newSelection);
-  };
-
-  const selectAllDocuments = () => {
+  const handleSelectAll = () => {
     if (filteredDocuments) {
-      const allIds = new Set(
-        filteredDocuments
-          .map(doc => doc.firestoreId || doc.id)
-          .filter(id => id !== undefined) as string[]
-      );
-      setSelectedDocuments(allIds);
+      selectAll(filteredDocuments);
     }
   };
 
-  const deselectAllDocuments = () => {
-    setSelectedDocuments(new Set());
+  const handleBulkDelete = async () => {
+    if (selectedCount === 0) return;
+    
+    const documentsToDelete = filteredDocuments?.filter(doc => {
+      const docId = doc.firestoreId || doc.id;
+      return docId && selectedItems.has(docId);
+    }) || [];
+
+    try {
+      await bulkDelete(documentsToDelete);
+      refetch();
+    } catch (error) {
+      console.error('Bulk delete failed:', error);
+    }
   };
 
-  const handleBatchDelete = () => {
-    if (selectedDocuments.size === 0) return;
-    setIsBatchDeleteModalOpen(true);
-  };
-
-  // Bulk download functionality
   const handleBulkDownload = async () => {
-    if (selectedDocuments.size === 0) return;
+    if (selectedCount === 0) return;
     
     const documentsToDownload = filteredDocuments?.filter(doc => {
       const docId = doc.firestoreId || doc.id;
-      return docId && selectedDocuments.has(docId);
+      return docId && selectedItems.has(docId);
     }) || [];
 
-    if (documentsToDownload.length === 0) return;
-
     try {
-      // For now, download documents individually
-      // In a real implementation, you might want to create a ZIP file server-side
-      for (const document of documentsToDownload) {
-        const link = window.document.createElement('a');
-        link.href = document.url;
-        link.download = document.name;
-        link.target = '_blank';
-        window.document.body.appendChild(link);
-        link.click();
-        window.document.body.removeChild(link);
-        
-        // Small delay between downloads to avoid overwhelming the browser
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
+      await bulkDownload(documentsToDownload);
     } catch (error) {
-      console.error('Error downloading documents:', error);
-      alert('Error downloading documents. Please try again.');
+      console.error('Bulk download failed:', error);
     }
   };
 
-  const confirmBatchDelete = async () => {
-    if (selectedDocuments.size === 0) return;
-
-    setIsBatchDeleting(true);
-    const documentsToDelete =
-      filteredDocuments?.filter(doc => {
-        const docId = doc.firestoreId || doc.id;
-        return docId && selectedDocuments.has(docId);
-      }) || [];
-
-    try {
-      // Delete documents in parallel for better performance
-      const deletePromises = documentsToDelete.map(async doc => {
-        await deleteDocument(doc.id || doc.name, doc.firestoreId!);
-      });
-
-      await Promise.all(deletePromises);
-
-      refetch();
-      setSelectedDocuments(new Set());
-      setIsBatchMode(false);
-      setIsBatchDeleteModalOpen(false);
-    } catch (error) {
-      console.error('Batch deletion failed:', error);
-      alert(
-        `Failed to delete some documents: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
-    } finally {
-      setIsBatchDeleting(false);
-    }
+  const handleBulkReprocess = async () => {
+    // TODO: Implement bulk reprocess
+    console.log('Bulk reprocess not yet implemented');
   };
 
-  const cancelBatchDelete = () => {
-    setIsBatchDeleteModalOpen(false);
+  const handleBulkCategorize = async () => {
+    // TODO: Implement bulk categorize
+    console.log('Bulk categorize not yet implemented');
   };
+
+  const handleBulkTag = async () => {
+    // TODO: Implement bulk tag
+    console.log('Bulk tag not yet implemented');
+  };
+
 
   const handleReprocessAllDocuments = async () => {
     if (!documents || documents.length === 0) {
@@ -448,7 +420,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
   };
 
   const handleReprocessSelectedDocuments = () => {
-    if (selectedDocuments.size === 0) {
+    if (selectedCount === 0) {
       alert('Please select at least one document to reprocess');
       return;
     }
@@ -491,7 +463,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
       if (reprocessTarget?.type === 'selected') {
         const selectedDocs = (documents || []).filter(doc => {
           const id = doc.firestoreId || doc.id;
-          return id && selectedDocuments.has(id);
+          return id && selectedItems.has(id);
         });
         documentUrls = selectedDocs
           .map(doc => doc.url)
@@ -724,175 +696,68 @@ const DocumentList: React.FC<DocumentListProps> = ({
         </div>
       )}
 
-      {/* Batch Operations Toolbar */}
-      <div className="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-        <div className="p-4">
-          {/* Mobile-responsive batch mode header */}
-          <div className="space-y-4">
-            {/* Top row: Batch mode toggle and selection count */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                <button
-                  onClick={toggleBatchMode}
-                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                    isBatchMode
-                      ? 'bg-blue-600 text-white hover:bg-blue-700'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
-                  }`}
-                >
-                  {isBatchMode ? '✅ Exit Batch Mode' : '📋 Batch Mode'}
-                </button>
-
-                {isBatchMode && (
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    {selectedDocuments.size} of {filteredDocuments?.length || 0}{' '}
-                    selected
-                  </div>
-                )}
-              </div>
-
-              {/* Enhanced Batch action buttons - responsive layout */}
-              {isBatchMode && selectedDocuments.size > 0 && (
-                <div className="space-y-3">
-                  {/* Primary Actions Row */}
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    <button
-                      onClick={handleBulkDownload}
-                      disabled={selectedDocuments.size === 0}
-                      className="px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center space-x-2 text-sm sm:text-base"
-                    >
-                      <svg
-                        className="w-4 h-4 flex-shrink-0"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                        />
-                      </svg>
-                      <span className="hidden sm:inline">Download ({selectedDocuments.size})</span>
-                      <span className="sm:hidden">Download</span>
-                    </button>
-                    
-                    <button
-                      onClick={handleReprocessSelectedDocuments}
-                    disabled={selectedDocuments.size === 0 || isReprocessing}
-                    className="px-3 sm:px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center space-x-2 text-sm sm:text-base"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="w-4 h-4 flex-shrink-0"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <polyline points="23 4 23 10 17 10"></polyline>
-                      <polyline points="1 20 1 14 7 14"></polyline>
-                      <path d="M3.51 9a9 9 0 0114.13-3.36L23 10"></path>
-                      <path d="M20.49 15a9 9 0 01-14.13 3.36L1 14"></path>
-                    </svg>
-                    <span className="hidden sm:inline">Reprocess Selected ({selectedDocuments.size})</span>
-                    <span className="sm:hidden">Reprocess ({selectedDocuments.size})</span>
-                  </button>
-                  <button
-                    onClick={handleBatchDelete}
-                    disabled={selectedDocuments.size === 0}
-                    className="px-3 sm:px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center space-x-2 text-sm sm:text-base"
-                  >
-                    <svg
-                      className="w-4 h-4 flex-shrink-0"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1 1h-4a1 1 0 00-1 1v3M4 7h16"
-                      />
-                    </svg>
-                    <span className="hidden sm:inline">Delete ({selectedDocuments.size})</span>
-                    <span className="sm:hidden">Delete ({selectedDocuments.size})</span>
-                  </button>
-                  </div>
-                  
-                  {/* Secondary Actions Row - Category & Tag Management */}
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    <button
-                      onClick={() => {/* TODO: Implement bulk category assignment */}}
-                      disabled={selectedDocuments.size === 0}
-                      className="px-3 sm:px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center space-x-2 text-sm sm:text-base"
-                    >
-                      <svg
-                        className="w-4 h-4 flex-shrink-0"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"
-                        />
-                      </svg>
-                      <span className="hidden sm:inline">Assign Category</span>
-                      <span className="sm:hidden">Category</span>
-                    </button>
-                    
-                    <button
-                      onClick={() => {/* TODO: Implement bulk tag management */}}
-                      disabled={selectedDocuments.size === 0}
-                      className="px-3 sm:px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center space-x-2 text-sm sm:text-base"
-                    >
-                      <svg
-                        className="w-4 h-4 flex-shrink-0"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"
-                        />
-                      </svg>
-                      <span className="hidden sm:inline">Manage Tags</span>
-                      <span className="sm:hidden">Tags</span>
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Bottom row: Select All / Deselect All buttons - only show when in batch mode */}
-            {isBatchMode && (
-              <div className="flex flex-col sm:flex-row gap-2">
-                <button
-                  onClick={selectAllDocuments}
-                  className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-                >
-                  Select All
-                </button>
-                <button
-                  onClick={deselectAllDocuments}
-                  className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-                >
-                  Deselect All
-                </button>
-              </div>
-            )}
+      {/* Enhanced Bulk Operations */}
+      {(isBatchMode || selectedCount > 0 || operations.length > 0) && (
+        <>
+          {/* Desktop Bulk Operations Panel */}
+          <div className="hidden md:block mb-6">
+            <BulkOperationsPanel
+              selectedCount={selectedCount}
+              operations={operations}
+              operationsSummary={operationsSummary}
+              onBulkDelete={handleBulkDelete}
+              onBulkDownload={handleBulkDownload}
+              onBulkReprocess={handleBulkReprocess}
+              onBulkCategorize={handleBulkCategorize}
+              onBulkTag={handleBulkTag}
+              onClearOperations={clearOperations}
+              onClearSelection={clearSelection}
+              isProcessing={isProcessing}
+            />
           </div>
-        </div>
+
+          {/* Mobile Bulk Operations Summary */}
+          <div className="md:hidden">
+            <BulkOperationsSummary
+              selectedCount={selectedCount}
+              onShowPanel={() => setShowBulkPanel(true)}
+            />
+          </div>
+        </>
+      )}
+
+      {/* Simple Batch Mode Toggle */}
+      <div className="mb-4 flex items-center justify-between">
+        <ToggleButton
+          pressed={isBatchMode}
+          onPressedChange={toggleBatchMode}
+          pressedVariant="primary"
+          unpressedVariant="secondary"
+          ariaLabel={isBatchMode ? 'Exit batch mode' : 'Enter batch mode'}
+        >
+          {isBatchMode ? 'Exit Batch Mode' : 'Batch Mode'}
+        </ToggleButton>
+
+        {isBatchMode && (
+          <div className="flex items-center space-x-2">
+            <AccessibleButton
+              variant="ghost"
+              size="sm"
+              onClick={handleSelectAll}
+              disabled={!filteredDocuments?.length}
+            >
+              Select All
+            </AccessibleButton>
+            <AccessibleButton
+              variant="ghost"
+              size="sm"
+              onClick={clearSelection}
+              disabled={selectedCount === 0}
+            >
+              Clear
+            </AccessibleButton>
+          </div>
+        )}
       </div>
 
 
@@ -904,20 +769,20 @@ const DocumentList: React.FC<DocumentListProps> = ({
           // Document rendering
 
           const docId = document.firestoreId || document.id;
-          const isSelected = docId ? selectedDocuments.has(docId) : false;
+          const isSelected = docId ? selectedItems.has(docId) : false;
 
-          return (
-          <div
-            key={documentKey}
-            className={`bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 ease-out cursor-pointer group relative overflow-hidden ${
-              isBatchMode && isSelected
-                ? 'ring-2 ring-blue-500 shadow-lg'
-                : 'hover:shadow-lg'
-            }`}
+          const documentCard = (
+            <div
+              key={documentKey}
+              className={`bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 ease-out cursor-pointer group relative overflow-hidden ${
+                isBatchMode && isSelected
+                  ? 'ring-2 ring-blue-500 shadow-lg'
+                  : 'hover:shadow-lg'
+              }`}
               onClick={e => {
                 if (isBatchMode && docId) {
                   e.stopPropagation();
-                  toggleDocumentSelection(docId);
+                  toggleSelection(docId);
                 } else {
                   // Open document viewer when card is clicked (non-batch mode)
                   handleDocumentClick(document);
@@ -937,7 +802,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
                       onChange={e => {
                         e.stopPropagation();
                         if (docId) {
-                          toggleDocumentSelection(docId);
+                          toggleSelection(docId);
                         }
                       }}
                       className="w-4 h-4 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 focus:ring-2"
@@ -1072,6 +937,28 @@ const DocumentList: React.FC<DocumentListProps> = ({
               </div>
             </div>
           );
+
+          // Wrap with SwipeableCard for mobile interactions
+          return (
+            <SwipeableCard
+              key={documentKey}
+              leftAction={{
+                icon: <Trash2 className="w-5 h-5" />,
+                label: 'Delete',
+                color: 'bg-red-500',
+                action: () => handleDeleteClick({ stopPropagation: () => {} } as React.MouseEvent, document),
+              }}
+              rightAction={{
+                icon: <Download className="w-5 h-5" />,
+                label: 'Download',
+                color: 'bg-blue-500',
+                action: () => handleDownloadDocument(document),
+              }}
+              disabled={isBatchMode}
+            >
+              {documentCard}
+            </SwipeableCard>
+          );
         })}
       </div>
 
@@ -1087,7 +974,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
             <p className="text-gray-600 dark:text-gray-400 mb-6">
               {reprocessTarget.type === 'single'
                 ? `Reprocess "${reprocessTarget.document?.name}" with enhanced AI?`
-                : `Reprocess ${selectedDocuments.size} selected documents with enhanced AI?`}
+                : `Reprocess ${selectedCount} selected documents with enhanced AI?`}
             </p>
             <div className="flex justify-end space-x-3">
               <button
@@ -1108,32 +995,39 @@ const DocumentList: React.FC<DocumentListProps> = ({
         </div>
       )}
 
-      {/* Batch Delete Confirmation Modal */}
-      {isBatchDeleteModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-lg font-semibold mb-4">Delete Documents</h2>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
-              Are you sure you want to delete {selectedDocuments.size} selected documents? This action cannot be undone.
-            </p>
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={() => setIsBatchDeleteModalOpen(false)}
-                className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmBatchDelete}
-                disabled={isBatchDeleting}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
-              >
-                {isBatchDeleting ? 'Deleting...' : (
-                  selectedDocuments.size === 1
-                    ? 'Delete Document'
-                    : `Delete ${selectedDocuments.size} Documents`
-                )}
-              </button>
+      {/* Mobile Bulk Operations Panel */}
+      {showBulkPanel && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end justify-center z-50 md:hidden">
+          <div className="bg-white dark:bg-gray-800 rounded-t-lg w-full max-h-[80vh] overflow-y-auto">
+            <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Bulk Operations
+                </h3>
+                <AccessibleButton
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowBulkPanel(false)}
+                  icon={<X className="w-5 h-5" />}
+                  ariaLabel="Close panel"
+                />
+              </div>
+            </div>
+            <div className="p-0">
+              <BulkOperationsPanel
+                selectedCount={selectedCount}
+                operations={operations}
+                operationsSummary={operationsSummary}
+                onBulkDelete={handleBulkDelete}
+                onBulkDownload={handleBulkDownload}
+                onBulkReprocess={handleBulkReprocess}
+                onBulkCategorize={handleBulkCategorize}
+                onBulkTag={handleBulkTag}
+                onClearOperations={clearOperations}
+                onClearSelection={clearSelection}
+                isProcessing={isProcessing}
+                className="border-0 shadow-none"
+              />
             </div>
           </div>
         </div>

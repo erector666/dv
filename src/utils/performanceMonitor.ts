@@ -40,15 +40,33 @@ class PerformanceMonitor {
 
     this.metrics.push(metric);
 
-    // Log slow renders (>16ms for 60fps)
-    if (renderTime > 16) {
+    // Log slow renders (>16ms for 60fps) - throttled to prevent spam
+    if (renderTime > 16 && this.shouldLogSlowRender(componentName)) {
       console.warn(`🐌 Slow render detected: ${componentName} took ${renderTime.toFixed(2)}ms`);
     }
 
-    // Keep only last 100 metrics
-    if (this.metrics.length > 100) {
-      this.metrics = this.metrics.slice(-100);
+    // Keep only last 50 metrics to reduce memory usage
+    if (this.metrics.length > 50) {
+      this.metrics = this.metrics.slice(-50);
     }
+
+    // Clear cached summary to force recalculation
+    this._cachedSummary = null;
+  }
+
+  private lastSlowRenderLog: Map<string, number> = new Map();
+  
+  private shouldLogSlowRender(componentName: string): boolean {
+    const now = Date.now();
+    const lastLog = this.lastSlowRenderLog.get(componentName) || 0;
+    
+    // Only log once every 5 seconds per component
+    if (now - lastLog > 5000) {
+      this.lastSlowRenderLog.set(componentName, now);
+      return true;
+    }
+    
+    return false;
   }
 
   /**
@@ -79,10 +97,13 @@ class PerformanceMonitor {
         console.warn(`🐌 Slow function detected: ${functionName} took ${executionTime.toFixed(2)}ms`);
       }
 
-      // Keep only last 100 function metrics
-      if (this.functionMetrics.length > 100) {
-        this.functionMetrics = this.functionMetrics.slice(-100);
+      // Keep only last 50 function metrics to reduce memory usage
+      if (this.functionMetrics.length > 50) {
+        this.functionMetrics = this.functionMetrics.slice(-50);
       }
+
+      // Clear cached summary to force recalculation
+      this._cachedSummary = null;
 
       return result;
     }) as T;
@@ -165,8 +186,18 @@ class PerformanceMonitor {
   clearMetrics() {
     this.metrics = [];
     this.functionMetrics = [];
+    this.lastSlowRenderLog.clear();
     this._cachedSummary = null;
     this._lastSummaryUpdate = 0;
+  }
+
+  /**
+   * Cleanup method to prevent memory leaks
+   */
+  cleanup() {
+    this.clearMetrics();
+    // Clear any remaining references
+    this.lastSlowRenderLog = new Map();
   }
 
   /**
