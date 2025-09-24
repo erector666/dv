@@ -32,10 +32,7 @@ export const UploadModalProvider: React.FC<UploadModalProviderProps> = ({
   const queryClient = useQueryClient();
   const { currentUser } = useAuth();
 
-  const openModal = () => {
-    console.log('🔄 Opening upload modal...', { isOpen });
-    setIsOpen(true);
-  };
+  const openModal = () => setIsOpen(true);
   const closeModal = () => setIsOpen(false);
 
   const handleUploadComplete = () => {
