@@ -14,6 +14,7 @@ import { SearchProvider } from './context/SearchContext';
 // Components
 import ErrorBoundary from './components/ErrorBoundary';
 import PerformanceDashboard from './components/dev/PerformanceDashboard';
+import OfflineIndicator from './components/ui/OfflineIndicator';
 
 // Routes
 import AppRoutes from './routes';
@@ -149,6 +150,7 @@ function App() {
                 <SearchProvider>
                   <RouterProvider router={router} />
                   <PerformanceDashboard />
+                  <OfflineIndicator position="bottom-left" />
                 </SearchProvider>
               </UploadModalProvider>
             </AuthProvider>
