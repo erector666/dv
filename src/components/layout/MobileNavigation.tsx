@@ -6,11 +6,11 @@ import {
   Search, 
   Upload, 
   FolderOpen, 
-  Settings,
   User
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useUploadModal } from '../../context/UploadModalContext';
+import { useDocuments } from '../../context/DocumentContext';
 
 interface NavigationItem {
   id: string;
@@ -24,6 +24,7 @@ interface NavigationItem {
 const MobileNavigation: React.FC = () => {
   const location = useLocation();
   const { openModal } = useUploadModal();
+  const { stats } = useDocuments();
 
   const navigationItems: NavigationItem[] = [
     {
@@ -42,13 +43,15 @@ const MobileNavigation: React.FC = () => {
       id: 'upload',
       label: 'Upload',
       icon: Upload,
-      action: openModal
+      action: openModal,
+      badge: stats.processingDocuments > 0 ? stats.processingDocuments : undefined
     },
     {
       id: 'documents',
       label: 'Documents',
       icon: FolderOpen,
-      path: '/category/all'
+      path: '/category/all',
+      badge: stats.totalDocuments > 0 ? stats.totalDocuments : undefined
     },
     {
       id: 'profile',

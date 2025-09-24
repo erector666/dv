@@ -8,6 +8,7 @@ import './App.css';
 import { ThemeProvider } from './context/ThemeContext';
 import { LanguageProvider } from './context/LanguageContext';
 import { AuthProvider } from './context/AuthContext';
+import { DocumentProvider } from './context/DocumentContext';
 import { UploadModalProvider } from './context/UploadModalContext';
 import { SearchProvider } from './context/SearchContext';
 import { ToastProvider } from './components/ui/FeedbackSystem';
@@ -148,14 +149,16 @@ function App() {
           <ThemeProvider>
             <LanguageProvider>
               <AuthProvider>
-                <ToastProvider>
-                  <UploadModalProvider>
-                    <SearchProvider>
-                      <RouterProvider router={router} />
-                      <PerformanceDashboard />
-                    </SearchProvider>
-                  </UploadModalProvider>
-                </ToastProvider>
+                <DocumentProvider>
+                  <ToastProvider>
+                    <UploadModalProvider>
+                      <SearchProvider>
+                        <RouterProvider router={router} />
+                        <PerformanceDashboard />
+                      </SearchProvider>
+                    </UploadModalProvider>
+                  </ToastProvider>
+                </DocumentProvider>
               </AuthProvider>
             </LanguageProvider>
           </ThemeProvider>

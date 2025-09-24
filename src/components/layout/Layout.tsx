@@ -1,15 +1,14 @@
 import React, { useState, ReactNode } from 'react';
 import { Outlet } from 'react-router-dom';
-import { useQuery } from 'react-query';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import MobileNavigation from './MobileNavigation';
 import ChatBot from '../chat/ChatBot';
 import { Button } from '../ui/Button';
 import { useAuth } from '../../context/AuthContext';
-import { getUserDocuments } from '../../services/documentService';
-import { useSidebarSwipe } from '../../hooks/useSidebarSwipe';
-import { useSimpleSwipe } from '../../hooks/useSimpleSwipe';
+import { useDocuments } from '../../context/DocumentContext';
+import { useSwipeGestures } from '../../hooks/useSwipeGestures';
+import { useFocusManagement } from '../../hooks/useFocusManagement';
 import { MessageCircle } from 'lucide-react';
 
 interface LayoutProps {
@@ -19,19 +18,8 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const [showSwipeHint, setShowSwipeHint] = useState(false);
   const { currentUser } = useAuth();
-
-  // Fetch user's documents for chatbot context
-  const { data: documents = [] } = useQuery(
-    ['documents', currentUser?.uid],
-    () => getUserDocuments(currentUser?.uid || ''),
-    {
-      enabled: !!currentUser?.uid,
-      staleTime: 5 * 60 * 1000, // 5 minutes
-      retry: 1,
-    }
-  );
+  const { documents } = useDocuments();
 
   // Convert documents to the format expected by ChatBot
   const recentDocuments = documents
@@ -66,18 +54,17 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     setIsChatOpen(!isChatOpen);
   };
 
-  // Enable swipe gestures for sidebar (using both approaches for testing)
-  useSidebarSwipe({
-    onSwipeOpen: openMobileSidebar,
-    onSwipeClose: closeMobileSidebar,
+  // Focus management for mobile sidebar
+  const { containerRef } = useFocusManagement({
     isOpen: isMobileSidebarOpen,
-    edgeThreshold: 50, // 50px from left edge to trigger swipe (more lenient)
-    minSwipeDistance: 60, // Minimum swipe distance (reduced for easier triggering)
-    maxSwipeTime: 800, // Maximum time for swipe gesture (increased)
+    onClose: closeMobileSidebar,
+    trapFocus: true,
+    restoreFocus: true,
+    autoFocus: true
   });
 
-  // Simple swipe detection as backup
-  useSimpleSwipe({
+  // Enable unified swipe gestures for sidebar
+  useSwipeGestures({
     onSwipeRight: () => {
       if (!isMobileSidebarOpen) {
         openMobileSidebar();
@@ -88,6 +75,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         closeMobileSidebar();
       }
     },
+    edgeThreshold: 40,
+    minSwipeDistance: 60,
+    maxSwipeTime: 800,
+    edgeOnly: false, // Allow swipes from anywhere for closing
+    isEnabled: window.innerWidth < 768, // Only on mobile
+    preventDefaultOnSwipe: true
   });
 
   const handleChatAction = (action: string, data?: any) => {
@@ -168,8 +161,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-      {/* Swipe Hint for Mobile - only show when sidebar is closed */}
-      {!isMobileSidebarOpen && (
+      {/* Swipe Hint for Mobile - only show when sidebar is closed and no documents */}
+      {!isMobileSidebarOpen && documents.length === 0 && (
         <div className="md:hidden fixed left-0 top-1/2 transform -translate-y-1/2 z-30 pointer-events-none">
           <div className="w-1 h-12 bg-gradient-to-b from-transparent via-primary-500/30 to-transparent rounded-r-full animate-pulse"></div>
         </div>
@@ -186,8 +179,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           <div
             className="fixed inset-0 bg-gray-900 bg-opacity-50 z-40"
             onClick={closeMobileSidebar}
+            aria-hidden="true"
           ></div>
-          <Sidebar isMobile onClose={closeMobileSidebar} />
+          <div ref={containerRef as React.RefObject<HTMLDivElement>}>
+            <Sidebar isMobile onClose={closeMobileSidebar} />
+          </div>
         </div>
       )}
 
